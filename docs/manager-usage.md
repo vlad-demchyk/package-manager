@@ -14,12 +14,21 @@ Il Package Manager offre due modalità di utilizzo:
 ```bash
 # Windows
 package-manager.bat
+# O con scorciatoie:
+packman.bat
+pm.bat
 
 # Unix/Linux/macOS
 ./package-manager.sh
+# O con scorciatoie:
+./packman.sh
+./pm.sh
 
 # O direttamente
 node package-manager.js
+# O con scorciatoie:
+node packman.js
+node pm.js
 ```
 
 ### Menu Principale
@@ -95,7 +104,21 @@ Continua? (y/N):
 
 ### Sintassi Generale
 ```bash
+# Forma completa
 node package-manager.js <comando> [opzioni] [modalità]
+
+# Con scorciatoie
+node packman.js <comando> [opzioni] [modalità]
+node pm.js <comando> [opzioni] [modalità]
+
+# Con wrapper cross-platform
+package-manager.bat <comando> [opzioni] [modalità]
+packman.bat <comando> [opzioni] [modalità]
+pm.bat <comando> [opzioni] [modalità]
+
+./package-manager.sh <comando> [opzioni] [modalità]
+./packman.sh <comando> [opzioni] [modalità]
+./pm.sh <comando> [opzioni] [modalità]
 ```
 
 ### Comandi Disponibili
@@ -104,19 +127,36 @@ node package-manager.js <comando> [opzioni] [modalità]
 ```bash
 # Installa per tutte le web parts (modalità normale)
 node package-manager.js install
+# O con scorciatoie:
+node packman.js install
+node pm.js install
 
 # Installa per un singolo componente
 node package-manager.js install --single c106-header
+# O con scorciatoie:
+node packman.js install --single c106-header
+node pm.js install --single c106-header
 
 # Installa per tutte eccetto quelle specificate
 node package-manager.js install --exclude c106-header c106-footer
+# O con scorciatoie:
+node packman.js install --exclude c106-header c106-footer
+node pm.js install --exclude c106-header c106-footer
 
 # Installa con --legacy-peer-deps
 node package-manager.js install --single c106-header legacy
 node package-manager.js install --exclude c106-header c106-footer legacy
+# O con scorciatoie:
+node packman.js install --single c106-header legacy
+node packman.js install --exclude c106-header c106-footer legacy
+node pm.js install --single c106-header legacy
+node pm.js install --exclude c106-header c106-footer legacy
 
 # Installa con --force
 node package-manager.js install --single c106-header force
+# O con scorciatoie:
+node packman.js install --single c106-header force
+node pm.js install --single c106-header force
 node package-manager.js install --exclude c106-header c106-footer force
 ```
 
@@ -175,36 +215,60 @@ node package-manager.js update
 ```bash
 # Installa solo c106-header per test
 node package-manager.js install --single c106-header
+# O con scorciatoie:
+node packman.js install --single c106-header
+node pm.js install --single c106-header
 
 # Installa con legacy per risolvere conflitti
 node package-manager.js install --single c106-header legacy
+# O con scorciatoie:
+node packman.js install --single c106-header legacy
+node pm.js install --single c106-header legacy
 ```
 
 ### Installazione per Sviluppo
 ```bash
 # Installa tutto tranne componenti pesanti
 node package-manager.js install --exclude c106-calendario c106-organigramma
+# O con scorciatoie:
+node packman.js install --exclude c106-calendario c106-organigramma
+node pm.js install --exclude c106-calendario c106-organigramma
 
 # Installa tutto con legacy
 node package-manager.js install legacy
+# O con scorciatoie:
+node packman.js install legacy
+node pm.js install legacy
 ```
 
 ### Pulizia per Liberare Spazio
 ```bash
 # Pulisci tutto
 node package-manager.js clean
+# O con scorciatoie:
+node packman.js clean
+node pm.js clean
 
 # Pulisci tutto tranne componenti importanti
 node package-manager.js clean --exclude c106-header c106-footer
+# O con scorciatoie:
+node packman.js clean --exclude c106-header c106-footer
+node pm.js clean --exclude c106-header c106-footer
 ```
 
 ### Reinstallazione per Problemi
 ```bash
 # Reinstalla un componente problematico
 node package-manager.js reinstall --single c106-header
+# O con scorciatoie:
+node packman.js reinstall --single c106-header
+node pm.js reinstall --single c106-header
 
 # Reinstalla tutto con legacy
 node package-manager.js reinstall legacy
+# O con scorciatoie:
+node packman.js reinstall legacy
+node pm.js reinstall legacy
 ```
 
 ## 🔧 Modalità di Installazione
@@ -212,6 +276,9 @@ node package-manager.js reinstall legacy
 ### 1. Normale (predefinita)
 ```bash
 npm install
+# O con scorciatoie:
+node packman.js install
+node pm.js install
 ```
 - **Quando usare**: Prima installazione, dipendenze aggiornate
 - **Vantaggi**: Veloce, sicuro, standard
@@ -219,6 +286,9 @@ npm install
 ### 2. Legacy (--legacy-peer-deps)
 ```bash
 npm install --legacy-peer-deps
+# O con scorciatoie:
+node packman.js install legacy
+node pm.js install legacy
 ```
 - **Quando usare**: Conflitti peer dependencies, progetti vecchi
 - **Vantaggi**: Risolve conflitti di versioni
@@ -226,6 +296,9 @@ npm install --legacy-peer-deps
 ### 3. Forzato (--force)
 ```bash
 npm install --force
+# O con scorciatoie:
+node packman.js install force
+node pm.js install force
 ```
 - **Quando usare**: Legacy non funziona, conflitti gravi
 - **Rischi**: Possibili problemi di compatibilità
@@ -236,33 +309,57 @@ npm install --force
 ```bash
 # 1. Aggiorna configurazioni
 node package-manager.js update
+# O con scorciatoie:
+node packman.js update
+node pm.js update
 
 # 2. Installa tutto
 node package-manager.js install
+# O con scorciatoie:
+node packman.js install
+node pm.js install
 
 # 3. Testa un componente
 node package-manager.js install --single c106-header
+# O con scorciatoie:
+node packman.js install --single c106-header
+node pm.js install --single c106-header
 ```
 
 ### Sviluppo Quotidiano
 ```bash
 # Installa solo componenti necessari
 node package-manager.js install --exclude c106-calendario c106-organigramma
+# O con scorciatoie:
+node packman.js install --exclude c106-calendario c106-organigramma
+node pm.js install --exclude c106-calendario c106-organigramma
 
 # Pulisci quando necessario
 node package-manager.js clean --single c106-header
+# O con scorciatoie:
+node packman.js clean --single c106-header
+node pm.js clean --single c106-header
 ```
 
 ### Risoluzione Problemi
 ```bash
 # 1. Pulisci tutto
 node package-manager.js clean
+# O con scorciatoie:
+node packman.js clean
+node pm.js clean
 
 # 2. Aggiorna configurazioni
 node package-manager.js update
+# O con scorciatoie:
+node packman.js update
+node pm.js update
 
 # 3. Reinstalla con legacy
 node package-manager.js reinstall legacy
+# O con scorciatoie:
+node packman.js reinstall legacy
+node pm.js reinstall legacy
 ```
 
 ## 🆘 Risoluzione Problemi
@@ -301,15 +398,27 @@ node package-manager.js reinstall --single c106-header
 ```bash
 # 1. Pulisci tutto
 node package-manager.js clean
+# O con scorciatoie:
+node packman.js clean
+node pm.js clean
 
 # 2. Aggiorna configurazioni
 node package-manager.js update
+# O con scorciatoie:
+node packman.js update
+node pm.js update
 
 # 3. Reinstalla con legacy
 node package-manager.js reinstall legacy
+# O con scorciatoie:
+node packman.js reinstall legacy
+node pm.js reinstall legacy
 
 # 4. Se ancora non funziona, prova force
 node package-manager.js reinstall force
+# O con scorciatoie:
+node packman.js reinstall force
+node pm.js reinstall force
 ```
 
 ## 📊 Statistiche e Log

@@ -270,6 +270,29 @@ function installAllComponents(mode = 'normal') {
 
 // Funzioni per parsing comandi
 function parseAndExecuteCommand(args) {
+  const currentDir = process.cwd();
+  const currentDirName = path.basename(currentDir);
+  
+  // Перевіряємо, чи користувач знаходиться в папці package-manager
+  if (currentDirName === 'package-manager') {
+    log('⚠️  Ви знаходитесь в папці модуля package-manager!', 'yellow');
+    log('');
+    log('📁 Для виконання команд проекту потрібно повернутися в корінь проекту:', 'cyan');
+    log('   cd ..', 'blue');
+    log('');
+    log('💡 Після цього ви зможете використовувати:', 'cyan');
+    log('   node package-manager.js', 'blue');
+    log('   node package-manager.js update', 'blue');
+    log('   node package-manager.js install --single component-name', 'blue');
+    log('');
+    log('🔧 Або залишіться тут для налаштування модуля:', 'cyan');
+    log('   node install.js', 'blue');
+    log('');
+    log('❓ Потрібна допомога?', 'cyan');
+    log('   Читайте документацію: package-manager/README.md', 'blue');
+    process.exit(0);
+  }
+  
   const command = args[0];
   
   let mode = 'normal';

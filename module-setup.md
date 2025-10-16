@@ -8,9 +8,9 @@ Guida completa per installare e configurare il Package Manager Module in un nuov
 package-manager/
 ├── README.md                    # Documentazione principale
 ├── module-setup.md              # Questa guida
-├── project-config.js            # Configurazione del progetto
+├── install.js                   # Script installazione cross-platform
 ├── dependencies-config.js       # Configurazione delle dipendenze
-├── ToEXTRACT/                   # File da copiare nella root del progetto
+├── root-files/                  # File da copiare nella root del progetto
 │   ├── package-manager.js       # Entry point principale
 │   ├── package-manager.bat      # Wrapper Windows
 │   └── package-manager.sh       # Wrapper Unix/Linux/macOS
@@ -39,18 +39,46 @@ Copia l'intera cartella `package-manager/` nella root del tuo progetto:
 cp -r package-manager/ /path/to/your/project/
 ```
 
-### 2. File da Copiare nella Root del Progetto
+### 2. Installazione Automatica (Raccomandato)
 
-Dopo aver copiato il modulo, devi copiare i file dalla cartella `ToEXTRACT/` nella root del progetto:
+Dopo aver copiato il modulo, esegui lo script di installazione cross-platform:
 
 ```bash
-# File principali dalla cartella ToEXTRACT/
-cp package-manager/ToEXTRACT/package-manager.js /path/to/your/project/
-cp package-manager/ToEXTRACT/package-manager.bat /path/to/your/project/
-cp package-manager/ToEXTRACT/package-manager.sh /path/to/your/project/
+cd package-manager
+node install.js
 ```
 
-### 3. Struttura Finale del Progetto
+Lo script:
+- **Configura interattivamente** il progetto (nome, descrizione, metodo identificazione componenti)
+- Copia automaticamente tutti i file necessari dalla cartella `root-files/` nella root del progetto
+- Funziona su tutte le piattaforme (Windows, Unix/Linux, macOS)
+
+#### Opzioni di Configurazione
+
+Durante l'installazione potrai scegliere:
+
+1. **Nome e descrizione del progetto**
+2. **Metodo di identificazione componenti:**
+   - **Per prefisso** (es: `c106-`, `my-app-`)
+   - **Per struttura cartella** (presenza di `package.json` + cartelle specifiche)
+   - **Per lista cartelle** (elenco specifico di cartelle)
+   - **Per espressione regolare** (pattern personalizzato)
+   - **Salta configurazione** (usa impostazioni predefinite)
+
+La configurazione viene generata automaticamente dall'installer e non richiede modifiche manuali.
+
+### 3. Installazione Manuale (Alternativa)
+
+Se preferisci copiare manualmente i file dalla cartella `root-files/`:
+
+```bash
+# File principali dalla cartella root-files/
+cp package-manager/root-files/package-manager.js /path/to/your/project/
+cp package-manager/root-files/package-manager.bat /path/to/your/project/
+cp package-manager/root-files/package-manager.sh /path/to/your/project/
+```
+
+### 4. Struttura Finale del Progetto
 
 ```
 your-project/
@@ -71,14 +99,14 @@ your-project/
     └── ...
 ```
 
-### 4. Comandi di Copia
+### 5. Comandi di Copia (Solo per Installazione Manuale)
 
 #### Windows (PowerShell)
 ```powershell
-# Copia file principali dalla cartella ToEXTRACT/
-Copy-Item "package-manager\ToEXTRACT\package-manager.js" "C:\path\to\your\project\"
-Copy-Item "package-manager\ToEXTRACT\package-manager.bat" "C:\path\to\your\project\"
-Copy-Item "package-manager\ToEXTRACT\package-manager.sh" "C:\path\to\your\project\"
+# Copia file principali dalla cartella root-files/
+Copy-Item "package-manager\root-files\package-manager.js" "C:\path\to\your\project\"
+Copy-Item "package-manager\root-files\package-manager.bat" "C:\path\to\your\project\"
+Copy-Item "package-manager\root-files\package-manager.sh" "C:\path\to\your\project\"
 
 # Copia cartella modulo
 Copy-Item "package-manager" "C:\path\to\your\project\" -Recurse
@@ -86,10 +114,10 @@ Copy-Item "package-manager" "C:\path\to\your\project\" -Recurse
 
 #### Unix/Linux/macOS
 ```bash
-# Copia file principali dalla cartella ToEXTRACT/
-cp package-manager/ToEXTRACT/package-manager.js /path/to/your/project/
-cp package-manager/ToEXTRACT/package-manager.bat /path/to/your/project/
-cp package-manager/ToEXTRACT/package-manager.sh /path/to/your/project/
+# Copia file principali dalla cartella root-files/
+cp package-manager/root-files/package-manager.js /path/to/your/project/
+cp package-manager/root-files/package-manager.bat /path/to/your/project/
+cp package-manager/root-files/package-manager.sh /path/to/your/project/
 
 # Copia cartella modulo
 cp -r package-manager/ /path/to/your/project/

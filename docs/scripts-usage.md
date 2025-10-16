@@ -4,12 +4,82 @@ Guida completa per tutti gli script disponibili nel modulo Package Manager.
 
 ## 📁 Script Principali
 
-### 1. package-manager.js (Entry Point)
+### 1. install.js (Script di Installazione Cross-Platform)
+**Script automatico** - Installano automaticamente il modulo nel progetto su tutte le piattaforme.
+
+#### Posizione
+```
+package-manager/install.js  # Cross-platform (Windows, Unix/Linux/macOS)
+```
+
+#### Funzionalità
+- **Configurazione interattiva** del progetto durante l'installazione
+- **Personalizzazione** del metodo di identificazione componenti
+- Copia automaticamente i file da `root-files/` nella root del progetto
+- Verifica la presenza dei file necessari
+- Sovrascrive i file esistenti se necessario
+- Rende eseguibili i file .sh su sistemi Unix-like
+- Fornisce statistiche dettagliate (copiati/sovrascritti)
+- Cross-platform (Windows, Unix/Linux, macOS)
+- Gestione errori avanzata
+
+#### Utilizzo
+```bash
+# Tutte le piattaforme
+cd package-manager
+node install.js
+```
+
+#### Output Esempio
+```
+🚀 Installazione Package Manager Module...
+
+🔧 Configurazione iniziale del modulo...
+🔧 Configurazione del progetto...
+
+📝 Nome del progetto: My Awesome Project
+📝 Descrizione del progetto (opzionale): Gestore per web parts personalizzate
+
+🎯 Metodo di identificazione componenti:
+1. Per prefisso (es: c106-, my-app-)
+2. Per struttura cartella (package.json + cartelle specifiche)
+3. Per lista cartelle specifiche
+4. Per espressione regolare
+5. Salta configurazione (usa impostazioni predefinite)
+
+Scegli metodo (1-5): 1
+🔤 Prefisso componenti (es: c106-): my-app-
+✅ Configurazione salvata in project-config.js
+
+📁 Copia file nella root del progetto...
+✅ package-manager.js copiato
+🔄 package-manager.bat sovrascritto
+✅ package-manager.sh copiato
+
+🎉 Installazione completata!
+
+📊 Statistiche:
+   ✅ File copiati: 2
+   🔄 File sovrascritti: 1
+
+📋 Prossimi passi:
+   ✅ Configurazione progetto completata
+   2. Configura package-manager/dependencies-config.js (opzionale)
+   3. Testa: node package-manager.js update
+
+💡 Per utilizzare il manager:
+   - Modalità interattiva: node package-manager.js
+   - Comando diretto: node package-manager.js update
+   - Wrapper Windows: package-manager.bat
+   - Wrapper Unix/Linux/macOS: ./package-manager.sh
+```
+
+### 2. package-manager.js (Entry Point)
 **File principale** - Punto di ingresso per tutto il sistema.
 
 #### Posizione
 ```
-ToEXTRACT/package-manager.js  # File da copiare nella root del progetto
+root-files/package-manager.js  # File da copiare nella root del progetto
 ```
 
 #### Funzionalità
@@ -45,7 +115,7 @@ if (args.length === 0) {
 }
 ```
 
-### 2. core.js (Script Principale)
+### 3. core.js (Script Principale)
 **Script centrale** - Contiene tutta la logica del package manager.
 
 #### Funzionalità
@@ -66,7 +136,7 @@ package-manager/scripts/core.js
 node package-manager.js
 ```
 
-### 3. update-configs.js (Aggiornamento Configurazioni)
+### 4. update-configs.js (Aggiornamento Configurazioni)
 **Script specializzato** - Aggiorna package.json e tsconfig.json.
 
 #### Funzionalità
@@ -107,7 +177,7 @@ node package-manager/scripts/update-configs.js
 ✅ Aggiornato tsconfig.json per c106-header
 ```
 
-### 4. clean-only.js (Solo Pulizia)
+### 5. clean-only.js (Solo Pulizia)
 **Script specializzato** - Rimuove node_modules e file temporanei.
 
 #### Funzionalità
@@ -134,9 +204,9 @@ node package-manager/scripts/clean-only.js --exclude c106-header c106-footer
 
 ## 🔧 Wrapper Scripts
 
-### File da Copiare nella Root (ToEXTRACT/)
+### File da Copiare nella Root (root-files/)
 ```
-package-manager/ToEXTRACT/
+package-manager/root-files/
 ├── package-manager.js       # Entry point principale
 ├── package-manager.bat      # Wrapper Windows
 └── package-manager.sh       # Wrapper Unix/Linux/macOS
@@ -345,10 +415,9 @@ node package-manager.js install
 # 1. Copia modulo
 cp -r package-manager/ /path/to/new/project/
 
-# 2. Copia file root dalla cartella ToEXTRACT/
-cp package-manager/ToEXTRACT/package-manager.js /path/to/new/project/
-cp package-manager/ToEXTRACT/package-manager.bat /path/to/new/project/
-cp package-manager/ToEXTRACT/package-manager.sh /path/to/new/project/
+# 2. Installa automaticamente (cross-platform)
+cd /path/to/new/project/package-manager
+node install.js
 
 # 3. Configura project-config.js
 # 4. Configura dependencies-config.js
