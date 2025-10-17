@@ -43,6 +43,90 @@ function askQuestion(rl, question) {
   });
 }
 
+// Funzione per rilevare automaticamente il tipo di progetto
+function detectProjectType(projectRoot) {
+  const items = fs.readdirSync(projectRoot);
+  
+  // Controlla package.json nella root
+  const rootPackageJson = path.join(projectRoot, 'package.json');
+  if (fs.existsSync(rootPackageJson)) {
+    try {
+      const packageContent = JSON.parse(fs.readFileSync(rootPackageJson, 'utf8'));
+      const dependencies = { ...packageContent.dependencies, ...packageContent.devDependencies };
+      
+      // Rileva React/Next.js
+      if (dependencies.react || dependencies.next || dependencies['react-scripts']) {
+        return 'react';
+      }
+      
+      // Rileva Vue.js
+      if (dependencies.vue || dependencies['@vue/cli'] || dependencies['vue-loader']) {
+        return 'vue';
+      }
+      
+      // Rileva Angular
+      if (dependencies['@angular/core'] || dependencies['@angular/cli']) {
+        return 'angular';
+      }
+      
+      // Rileva Node.js/Express
+      if (dependencies.express || dependencies.koa || dependencies.fastify) {
+        return 'nodejs';
+      }
+    } catch (error) {
+      // Ignora errori di parsing
+    }
+  }
+  
+  // Controlla file di configurazione specifici
+  if (fs.existsSync(path.join(projectRoot, 'next.config.js')) || 
+      fs.existsSync(path.join(projectRoot, 'next.config.ts'))) {
+    return 'react';
+  }
+  
+  if (fs.existsSync(path.join(projectRoot, 'vue.config.js')) || 
+      fs.existsSync(path.join(projectRoot, 'vite.config.js'))) {
+    return 'vue';
+  }
+  
+  if (fs.existsSync(path.join(projectRoot, 'angular.json'))) {
+    return 'angular';
+  }
+  
+  // Controlla se è un monorepo (Lerna, Nx)
+  if (fs.existsSync(path.join(projectRoot, 'lerna.json')) || 
+      fs.existsSync(path.join(projectRoot, 'nx.json'))) {
+    return 'monorepo';
+  }
+  
+  // Controlla se è SharePoint/SPFx
+  let hasSpfxComponents = false;
+  for (const item of items) {
+    const fullPath = path.join(projectRoot, item);
+    if (fs.statSync(fullPath).isDirectory()) {
+      const packageJsonPath = path.join(fullPath, 'package.json');
+      if (fs.existsSync(packageJsonPath)) {
+        try {
+          const packageContent = JSON.parse(fs.readFileSync(packageJsonPath, 'utf8'));
+          const dependencies = { ...packageContent.dependencies, ...packageContent.devDependencies };
+          if (dependencies['@microsoft/sp-core-library'] || dependencies['@microsoft/sp-webpart-base']) {
+            hasSpfxComponents = true;
+            break;
+          }
+        } catch (error) {
+          // Ignora errori di parsing
+        }
+      }
+    }
+  }
+  
+  if (hasSpfxComponents) {
+    return 'default'; // SharePoint/SPFx
+  }
+  
+  return 'default';
+}
+
 // Funzione per configurare il progetto
 async function configureProject() {
   const rl = createReadlineInterface();
@@ -50,11 +134,19 @@ async function configureProject() {
   log('🔧 Configurazione del progetto...', 'cyan');
   log('');
   
+  // Rileva automaticamente il tipo di progetto
+  const projectRoot = path.join(__dirname, '..');
+  const detectedType = detectProjectType(projectRoot);
+  
+  log(`🎯 Tipo progetto rilevato: ${detectedType}`, 'green');
+  log('');
+  
   const config = {
     project: {
       name: '',
       version: '1.0.0',
-      description: ''
+      description: '',
+      type: detectedType
     },
     components: {
       filterByPrefix: { enabled: false, prefix: '' },
@@ -198,7 +290,8 @@ function saveProjectConfig(config) {
   project: {
     name: "${config.project.name}",
     version: "${config.project.version}",
-    description: "${config.project.description}"
+    description: "${config.project.description}",
+    type: "${config.project.type}"
   },
   
   // Configurazione ricerca componenti

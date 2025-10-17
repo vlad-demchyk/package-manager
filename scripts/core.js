@@ -678,12 +678,13 @@ function showUsage() {
 
 // Funzioni per menu interattivo
 function showMenu() {
-  log('\n📋 Gestore Pacchetti Cherry 106:', 'cyan');
+  log(`\n📋 Gestore Pacchetti ${projectConfig.project.name}:`, 'cyan');
   log('1. ⚙️  Aggiornamento configurazioni (globale)', 'green');
   log('2. 🔍 Controllo dipendenze non utilizzate', 'magenta');
   log('3. 📦 Installazione pacchetti', 'blue');
   log('4. 🔄 Reinstallazione pacchetti (clean install)', 'blue');
   log('5. 🧹 Pulizia/rimozione pacchetti', 'yellow');
+  log('9. 📁 Mostra tutti i componenti trovati', 'cyan');
   log('0. 🚪 Esci', 'red');
 }
 
@@ -695,6 +696,102 @@ function showComponentList() {
   });
   log(`0. 🔙 Torna al menu principale`, 'yellow');
   return components;
+}
+
+function showDetailedComponentList() {
+  const components = getComponentDirectories();
+  
+  log('\n📁 Componenti trovati nel progetto:', 'cyan');
+  log('=' .repeat(50), 'cyan');
+  
+  if (components.length === 0) {
+    log('❌ Nessun componente trovato', 'red');
+    log('', 'reset');
+    log('💡 Verifica la configurazione in project-config.js:', 'yellow');
+    log('   - Filtri per prefisso, struttura, lista o regex', 'blue');
+    log('   - Assicurati che i componenti abbiano package.json', 'blue');
+    log('', 'reset');
+  } else {
+    log(`✅ Trovati ${components.length} componenti:`, 'green');
+    log('', 'reset');
+    
+    components.forEach((component, index) => {
+      const componentPath = path.join(process.cwd(), component);
+      log(`${index + 1}. 📦 ${component}`, 'bright');
+      
+      // Verifica presenza file importanti
+      const packageJsonPath = path.join(componentPath, 'package.json');
+      const tsConfigPath = path.join(componentPath, 'tsconfig.json');
+      const srcPath = path.join(componentPath, 'src');
+      const nodeModulesPath = path.join(componentPath, 'node_modules');
+      
+      if (fs.existsSync(packageJsonPath)) {
+        log(`   ✅ package.json`, 'green');
+      } else {
+        log(`   ❌ package.json (MANCANTE!)`, 'red');
+      }
+      
+      if (fs.existsSync(tsConfigPath)) {
+        log(`   ✅ tsconfig.json`, 'green');
+      } else {
+        log(`   ⚪ tsconfig.json (opzionale)`, 'blue');
+      }
+      
+      if (fs.existsSync(srcPath)) {
+        log(`   ✅ src/`, 'green');
+      } else {
+        log(`   ❌ src/ (MANCANTE!)`, 'red');
+      }
+      
+      if (fs.existsSync(nodeModulesPath)) {
+        log(`   📦 node_modules/ (installato)`, 'cyan');
+      } else {
+        log(`   ⚪ node_modules/ (non installato)`, 'yellow');
+      }
+      
+      log('', 'reset');
+    });
+    
+    log('📊 Riepilogo configurazione filtri:', 'cyan');
+    log('=' .repeat(50), 'cyan');
+    
+    if (projectConfig.components.filterByPrefix.enabled) {
+      log(`🔤 Filtro per prefisso: "${projectConfig.components.filterByPrefix.prefix}"`, 'blue');
+    }
+    
+    if (projectConfig.components.filterByStructure.enabled) {
+      log(`📁 Filtro per struttura:`, 'blue');
+      log(`   File richiesti: ${projectConfig.components.filterByStructure.requiredFiles.join(', ')}`, 'blue');
+      log(`   Cartelle richieste: ${projectConfig.components.filterByStructure.requiredFolders.join(', ')}`, 'blue');
+    }
+    
+    if (projectConfig.components.filterByList.enabled) {
+      log(`📋 Filtro per lista: ${projectConfig.components.filterByList.folders.join(', ')}`, 'blue');
+    }
+    
+    if (projectConfig.components.filterByRegex.enabled) {
+      log(`🔍 Filtro per regex: ${projectConfig.components.filterByRegex.pattern}`, 'blue');
+    }
+    
+    if (!projectConfig.components.filterByPrefix.enabled && 
+        !projectConfig.components.filterByStructure.enabled && 
+        !projectConfig.components.filterByList.enabled && 
+        !projectConfig.components.filterByRegex.enabled) {
+      log(`⚠️  Nessun filtro attivo - vengono mostrati tutti i componenti con package.json`, 'yellow');
+    }
+  }
+  
+  log('', 'reset');
+  log('🔙 Premi INVIO per tornare al menu principale...', 'yellow');
+  
+  if (!rl) return;
+  
+  rl.question('', () => {
+    log('🔙 Tornando al menu principale...', 'blue');
+    setTimeout(() => {
+      if (askQuestion) askQuestion();
+    }, 100);
+  });
 }
 
 function showInstallMenu() {
@@ -1027,7 +1124,7 @@ async function main() {
       // Mostra il menu e chiedi l'opzione
       showMenu();
       if (rl) {
-        rl.question('\nScegli opzione (0-5): ', (answer) => {
+        rl.question('\nScegli opzione (0-5, 9): ', (answer) => {
             switch (answer.trim()) {
               case '1':
                 log('\n⚙️  Aggiornamento configurazioni per tutti i componenti...', 'cyan');
@@ -1054,6 +1151,9 @@ async function main() {
                 break;
               case '5':
                 showCleanMenu();
+                break;
+              case '9':
+                showDetailedComponentList();
                 break;
               case '0':
                 log('👋 Arrivederci!', 'green');
