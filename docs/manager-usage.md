@@ -23,11 +23,11 @@ node pm.js
 ### Menu Principale
 ```
 📋 Gestore Pacchetti Cherry 106:
-1. 📦 Installazione pacchetti
-2. 🔄 Reinstallazione pacchetti (clean install)
-3. 🧹 Pulizia/rimozione pacchetti
-4. ⚙️  Aggiornamento configurazioni (globale)
-5. 🔍 Controllo dipendenze non utilizzate
+1. ⚙️  Aggiornamento configurazioni (globale)
+2. 🔍 Controllo dipendenze non utilizzate
+3. 📦 Installazione pacchetti
+4. 🔄 Reinstallazione pacchetti (clean install)
+5. 🧹 Pulizia/rimozione pacchetti
 0. 🚪 Esci
 ```
 

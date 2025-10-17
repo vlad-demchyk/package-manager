@@ -12,7 +12,7 @@ Il sistema depcheck analizza automaticamente tutti i componenti del progetto per
 ```bash
 # Avvia il menu interattivo del package manager
 node package-manager.js
-# Seleziona opzione 5: "Controllo dipendenze non utilizzate"
+# Seleziona opzione 2: "Controllo dipendenze non utilizzate"
 ```
 
 ### Comandi Diretti
