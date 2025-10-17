@@ -202,43 +202,82 @@ node package-manager/scripts/clean-only.js c106-header c106-footer
 node package-manager/scripts/clean-only.js --exclude c106-header c106-footer
 ```
 
+### 6. depcheck.js (Controllo Dipendenze Non Utilizzate)
+**Script specializzato** - Analizza e rimuove dipendenze non utilizzate.
+
+#### Funzionalità
+- Analizza utilizzo dipendenze nel codice
+- Rileva dipendenze non utilizzate
+- Rimozione sicura con conferma
+- Supporto per tutti i tipi di import (require, import, etc.)
+- Analisi ricorsiva di directory
+- Esclusione automatica di file di sistema
+
+#### Posizione
+```
+package-manager/scripts/depcheck.js
+```
+
+#### Utilizzo
+```bash
+# Tramite package manager (raccomandato)
+node package-manager.js depcheck
+node package-manager.js depcheck --single c106-header
+node package-manager.js depcheck --exclude c106-header c106-footer
+node package-manager.js depcheck --remove
+
+# Comandi automatici (senza conferma)
+node package-manager.js depcheck --single c106-header clean
+node package-manager.js depcheck --exclude c106-header c106-footer clean
+node package-manager.js depcheck clean
+
+# Direttamente
+node package-manager/scripts/depcheck.js
+node package-manager/scripts/depcheck.js --single c106-header
+node package-manager/scripts/depcheck.js --remove
+```
+
+#### Esempio Output
+```
+🔍 Controllo dipendenze non utilizzate per 3 componenti...
+
+🔍 Analisi dipendenze per c106-header...
+📦 c106-header:
+   ❌ Non utilizzate (2): moment, select2
+
+🔍 Analisi dipendenze per c106-footer...
+✅ c106-footer: tutte le dipendenze sono utilizzate
+
+🔍 Analisi dipendenze per c106-calendario...
+📦 c106-calendario:
+   ❌ Non utilizzate (1): jquery
+
+📊 Risultato controllo:
+   🔍 Componenti controllati: 3
+   ❌ Dipendenze non utilizzate trovate: 3
+
+💡 Per rimuovere le dipendenze non utilizzate utilizzare:
+   node package-manager.js depcheck --remove
+```
+
 ## 🔧 Wrapper Scripts
 
 ### File da Copiare nella Root (root-files/)
 ```
 package-manager/root-files/
 ├── package-manager.js       # Entry point principale
-├── package-manager.bat      # Wrapper Windows
-└── package-manager.sh       # Wrapper Unix/Linux/macOS
+├── packman.js               # Scorciatoia
+└── pm.js                    # Scorciatoia
 ```
 
-### Wrapper Interni (wrappers/)
-```
-package-manager/wrappers/
-├── package-manager.bat
-├── update-configs.bat
-└── clean-only.bat
-```
-
-### Unix/Linux/macOS (.sh)
-```
-package-manager/wrappers/
-├── package-manager.sh
-├── update-configs.sh
-└── clean-only.sh
-```
-
-#### Utilizzo Wrapper
+#### Utilizzo
 ```bash
-# Windows (file copiati nella root)
-package-manager.bat
-update-configs.bat
-clean-only.bat --all
+# Entry point principale
+node package-manager.js
 
-# Unix/Linux/macOS (file copiati nella root)
-./package-manager.sh
-./update-configs.sh
-./clean-only.sh --all
+# Scorciatoie
+node packman.js
+node pm.js
 ```
 
 ## ⚙️ File di Configurazione
@@ -381,6 +420,16 @@ node package-manager/scripts/clean-only.js --all
 
 # Pulisci componenti specifici
 node package-manager/scripts/clean-only.js c106-header c106-footer
+
+# Controlla dipendenze non utilizzate
+node package-manager/scripts/depcheck.js
+
+# Controlla e rimuovi dipendenze non utilizzate
+node package-manager/scripts/depcheck.js --remove
+
+# Comandi automatici (senza conferma)
+node package-manager.js depcheck --single c106-header clean
+node package-manager.js depcheck --exclude c106-header c106-footer clean
 ```
 
 ## 🔄 Workflow Tipici
@@ -410,7 +459,34 @@ node package-manager.js update
 node package-manager.js install
 ```
 
-### 3. Setup Nuovo Progetto
+### 3. Pulizia Dipendenze
+```bash
+# 1. Controlla dipendenze non utilizzate
+node package-manager.js depcheck
+
+# 2. Rimuovi quelle non utilizzate (dopo verifica)
+node package-manager.js depcheck --remove
+
+# 3. Aggiorna configurazioni
+node package-manager.js update
+
+# 4. Reinstalla dipendenze
+node package-manager.js reinstall
+```
+
+### 4. Pulizia Automatica Dipendenze
+```bash
+# 1. Rimuovi automaticamente per un componente
+node package-manager.js depcheck --single c106-header clean
+
+# 2. Rimuovi automaticamente per tutti eccetto quelli specificati
+node package-manager.js depcheck --exclude c106-header c106-footer clean
+
+# 3. Rimuovi automaticamente per tutti i componenti
+node package-manager.js depcheck clean
+```
+
+### 5. Setup Nuovo Progetto
 ```bash
 # 1. Copia modulo
 cp -r package-manager/ /path/to/new/project/
@@ -446,6 +522,23 @@ node package-manager.js clean --single c106-header
 ### Reinstallazione Problematica
 ```bash
 node package-manager.js reinstall --single c106-header legacy
+```
+
+### Controllo Dipendenze
+```bash
+node package-manager.js depcheck
+```
+
+### Pulizia Dipendenze
+```bash
+node package-manager.js depcheck --remove
+```
+
+### Pulizia Automatica Dipendenze
+```bash
+node package-manager.js depcheck --single c106-header clean
+node package-manager.js depcheck --exclude c106-header c106-footer clean
+node package-manager.js depcheck clean
 ```
 
 ## ⚠️ Note Importanti

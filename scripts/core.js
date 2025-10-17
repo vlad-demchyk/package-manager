@@ -208,6 +208,170 @@ function updateAllConfigs() {
   return updateScript.updateAllConfigs();
 }
 
+// Funzioni per depcheck
+function showDepcheckMenu() {
+  log('\n🔍 Controllo dipendenze non utilizzate:', 'cyan');
+  log('1. Controlla tutti i componenti', 'blue');
+  log('2. Controlla un componente', 'blue');
+  log('3. Controlla tutti eccetto quelli specificati', 'blue');
+  log('4. Controlla e rimuovi per tutti i componenti (automatico)', 'red');
+  log('0. 🔙 Torna al menu principale', 'yellow');
+  
+  if (!rl) return;
+  
+  rl.question('Scegli opzione (0-4): ', (answer) => {
+    switch (answer.trim()) {
+      case '0':
+        log('🔙 Tornando al menu principale...', 'blue');
+        setTimeout(() => {
+          if (askQuestion) askQuestion();
+        }, 100);
+        break;
+      case '1':
+        log('\n🔍 Controllo dipendenze per tutti i componenti...', 'cyan');
+        executeDepcheckCommand('all', [], [], () => {
+          // Dopo l'analisi, chiedi conferma per la rimozione
+          if (rl) {
+            log('\n⚠️  Vuoi rimuovere le dipendenze non utilizzate per tutti i componenti?', 'yellow');
+            rl.question('Continua? (y/N): ', (confirm) => {
+              if (confirm.toLowerCase() === 'y' || confirm.toLowerCase() === 'yes') {
+                log('\n🔍 Rimozione dipendenze per tutti i componenti...', 'cyan');
+                executeDepcheckCommand('all', [], ['clean'], () => {
+                  setTimeout(() => {
+                    if (askQuestion) askQuestion();
+                  }, 100);
+                });
+              } else {
+                log('❌ Operazione annullata', 'red');
+                setTimeout(() => {
+                  if (askQuestion) askQuestion();
+                }, 100);
+              }
+            });
+          }
+        });
+        break;
+      case '2':
+        showDepcheckComponentSelection();
+        break;
+      case '3':
+        showDepcheckExcludeSelection();
+        break;
+      case '4':
+        log('\n🔍 Controllo e rimozione automatica dipendenze per tutti i componenti...', 'cyan');
+        executeDepcheckCommand('all', [], ['clean'], () => {
+          setTimeout(() => {
+            if (askQuestion) askQuestion();
+          }, 100);
+        });
+        break;
+      default:
+        log('❌ Scelta non valida', 'red');
+        setTimeout(() => {
+          if (askQuestion) askQuestion();
+        }, 100);
+    }
+  });
+}
+
+function showDepcheckComponentSelection() {
+  const components = showComponentList();
+  
+  if (components.length === 0) {
+    log('❌ Nessun componente trovato', 'red');
+    setTimeout(() => {
+      if (askQuestion) askQuestion();
+    }, 100);
+    return;
+  }
+  
+  if (!rl) return;
+  
+  rl.question('\nInserisci numero componente (0 per tornare al menu): ', (answer) => {
+    if (answer.trim() === '0') {
+      log('🔙 Tornando al menu principale...', 'blue');
+      setTimeout(() => {
+        if (askQuestion) askQuestion();
+      }, 100);
+      return;
+    }
+    
+    const index = parseInt(answer) - 1;
+    
+    if (index >= 0 && index < components.length) {
+      const selectedComponent = components[index];
+      log(`\n🎯 Selezionato: ${selectedComponent}`, 'green');
+      
+      // Prima mostra le dipendenze non utilizzate
+      log(`\n🔍 Analisi dipendenze per: ${selectedComponent}`, 'cyan');
+      executeDepcheckCommand('single', [selectedComponent], [], () => {
+        // Dopo l'analisi, chiedi conferma per la rimozione
+        if (rl) {
+          log(`\n⚠️  Vuoi rimuovere le dipendenze non utilizzate per: ${selectedComponent}?`, 'yellow');
+          rl.question('Continua? (y/N): ', (confirm) => {
+            if (confirm.toLowerCase() === 'y' || confirm.toLowerCase() === 'yes') {
+              log(`\n🔍 Rimozione dipendenze per: ${selectedComponent}`, 'cyan');
+              executeDepcheckCommand('single', [selectedComponent], ['clean'], () => {
+                setTimeout(() => {
+                  if (askQuestion) askQuestion();
+                }, 100);
+              });
+            } else {
+              log('❌ Operazione annullata', 'red');
+              setTimeout(() => {
+                if (askQuestion) askQuestion();
+              }, 100);
+            }
+          });
+        }
+      });
+    } else {
+      log('❌ Numero componente non valido', 'red');
+      setTimeout(() => {
+        if (askQuestion) askQuestion();
+      }, 100);
+    }
+  });
+}
+
+function showDepcheckExcludeSelection() {
+  if (!rl) return;
+  
+  rl.question('Inserisci nomi componenti da escludere (separati da spazio): ', (excludeAnswer) => {
+    const excludeList = excludeAnswer.trim().split(/\s+/).filter(name => name.length > 0);
+    if (excludeList.length > 0) {
+      // Prima mostra le dipendenze non utilizzate
+      log(`\n🔍 Analisi dipendenze per tutti i componenti eccetto: ${excludeList.join(', ')}`, 'cyan');
+      executeDepcheckCommand('exclude', excludeList, [], () => {
+        // Dopo l'analisi, chiedi conferma per la rimozione
+        if (rl) {
+          log(`\n⚠️  Vuoi rimuovere le dipendenze non utilizzate per tutti i componenti eccetto: ${excludeList.join(', ')}?`, 'yellow');
+          rl.question('Continua? (y/N): ', (confirm) => {
+            if (confirm.toLowerCase() === 'y' || confirm.toLowerCase() === 'yes') {
+              log(`\n🔍 Rimozione dipendenze per tutti i componenti eccetto: ${excludeList.join(', ')}`, 'cyan');
+              executeDepcheckCommand('exclude', excludeList, ['clean'], () => {
+                setTimeout(() => {
+                  if (askQuestion) askQuestion();
+                }, 100);
+              });
+            } else {
+              log('❌ Operazione annullata', 'red');
+              setTimeout(() => {
+                if (askQuestion) askQuestion();
+              }, 100);
+            }
+          });
+        }
+      });
+    } else {
+      log('❌ Nessun componente specificato per esclusione', 'red');
+      setTimeout(() => {
+        if (askQuestion) askQuestion();
+      }, 100);
+    }
+  });
+}
+
 // Funzioni per pulizia
 function cleanAllComponents(excludeList = []) {
   const components = getComponentDirectories();
@@ -269,27 +433,27 @@ function installAllComponents(mode = 'normal') {
 }
 
 // Funzioni per parsing comandi
-function parseAndExecuteCommand(args) {
+async function parseAndExecuteCommand(args) {
   const currentDir = process.cwd();
   const currentDirName = path.basename(currentDir);
   
-  // Перевіряємо, чи користувач знаходиться в папці package-manager
+  // Controlliamo se l'utente si trova nella cartella package-manager
   if (currentDirName === 'package-manager') {
-    log('⚠️  Ви знаходитесь в папці модуля package-manager!', 'yellow');
+    log('⚠️  Ti trovi nella cartella del modulo package-manager!', 'yellow');
     log('');
-    log('📁 Для виконання команд проекту потрібно повернутися в корінь проекту:', 'cyan');
+    log('📁 Per eseguire i comandi del progetto devi tornare alla root del progetto:', 'cyan');
     log('   cd ..', 'blue');
     log('');
-    log('💡 Після цього ви зможете використовувати:', 'cyan');
+    log('💡 Dopo potrai utilizzare:', 'cyan');
     log('   node package-manager.js', 'blue');
     log('   node package-manager.js update', 'blue');
     log('   node package-manager.js install --single component-name', 'blue');
     log('');
-    log('🔧 Або залишіться тут для налаштування модуля:', 'cyan');
+    log('🔧 Oppure rimani qui per configurare il modulo:', 'cyan');
     log('   node install.js', 'blue');
     log('');
-    log('❓ Потрібна допомога?', 'cyan');
-    log('   Читайте документацію: package-manager/README.md', 'blue');
+    log('❓ Hai bisogno di aiuto?', 'cyan');
+    log('   Leggi la documentazione: package-manager/README.md', 'blue');
     process.exit(0);
   }
   
@@ -343,6 +507,17 @@ function parseAndExecuteCommand(args) {
       }
       executeUpdateCommand();
       break;
+    case 'depcheck':
+      // Controlliamo se c'è 'clean' alla fine degli argomenti
+      const hasClean = args.includes('clean');
+      if (hasClean) {
+        // Rimuoviamo 'clean' dagli argomenti
+        const cleanArgs = args.filter(arg => arg !== 'clean');
+        await executeDepcheckCleanCommand(scope, components, cleanArgs);
+      } else {
+        await executeDepcheckCommand(scope, components, args);
+      }
+      break;
     default:
       showUsage();
       process.exit(1);
@@ -374,6 +549,11 @@ function executeInstallCommand(scope, components, mode) {
       }
       break;
   }
+  
+  // Ritorna al menu dopo l'installazione
+  setTimeout(() => {
+    if (askQuestion) askQuestion();
+  }, 100);
 }
 
 function executeReinstallCommand(scope, components, mode) {
@@ -398,11 +578,67 @@ function executeCleanCommand(scope, components) {
       cleanAllComponents(components);
       break;
   }
+  
+  // Ritorna al menu dopo la pulizia
+  setTimeout(() => {
+    if (askQuestion) askQuestion();
+  }, 100);
 }
 
 function executeUpdateCommand() {
   // Update è sempre globale per mantenere sincronizzate le versioni
   updateAllConfigs();
+  
+  // Ritorna al menu dopo l'aggiornamento
+  setTimeout(() => {
+    if (askQuestion) askQuestion();
+  }, 100);
+}
+
+async function executeDepcheckCommand(scope, components, args, onComplete = null) {
+  const depcheckScript = require('./depcheck');
+  
+  // Costruiamo gli argomenti per depcheck basandoci su scope e components
+  let depcheckArgs = [];
+  
+  if (scope === 'single' && components.length > 0) {
+    depcheckArgs.push('--single', components[0]);
+  } else if (scope === 'exclude' && components.length > 0) {
+    depcheckArgs.push('--exclude', ...components);
+  }
+  
+  // Aggiungiamo altri argomenti se presenti
+  if (args && args.length > 0) {
+    depcheckArgs.push(...args);
+  }
+  
+  // Passiamo gli argomenti al modulo depcheck con callback
+  await depcheckScript.parseAndExecuteCommand(depcheckArgs, onComplete);
+}
+
+
+async function executeDepcheckCleanCommand(scope, components, args, onComplete = null) {
+  const depcheckScript = require('./depcheck');
+  
+  // Costruiamo gli argomenti per depcheck basandoci su scope e components
+  let depcheckArgs = [];
+  
+  if (scope === 'single' && components.length > 0) {
+    depcheckArgs.push('--single', components[0]);
+  } else if (scope === 'exclude' && components.length > 0) {
+    depcheckArgs.push('--exclude', ...components);
+  }
+  
+  // Aggiungiamo clean per rimozione automatica
+  depcheckArgs.push('clean');
+  
+  // Aggiungiamo altri argomenti se presenti
+  if (args && args.length > 0) {
+    depcheckArgs.push(...args);
+  }
+  
+  // Passiamo gli argomenti al modulo depcheck con callback
+  await depcheckScript.parseAndExecuteCommand(depcheckArgs, onComplete);
 }
 
 function showUsage() {
@@ -421,12 +657,20 @@ function showUsage() {
   log('  node package-manager.js update', 'blue');
   log('  (sempre globale per mantenere versioni sincronizzate)', 'yellow');
   log('', 'reset');
+  log('🔍 Controllo dipendenze non utilizzate:', 'cyan');
+  log('  node package-manager.js depcheck [--single component] [--exclude comp1 comp2] [--remove]', 'blue');
+  log('  node package-manager.js depcheck [--single component] [--exclude comp1 comp2] clean', 'blue');
+  log('', 'reset');
   log('📝 Esempi:', 'yellow');
   log('  node package-manager.js install --exclude c106-header c106-footer', 'green');
   log('  node package-manager.js install --single c106-header force', 'green');
   log('  node package-manager.js reinstall --exclude c106-header legacy', 'green');
   log('  node package-manager.js clean --single c106-header', 'green');
   log('  node package-manager.js update', 'green');
+  log('  node package-manager.js depcheck --single c106-header', 'green');
+  log('  node package-manager.js depcheck --remove', 'green');
+  log('  node package-manager.js depcheck --single c106-header clean', 'green');
+  log('  node package-manager.js depcheck --exclude c106-header c106-footer clean', 'green');
   log('', 'reset');
   log('🎯 Modalità interattiva:', 'cyan');
   log('  node package-manager.js', 'blue');
@@ -435,10 +679,11 @@ function showUsage() {
 // Funzioni per menu interattivo
 function showMenu() {
   log('\n📋 Gestore Pacchetti Cherry 106:', 'cyan');
-  log('1. 📦 Installazione pacchetti', 'blue');
-  log('2. 🔄 Reinstallazione pacchetti (clean install)', 'blue');
-  log('3. 🧹 Pulizia/rimozione pacchetti', 'yellow');
-  log('4. ⚙️  Aggiornamento configurazioni (globale)', 'green');
+  log('1. ⚙️  Aggiornamento configurazioni (globale)', 'green');
+  log('2. 🔍 Controllo dipendenze non utilizzate', 'magenta');
+  log('3. 📦 Installazione pacchetti', 'blue');
+  log('4. 🔄 Reinstallazione pacchetti (clean install)', 'blue');
+  log('5. 🧹 Pulizia/rimozione pacchetti', 'yellow');
   log('0. 🚪 Esci', 'red');
 }
 
@@ -534,9 +779,6 @@ function showInstallModeMenu(scope, components) {
       });
     } else {
       executeInstallCommand(scope, components, mode);
-      setTimeout(() => {
-        if (askQuestion) askQuestion();
-      }, 100);
     }
   });
 }
@@ -701,13 +943,15 @@ function showCleanMenu() {
             log(`\n🎯 Selezionato per pulizia: ${selectedComponent}`, 'green');
             cleanComponent(path.join(process.cwd(), selectedComponent));
             log('\n✅ Pulizia completata!', 'green');
+            setTimeout(() => {
+              if (askQuestion) askQuestion();
+            }, 100);
           } else {
             log('❌ Numero componente non valido', 'red');
+            setTimeout(() => {
+              if (askQuestion) askQuestion();
+            }, 100);
           }
-          
-          setTimeout(() => {
-            if (askQuestion) askQuestion();
-          }, 100);
         });
         break;
       case '3':
@@ -740,14 +984,14 @@ function showCleanMenu() {
   });
 }
 
-function main() {
+async function main() {
   log(`🚀 ${projectConfig.project.name} - ${projectConfig.project.description}`, 'bright');
   
   const args = process.argv.slice(2);
   
   // Se sono passati argomenti da riga di comando
   if (args.length > 0) {
-    parseAndExecuteCommand(args);
+    await parseAndExecuteCommand(args);
     return;
   }
   
@@ -780,25 +1024,12 @@ function main() {
         return;
       }
       
-      // Aspetta un momento prima di mostrare il menu per evitare conflitti
-      setTimeout(() => {
-        if (rl && rl.closed) {
-          return;
-        }
-        showMenu();
-        if (rl) {
-          rl.question('\nScegli opzione (0-4): ', (answer) => {
+      // Mostra il menu e chiedi l'opzione
+      showMenu();
+      if (rl) {
+        rl.question('\nScegli opzione (0-5): ', (answer) => {
             switch (answer.trim()) {
               case '1':
-                showInstallMenu();
-                break;
-              case '2':
-                showReinstallMenu();
-                break;
-              case '3':
-                showCleanMenu();
-                break;
-              case '4':
                 log('\n⚙️  Aggiornamento configurazioni per tutti i componenti...', 'cyan');
                 log('⚠️  Questo aggiornerà le configurazioni per TUTTI i componenti!', 'yellow');
                 if (rl) {
@@ -812,6 +1043,18 @@ function main() {
                   });
                 }
                 break;
+              case '2':
+                showDepcheckMenu();
+                break;
+              case '3':
+                showInstallMenu();
+                break;
+              case '4':
+                showReinstallMenu();
+                break;
+              case '5':
+                showCleanMenu();
+                break;
               case '0':
                 log('👋 Arrivederci!', 'green');
                 if (rl) rl.close();
@@ -824,7 +1067,6 @@ function main() {
             }
           });
         }
-      }, 50); // Piccolo delay per evitare conflitti
     };
     
     askQuestion();
@@ -848,5 +1090,6 @@ module.exports = {
   cleanComponent,
   installAllComponents,
   cleanAllComponents,
-  updateAllConfigs
+  updateAllConfigs,
+  showDepcheckMenu
 };

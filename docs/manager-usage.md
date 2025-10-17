@@ -12,21 +12,10 @@ Il Package Manager offre due modalità di utilizzo:
 
 ### Avvio
 ```bash
-# Windows
-package-manager.bat
-# O con scorciatoie:
-packman.bat
-pm.bat
-
-# Unix/Linux/macOS
-./package-manager.sh
-# O con scorciatoie:
-./packman.sh
-./pm.sh
-
-# O direttamente
+# Entry point principale
 node package-manager.js
-# O con scorciatoie:
+
+# Scorciatoie
 node packman.js
 node pm.js
 ```
@@ -38,6 +27,7 @@ node pm.js
 2. 🔄 Reinstallazione pacchetti (clean install)
 3. 🧹 Pulizia/rimozione pacchetti
 4. ⚙️  Aggiornamento configurazioni (globale)
+5. 🔍 Controllo dipendenze non utilizzate
 0. 🚪 Esci
 ```
 
@@ -100,6 +90,24 @@ node pm.js
 Continua? (y/N):
 ```
 
+### 5. 🔍 Controllo Dipendenze Non Utilizzate
+
+#### Menu Controllo Dipendenze
+```
+🔍 Controllo dipendenze non utilizzate:
+1. Controlla tutti i componenti
+2. Controlla un componente
+3. Controlla tutti eccetto quelli specificati
+4. Controlla e rimuovi dipendenze non utilizzate
+0. 🔙 Torna al menu principale
+```
+
+#### Funzionalità
+- **Analisi intelligente**: Scansiona tutti i file JS/TS per rilevare l'utilizzo delle dipendenze
+- **Rilevamento pattern**: Supporta require(), import, e riferimenti diretti
+- **Rimozione sicura**: Richiede sempre conferma prima di rimuovere dipendenze
+- **Report dettagliato**: Mostra statistiche complete per ogni componente
+
 ## 💻 Modalità Comando
 
 ### Sintassi Generale
@@ -110,15 +118,6 @@ node package-manager.js <comando> [opzioni] [modalità]
 # Con scorciatoie
 node packman.js <comando> [opzioni] [modalità]
 node pm.js <comando> [opzioni] [modalità]
-
-# Con wrapper cross-platform
-package-manager.bat <comando> [opzioni] [modalità]
-packman.bat <comando> [opzioni] [modalità]
-pm.bat <comando> [opzioni] [modalità]
-
-./package-manager.sh <comando> [opzioni] [modalità]
-./packman.sh <comando> [opzioni] [modalità]
-./pm.sh <comando> [opzioni] [modalità]
 ```
 
 ### Comandi Disponibili
@@ -198,6 +197,30 @@ node package-manager.js clean --exclude c106-header c106-footer
 node package-manager.js update
 ```
 
+#### 🔍 Controllo Dipendenze
+```bash
+# Controlla dipendenze non utilizzate per tutti i componenti
+node package-manager.js depcheck
+
+# Controlla un singolo componente
+node package-manager.js depcheck --single c106-header
+
+# Controlla tutti eccetto quelli specificati
+node package-manager.js depcheck --exclude c106-header c106-footer
+
+# Controlla e rimuovi dipendenze non utilizzate
+node package-manager.js depcheck --remove
+
+# Combinazioni
+node package-manager.js depcheck --single c106-header --remove
+node package-manager.js depcheck --exclude c106-header --remove
+
+# Comandi automatici (senza conferma)
+node package-manager.js depcheck --single c106-header clean
+node package-manager.js depcheck --exclude c106-header c106-footer clean
+node package-manager.js depcheck clean
+```
+
 ## 🎯 Opzioni e Flag
 
 ### Flag di Ambito
@@ -269,6 +292,32 @@ node package-manager.js reinstall legacy
 # O con scorciatoie:
 node packman.js reinstall legacy
 node pm.js reinstall legacy
+```
+
+### Controllo e Pulizia Dipendenze
+```bash
+# Controlla dipendenze non utilizzate
+node package-manager.js depcheck
+# O con scorciatoie:
+node packman.js depcheck
+node pm.js depcheck
+
+# Controlla un componente specifico
+node package-manager.js depcheck --single c106-header
+# O con scorciatoie:
+node packman.js depcheck --single c106-header
+node pm.js depcheck --single c106-header
+
+# Rimuovi dipendenze non utilizzate (con conferma)
+node package-manager.js depcheck --remove
+# O con scorciatoie:
+node packman.js depcheck --remove
+node pm.js depcheck --remove
+
+# Rimuovi automaticamente (senza conferma)
+node package-manager.js depcheck --single c106-header clean
+node package-manager.js depcheck --exclude c106-header c106-footer clean
+node package-manager.js depcheck clean
 ```
 
 ## 🔧 Modalità di Installazione
@@ -356,6 +405,89 @@ node packman.js update
 node pm.js update
 
 # 3. Reinstalla con legacy
+node package-manager.js reinstall legacy
+# O con scorciatoie:
+node packman.js reinstall legacy
+node pm.js reinstall legacy
+```
+
+### Pulizia Dipendenze
+```bash
+# 1. Controlla dipendenze non utilizzate
+node package-manager.js depcheck
+# O con scorciatoie:
+node packman.js depcheck
+node pm.js depcheck
+
+# 2. Rimuovi quelle non utilizzate (dopo verifica)
+node package-manager.js depcheck --remove
+# O con scorciatoie:
+node packman.js depcheck --remove
+node pm.js depcheck --remove
+
+# 3. Aggiorna configurazioni
+node package-manager.js update
+# O con scorciatoie:
+node packman.js update
+node pm.js update
+
+# 4. Reinstalla dipendenze
+node package-manager.js reinstall
+# O con scorciatoie:
+node packman.js reinstall
+node pm.js reinstall
+```
+
+### Workflow Post-Aggiornamento Pacchetti
+```bash
+# 1. Dopo aver aggiornato i pacchetti, controlla dipendenze non utilizzate
+node package-manager.js depcheck
+# O con scorciatoie:
+node packman.js depcheck
+node pm.js depcheck
+
+# 2. Se ci sono dipendenze non utilizzate, rimuovile
+node package-manager.js depcheck clean
+# O con scorciatoie:
+node packman.js depcheck clean
+node pm.js depcheck clean
+
+# 3. Aggiorna le configurazioni per sincronizzare le versioni
+node package-manager.js update
+# O con scorciatoie:
+node packman.js update
+node pm.js update
+
+# 4. Reinstalla solo le dipendenze necessarie
+node package-manager.js reinstall
+# O con scorciatoie:
+node packman.js reinstall
+node pm.js reinstall
+```
+
+### Workflow per Cambiamenti Importanti
+```bash
+# Per cambiamenti molto importanti (es. aggiornamento major version):
+
+# 1. Pulisci tutto per rimuovere cache e dipendenze obsolete
+node package-manager.js clean
+# O con scorciatoie:
+node packman.js clean
+node pm.js clean
+
+# 2. Controlla e rimuovi dipendenze non utilizzate
+node package-manager.js depcheck clean
+# O con scorciatoie:
+node packman.js depcheck clean
+node pm.js depcheck clean
+
+# 3. Aggiorna configurazioni
+node package-manager.js update
+# O con scorciatoie:
+node packman.js update
+node pm.js update
+
+# 4. Reinstalla tutto con modalità legacy se necessario
 node package-manager.js reinstall legacy
 # O con scorciatoie:
 node packman.js reinstall legacy

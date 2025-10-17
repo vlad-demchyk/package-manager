@@ -24,7 +24,7 @@ function log(message, color = 'reset') {
   console.log(`${colors[color]}${message}${colors.reset}`);
 }
 
-function main() {
+async function main() {
   // Cerchiamo la cartella package-manager
   const packageManagerDir = path.join(__dirname, 'package-manager');
   
@@ -59,10 +59,10 @@ function main() {
     
     if (args.length === 0) {
       // Modalità interattiva
-      coreModule.main();
+      await coreModule.main();
     } else {
       // Modalità riga di comando
-      coreModule.parseAndExecuteCommand(args);
+      await coreModule.parseAndExecuteCommand(args);
     }
     
   } catch (error) {
@@ -79,7 +79,11 @@ function main() {
 
 // Avvio della funzione principale
 if (require.main === module) {
-  main();
+  main().catch(error => {
+    log('❌ Errore durante l\'esecuzione:', 'red');
+    log(`   ${error.message}`, 'yellow');
+    process.exit(1);
+  });
 }
 
 module.exports = { main };

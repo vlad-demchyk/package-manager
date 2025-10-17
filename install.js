@@ -145,9 +145,22 @@ async function configureProject() {
       default:
         log('⏭️  Configurazione saltata - verranno usate le impostazioni predefinite', 'yellow');
         // Imposta configurazione predefinita per struttura cartelle
-        // Verifica se il progetto usa TypeScript controllando la presenza di tsconfig.json
+        // Verifica se il progetto usa TypeScript controllando la presenza di tsconfig.json nei componenti
         const projectRoot = path.join(__dirname, '..');
-        const hasTsConfig = fs.existsSync(path.join(projectRoot, 'tsconfig.json'));
+        const items = fs.readdirSync(projectRoot);
+        
+        // Cerca tsconfig.json in almeno un componente
+        let hasTsConfig = false;
+        for (const item of items) {
+          const fullPath = path.join(projectRoot, item);
+          if (fs.statSync(fullPath).isDirectory()) {
+            const tsConfigPath = path.join(fullPath, 'tsconfig.json');
+            if (fs.existsSync(tsConfigPath)) {
+              hasTsConfig = true;
+              break;
+            }
+          }
+        }
         
         let defaultFiles = ['package.json'];
         if (hasTsConfig) {
@@ -293,14 +306,8 @@ async function main() {
   // File da copiare
   const filesToCopy = [
     'package-manager.js',
-    'package-manager.bat',
-    'package-manager.sh',
     'packman.js',
-    'packman.bat',
-    'packman.sh',
-    'pm.js',
-    'pm.bat',
-    'pm.sh'
+    'pm.js'
   ];
 
   log('📁 Copia file nella root del progetto...', 'blue');
@@ -366,11 +373,16 @@ async function main() {
   log('   2. Configura package-manager/dependencies-config.js (opzionale)', 'blue');
   log('   3. Testa: node package-manager.js update', 'blue');
   log('');
-  log('💡 Per utilizzare il manager:', 'cyan');
-  log('   - Modalità interattiva: node package-manager.js', 'blue');
-  log('   - Comando diretto: node package-manager.js update', 'blue');
-  log('   - Wrapper Windows: package-manager.bat', 'blue');
-  log('   - Wrapper Unix/Linux/macOS: ./package-manager.sh', 'blue');
+  log('🚀 Pronto per utilizzare il package manager!', 'bright');
+  log('');
+  log('📋 Comandi disponibili:', 'cyan');
+  log('   node package-manager.js update    - Aggiorna configurazioni', 'blue');
+  log('   node package-manager.js install   - Installa pacchetti', 'blue');
+  log('   node package-manager.js depcheck  - Controlla dipendenze non utilizzate', 'blue');
+  log('   node package-manager.js           - Modalità interattiva', 'blue');
+  log('');
+  log('⚠️  IMPORTANTE: Esegui i comandi dalla directory root del progetto:', 'yellow');
+  log(`   cd "${projectRoot}"`, 'blue');
   log('');
 }
 
