@@ -11,27 +11,27 @@ Il sistema depcheck analizza automaticamente tutti i componenti del progetto per
 ### Modalità Interattiva
 ```bash
 # Avvia il menu interattivo del package manager
-node package-manager.js
+packman
 # Seleziona opzione 2: "Controllo dipendenze non utilizzate"
 ```
 
 ### Comandi Diretti
 ```bash
 # Controlla tutti i componenti
-node package-manager.js depcheck
+packman depcheck
 
 # Controlla un componente specifico
-node package-manager.js depcheck --single c106-header
+packman depcheck --single c106-header
 
 # Controlla tutti tranne quelli specificati
-node package-manager.js depcheck --exclude c106-header c106-footer
+packman depcheck --exclude c106-header c106-footer
 
 # Controlla e rimuovi automaticamente le dipendenze non utilizzate
-node package-manager.js depcheck --remove
+packman depcheck --remove
 
 # Combinazioni
-node package-manager.js depcheck --single c106-header --remove
-node package-manager.js depcheck --exclude c106-header --remove
+packman depcheck --single c106-header --remove
+packman depcheck --exclude c106-header --remove
 ```
 
 ### Scorciatoie
@@ -74,27 +74,27 @@ Per ogni dipendenza, cerca i seguenti pattern:
 
 ### Modalità Sicura (Default)
 ```bash
-node package-manager.js depcheck
+packman depcheck
 ```
 - Mostra solo il report delle dipendenze non utilizzate
 
 ### Comandi Automatici (Senza Conferma)
 ```bash
 # Rimuovi automaticamente per un componente
-node package-manager.js depcheck --single c106-header clean
+packman depcheck --single c106-header clean
 
 # Rimuovi automaticamente per tutti eccetto quelli specificati
-node package-manager.js depcheck --exclude c106-header c106-footer clean
+packman depcheck --exclude c106-header c106-footer clean
 
 # Rimuovi automaticamente per tutti i componenti
-node package-manager.js depcheck clean
+packman depcheck clean
 ```
 - **NON rimuove** automaticamente nulla
 - Richiede conferma esplicita per ogni rimozione
 
 ### Modalità Rimozione Automatica
 ```bash
-node package-manager.js depcheck --remove
+packman depcheck --remove
 ```
 - Mostra il report
 - Richiede conferma per ogni componente
@@ -121,7 +121,7 @@ node package-manager.js depcheck --remove
    ❌ Dipendenze non utilizzate trovate: 3
 
 💡 Per rimuovere le dipendenze non utilizzate utilizzare:
-   node package-manager.js depcheck --remove
+   packman depcheck --remove
 ```
 
 ## ⚠️ Avvertenze e Best Practices
@@ -151,7 +151,7 @@ Il sistema può essere personalizzato modificando:
 ### Problema: "Dipendenze rimosse per errore"
 **Soluzione**: 
 1. Ripristina da backup
-2. Reinstalla le dipendenze: `node package-manager.js install`
+2. Reinstalla le dipendenze: `packman install`
 
 ### Problema: "Analisi troppo lenta"
 **Soluzione**: 
@@ -163,16 +163,16 @@ Il sistema può essere personalizzato modificando:
 ### Workflow Completo
 ```bash
 # 1. Controlla dipendenze non utilizzate
-node package-manager.js depcheck
+packman depcheck
 
 # 2. Rimuovi quelle non utilizzate (dopo verifica)
-node package-manager.js depcheck --remove
+packman depcheck --remove
 
 # 3. Aggiorna configurazioni
-node package-manager.js update
+packman update
 
 # 4. Reinstalla dipendenze
-node package-manager.js reinstall
+packman reinstall
 ```
 
 ### Automazione
@@ -180,9 +180,9 @@ node package-manager.js reinstall
 # Script per pulizia completa
 #!/bin/bash
 echo "🔍 Controllo dipendenze non utilizzate..."
-node package-manager.js depcheck --remove
+packman depcheck --remove
 echo "⚙️ Aggiornamento configurazioni..."
-node package-manager.js update
+packman update
 echo "✅ Pulizia completata!"
 ```
 

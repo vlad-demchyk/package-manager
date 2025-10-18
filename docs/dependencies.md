@@ -11,6 +11,53 @@ File principale per la configurazione delle dipendenze. Contiene:
 - Dipendenze di sviluppo
 - Dipendenze obsolete (rimosse automaticamente)
 
+## 🤖 Автогенерація залежностей
+
+Якщо у вас вже є багатокомпонентний проект з існуючими `package.json`, ви можете автоматично згенерувати `dependencies-config.js`:
+
+1. Встановіть модуль: `npm install https://github.com/vlad-demchyk/package-manager`
+2. Запустіть: `npx packman update`
+3. Коли система виявить порожній `dependencies-config.js`, вона запропонує автогенерацію
+4. Система проаналізує всі `package.json` в компонентах
+5. Знайде найвищу версію кожної залежності
+6. Покаже результат для підтвердження
+7. Збереже конфігурацію якщо ви підтвердите
+
+### Приклад виводу
+
+```
+⚠️  dependencies-config.js порожній!
+💡 Бажаєте згенерувати автоматично з існуючих проектів? (y/N): y
+
+📦 Аналіз 5 компонентів...
+✅ Знайдено 25 унікальних залежностей
+
+📦 Згенеровані залежності:
+
+BASE_DEPENDENCIES:
+  "react": "^18.2.0"
+  "typescript": "~5.3.3"
+  "axios": "^1.4.0"
+
+DEV_DEPENDENCIES:
+  "eslint": "8.57.1"
+  "@types/react": "^18.0.0"
+
+📊 Статистика:
+  Базових залежностей: 15
+  Dev залежностей: 10
+
+Зберегти цю конфігурацію? (y/N): y
+✅ Конфігурацію збережено!
+```
+
+### Вибір версії
+
+Система обирає найвищу версію з усіх знайдених:
+- Для semver (^1.2.0, ~1.2.0) - порівнює числові версії
+- Для git urls - використовує останню знайдену
+- Для file: paths - пропускає з попередженням
+
 ## 🔧 Struttura Configurazione
 
 ### Dipendenze Base (sempre aggiunte)
@@ -122,7 +169,7 @@ Dopo aver modificato `dependencies-config.js`:
 
 ```bash
 # Aggiorna tutte le configurazioni (sempre globale)
-node package-manager.js update
+packman update
 ```
 
 ## 📋 Esempi Configurazioni
@@ -226,9 +273,9 @@ const STANDARD_TS_CONFIG = {
 
 1. **Apri** `dependencies-config.js`
 2. **Modifica** versioni o aggiungi nuove dipendenze
-3. **Esegui** `node package-manager.js update`
+3. **Esegui** `packman update`
 4. **Controlla** il risultato nei log
-5. **Installa** pacchetti: `node package-manager.js install --single component-name`
+5. **Installa** pacchetti: `packman install --single component-name`
 
 ## ⚠️ Note Importanti
 

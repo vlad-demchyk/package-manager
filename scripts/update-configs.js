@@ -6,322 +6,366 @@
  * Versione modulare con configurazione esterna
  */
 
-const fs = require('fs');
-const path = require('path');
-const { execSync } = require('child_process');
+const fs = require("fs");
+const path = require("path");
+const { execSync } = require("child_process");
+const readline = require("readline");
 
-// Carica configurazione progetto
-const projectConfig = require('../project-config');
+// Import shared logger
+const logger = require("./utils/logger");
 
-// Import configurazione dipendenze
+// Функція для створення пустого темплейту dependencies-config.js
+function createEmptyDependenciesConfig(projectRoot) {
+  // Спочатку пробуємо знайти темплейт в корені проекту
+  let templatePath = path.join(projectRoot, "dependencies-config.js");
+
+  // Якщо немає в корені, пробуємо в node_modules
+  if (!fs.existsSync(templatePath)) {
+    templatePath = path.join(
+      projectRoot,
+      "node_modules",
+      "package-manager",
+      "templates",
+      "dependencies-config.js"
+    );
+  }
+
+  // Якщо і там немає, використовуємо відносний шлях (для розробки)
+  if (!fs.existsSync(templatePath)) {
+    templatePath = path.join(
+      __dirname,
+      "..",
+      "templates",
+      "dependencies-config.js"
+    );
+  }
+
+  const targetPath = path.join(
+    projectRoot,
+    "package-manager",
+    "dependencies-config.js"
+  );
+
+  try {
+    // Перевіряємо чи існує папка package-manager
+    const packageManagerDir = path.join(projectRoot, "package-manager");
+    if (!fs.existsSync(packageManagerDir)) {
+      fs.mkdirSync(packageManagerDir, { recursive: true });
+    }
+
+    // Перевіряємо чи існує темплейт
+    if (!fs.existsSync(templatePath)) {
+      logger.error(`Темплейт не знайдено в жодному з місць: ${templatePath}`);
+      return false;
+    }
+
+    // Копіюємо темплейт
+    fs.copyFileSync(templatePath, targetPath);
+    logger.log(`✅ Темплейт скопійовано з: ${templatePath}`, "green");
+    return true;
+  } catch (error) {
+    logger.error(`Помилка створення темплейту: ${error.message}`);
+    return false;
+  }
+}
+
+// Функція для перезавантаження модуля dependencies-config
+function reloadDependenciesConfig(projectRoot) {
+  try {
+    delete require.cache[
+      require.resolve(
+        path.join(projectRoot, "package-manager/dependencies-config")
+      )
+    ];
+    const depsConfig = require(path.join(
+      projectRoot,
+      "package-manager/dependencies-config"
+    ));
+    getBaseDependencies = depsConfig.getBaseDependencies;
+    getConditionalDependencies = depsConfig.getConditionalDependencies;
+    getDevDependencies = depsConfig.getDevDependencies;
+    getDeprecatedDependencies = depsConfig.getDeprecatedDependencies;
+    getStandardScripts = depsConfig.getStandardScripts;
+    getStandardTsConfig = depsConfig.getStandardTsConfig;
+    getNodeEngines = depsConfig.getNodeEngines;
+    logger.log(
+      "✅ Модуль dependencies-config успішно перезавантажено!",
+      "green"
+    );
+    return true;
+  } catch (error) {
+    logger.error(`Помилка перезавантаження модуля: ${error.message}`);
+    // Використовуємо функції за замовчуванням
+    getBaseDependencies = () => ({});
+    getConditionalDependencies = () => ({});
+    getDevDependencies = () => ({});
+    getDeprecatedDependencies = () => [];
+    getStandardScripts = () => ({});
+    getStandardTsConfig = () => ({});
+    getNodeEngines = () => ({});
+    return false;
+  }
+}
+
+// Import moduli riorganizzati
 const {
-  getBaseDependencies,
+  generateDependenciesConfig,
+  displayGeneratedDependencies,
+  saveDependenciesConfig,
+} = require("./dependencies/generator");
+const { getUsedDependencies } = require("./dependencies/analyzer");
+const {
+  updatePackageJson,
+  updateTsConfig,
+  removeTslintJson,
+} = require("./dependencies/updater");
+
+// Carica configurazione progetto dinamicamente
+const projectRoot = process.cwd();
+const projectConfig = require(path.join(
+  projectRoot,
+  "package-manager/project-config"
+));
+
+// Import configurazione dipendenze dinamicamente (con fallback se non esiste)
+let getBaseDependencies,
   getConditionalDependencies,
   getDevDependencies,
   getDeprecatedDependencies,
   getStandardScripts,
   getStandardTsConfig,
-  getNodeEngines
-} = require('../dependencies-config');
+  getNodeEngines;
 
-// Funzioni di utilità
-function log(message, color = 'reset') {
-  const colors = projectConfig.logging.colors;
-  console.log(`${colors[color]}${message}${colors.reset}`);
+try {
+  const depsConfig = require(path.join(
+    projectRoot,
+    "package-manager/dependencies-config"
+  ));
+  getBaseDependencies = depsConfig.getBaseDependencies;
+  getConditionalDependencies = depsConfig.getConditionalDependencies;
+  getDevDependencies = depsConfig.getDevDependencies;
+  getDeprecatedDependencies = depsConfig.getDeprecatedDependencies;
+  getStandardScripts = depsConfig.getStandardScripts;
+  getStandardTsConfig = depsConfig.getStandardTsConfig;
+  getNodeEngines = depsConfig.getNodeEngines;
+} catch (error) {
+  // Se il file non esiste, usa funzioni vuote
+  getBaseDependencies = () => ({});
+  getConditionalDependencies = () => ({});
+  getDevDependencies = () => ({});
+  getDeprecatedDependencies = () => [];
+  getStandardScripts = () => ({});
+  getStandardTsConfig = () => ({});
+  getNodeEngines = () => ({});
 }
 
-function getComponentDirectories() {
-  const currentDir = process.cwd();
-  const items = fs.readdirSync(currentDir);
-  
-  return items.filter(item => {
-    const fullPath = path.join(currentDir, item);
-    
-    if (!fs.statSync(fullPath).isDirectory()) {
-      return false;
-    }
-    
-    // Controllo per prefisso
-    if (projectConfig.components.filterByPrefix.enabled) {
-      if (!item.startsWith(projectConfig.components.filterByPrefix.prefix)) {
-        return false;
-      }
-    }
-    
-    // Controllo per struttura
-    if (projectConfig.components.filterByStructure.enabled) {
-      const requiredFiles = projectConfig.components.filterByStructure.requiredFiles;
-      const requiredFolders = projectConfig.components.filterByStructure.requiredFolders;
-      
-      for (const file of requiredFiles) {
-        if (!fs.existsSync(path.join(fullPath, file))) {
-          return false;
-        }
-      }
-      
-      for (const folder of requiredFolders) {
-        const folderPath = path.join(fullPath, folder);
-        if (!fs.existsSync(folderPath) || !fs.statSync(folderPath).isDirectory()) {
-          return false;
-        }
-      }
-    }
-    
-    // Controllo per lista
-    if (projectConfig.components.filterByList.enabled) {
-      if (!projectConfig.components.filterByList.folders.includes(item)) {
-        return false;
-      }
-    }
-    
-    // Controllo per regex
-    if (projectConfig.components.filterByRegex.enabled) {
-      if (!projectConfig.components.filterByRegex.pattern.test(item)) {
-        return false;
-      }
-    }
-    
-    // Controlliamo sempre la presenza di package.json
-    return fs.existsSync(path.join(fullPath, projectConfig.files.packageJson));
+// Funzione per creare readline interface
+function createReadlineInterface() {
+  return readline.createInterface({
+    input: process.stdin,
+    output: process.stdout,
+    terminal: false,
   });
 }
 
-function getAllSourceFiles(componentPath) {
-  const srcPath = path.join(componentPath, 'src');
-  const files = [];
-  
-  if (!fs.existsSync(srcPath)) {
-    return files;
-  }
-  
-  function scanDirectory(dir) {
-    const items = fs.readdirSync(dir);
-    
-    items.forEach(item => {
-      const fullPath = path.join(dir, item);
-      const stat = fs.statSync(fullPath);
-      
-      if (stat.isDirectory()) {
-        scanDirectory(fullPath);
-      } else if (stat.isFile() && (item.endsWith('.ts') || item.endsWith('.tsx') || item.endsWith('.js') || item.endsWith('.jsx'))) {
-        files.push(fullPath);
-      }
+// Funzione per fare domande all'utente
+function askQuestion(rl, question) {
+  return new Promise((resolve) => {
+    rl.question(question, (answer) => {
+      resolve(answer.trim());
     });
-  }
-  
-  scanDirectory(srcPath);
-  return files;
-}
-
-function analyzeDependencyUsage(componentPath, dependencyName, patterns) {
-  const sourceFiles = getAllSourceFiles(componentPath);
-  
-  for (const filePath of sourceFiles) {
-    try {
-      const content = fs.readFileSync(filePath, 'utf8');
-      
-      for (const pattern of patterns) {
-        // Creiamo regex per ricerca
-        const regex = new RegExp(pattern, 'gi');
-        if (regex.test(content)) {
-          return true;
-        }
-      }
-    } catch (error) {
-      // Ignoriamo errori di lettura file
-      continue;
-    }
-  }
-  
-  return false;
-}
-
-function getUsedDependencies(componentPath) {
-  const usedDeps = new Set();
-  
-  // Otteniamo le dipendenze dalla configurazione
-  const COMMON_DEPENDENCIES = getBaseDependencies();
-  const CONDITIONAL_DEPENDENCIES = getConditionalDependencies();
-  
-  // Aggiungiamo sempre le dipendenze base SPFx
-  Object.keys(COMMON_DEPENDENCIES).forEach(dep => {
-    if (!CONDITIONAL_DEPENDENCIES[dep]) {
-      usedDeps.add(dep);
-    }
   });
-  
-  // Controlliamo le dipendenze condizionali
-  Object.entries(CONDITIONAL_DEPENDENCIES).forEach(([depName, config]) => {
-    if (analyzeDependencyUsage(componentPath, depName, config.patterns)) {
-      usedDeps.add(depName);
-      log(`✅ Trovato utilizzo: ${config.description} (${depName})`, 'green');
+}
+
+// Funzione principale per aggiornare tutte le configurazioni
+async function updateAllConfigs() {
+  logger.log("🚀 Avvio aggiornamento configurazioni componenti...", "cyan");
+
+  const dependenciesConfigPath = path.join(
+    projectRoot,
+    "package-manager",
+    "dependencies-config.js"
+  );
+
+  // 1. Se il file non esiste, copia il template
+  if (!fs.existsSync(dependenciesConfigPath)) {
+    logger.log("⚠️  dependencies-config.js non trovato!", "yellow");
+    logger.log("📋 Copiando template vuoto...", "cyan");
+
+    if (createEmptyDependenciesConfig(projectRoot)) {
+      logger.log("✅ Template copiato!", "green");
+      logger.log("📝 Ora puoi riempire manualmente il file:", "cyan");
+      logger.log("   package-manager/dependencies-config.js", "blue");
+      logger.log("");
+      logger.log("💡 Sezioni disponibili:", "cyan");
+      logger.log("   1. BASE_DEPENDENCIES (sempre aggiunte)", "blue");
+      logger.log(
+        "   2. CONDITIONAL_DEPENDENCIES (aggiunte se utilizzate)",
+        "blue"
+      );
+      logger.log(
+        "   3. DEV_DEPENDENCIES (sempre come devDependencies)",
+        "blue"
+      );
+      logger.log("   4. DEPRECATED_DEPENDENCIES (rimosse)", "blue");
+      logger.log("");
     } else {
-      log(`⏭️  Saltata dipendenza non utilizzata: ${config.description} (${depName})`, 'yellow');
-    }
-  });
-  
-  return usedDeps;
-}
-
-function updatePackageJson(componentPath) {
-  const packageJsonPath = path.join(componentPath, projectConfig.files.packageJson);
-  
-  if (!fs.existsSync(packageJsonPath)) {
-    log(`❌ ${projectConfig.files.packageJson} non trovato in ${componentPath}`, 'red');
-    return false;
-  }
-
-  try {
-    const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, 'utf8'));
-    
-    log(`🔍 Analisi utilizzo dipendenze per ${path.basename(componentPath)}...`, 'cyan');
-    
-    // Otteniamo le dipendenze dalla configurazione
-    const COMMON_DEPENDENCIES = getBaseDependencies();
-    const COMMON_DEV_DEPENDENCIES = getDevDependencies();
-    const DEPRECATED_DEPENDENCIES = getDeprecatedDependencies();
-    const STANDARD_SCRIPTS = getStandardScripts();
-    
-    // Otteniamo lista dipendenze utilizzate
-    const usedDeps = getUsedDependencies(componentPath);
-    
-    // Rimuoviamo dipendenze deprecate
-    if (packageJson.dependencies) {
-      DEPRECATED_DEPENDENCIES.forEach(dep => {
-        if (packageJson.dependencies[dep]) {
-          delete packageJson.dependencies[dep];
-          log(`🗑️  Rimossa dipendenza deprecata: ${dep}`, 'yellow');
-        }
-      });
-    }
-    
-    if (packageJson.devDependencies) {
-      DEPRECATED_DEPENDENCIES.forEach(dep => {
-        if (packageJson.devDependencies[dep]) {
-          delete packageJson.devDependencies[dep];
-          log(`🗑️  Rimossa dipendenza dev deprecata: ${dep}`, 'yellow');
-        }
-      });
-    }
-    
-    // Aggiorniamo dipendenze solo per quelle utilizzate
-    if (!packageJson.dependencies) packageJson.dependencies = {};
-    
-    // Aggiungiamo solo dipendenze utilizzate
-    usedDeps.forEach(depName => {
-      if (COMMON_DEPENDENCIES[depName]) {
-        packageJson.dependencies[depName] = COMMON_DEPENDENCIES[depName];
-      }
-    });
-    
-    // Aggiorniamo dipendenze dev (aggiungiamo sempre tutte)
-    if (!packageJson.devDependencies) packageJson.devDependencies = {};
-    Object.assign(packageJson.devDependencies, COMMON_DEV_DEPENDENCIES);
-    
-    // Aggiorniamo script
-    if (!packageJson.scripts) packageJson.scripts = {};
-    Object.assign(packageJson.scripts, STANDARD_SCRIPTS);
-    
-    // Aggiorniamo engines
-    packageJson.engines = getNodeEngines();
-    
-    // Salviamo package.json aggiornato
-    fs.writeFileSync(packageJsonPath, JSON.stringify(packageJson, null, 4));
-    log(`✅ Aggiornato package.json per ${path.basename(componentPath)} (${usedDeps.size} dipendenze)`, 'green');
-    return true;
-    
-  } catch (error) {
-    log(`❌ Errore aggiornando package.json per ${path.basename(componentPath)}: ${error.message}`, 'red');
-    return false;
-  }
-}
-
-function updateTsConfig(componentPath) {
-  const tsConfigPath = path.join(componentPath, projectConfig.files.tsConfig);
-  
-  try {
-    const STANDARD_TSCONFIG = getStandardTsConfig();
-    fs.writeFileSync(tsConfigPath, JSON.stringify(STANDARD_TSCONFIG, null, 2));
-    log(`✅ Aggiornato tsconfig.json per ${path.basename(componentPath)}`, 'green');
-    return true;
-  } catch (error) {
-    log(`❌ Errore aggiornando tsconfig.json per ${path.basename(componentPath)}: ${error.message}`, 'red');
-    return false;
-  }
-}
-
-function removeTslintJson(componentPath) {
-  const tslintPath = path.join(componentPath, projectConfig.files.tslint);
-  
-  if (fs.existsSync(tslintPath)) {
-    try {
-      fs.unlinkSync(tslintPath);
-      log(`✅ Rimosso tslint.json per ${path.basename(componentPath)}`, 'yellow');
-      return true;
-    } catch (error) {
-      log(`❌ Errore rimuovendo tslint.json per ${path.basename(componentPath)}: ${error.message}`, 'red');
+      logger.log("❌ Errore copiando template", "red");
       return false;
     }
   }
-  return true;
-}
 
-function updateAllConfigs() {
-  log('🚀 Avvio aggiornamento configurazioni componenti...', 'cyan');
-  
-  const componentDirs = getComponentDirectories();
-  
+  // 2. Carica la configurazione
+  reloadDependenciesConfig(projectRoot);
+
+  // 3. Verifica se è vuota
+  const baseDeps = getBaseDependencies();
+  const conditionalDeps = getConditionalDependencies();
+  const devDeps = getDevDependencies();
+
+  if (
+    Object.keys(baseDeps).length === 0 &&
+    Object.keys(conditionalDeps).length === 0 &&
+    Object.keys(devDeps).length === 0
+  ) {
+    logger.log("⚠️  dependencies-config.js è vuoto!", "yellow");
+    logger.log(
+      "💡 Vuoi generare automaticamente dai progetti esistenti?",
+      "cyan"
+    );
+
+    const rl = createReadlineInterface();
+    const answer = await askQuestion(rl, "Generare? (y/N): ");
+
+    if (answer === "y" || answer === "yes") {
+      const generated = generateDependenciesConfig(projectConfig);
+      displayGeneratedDependencies(generated, projectConfig);
+
+      const confirm = await askQuestion(
+        rl,
+        "Salvare questa configurazione? (y/N): "
+      );
+
+      if (confirm === "y" || confirm === "yes") {
+        saveDependenciesConfig(generated, projectConfig);
+        logger.log("✅ Configurazione salvata!", "green");
+        reloadDependenciesConfig(projectRoot);
+
+        // Chiedi se vuole procedere con l'aggiornamento
+        const proceed = await askQuestion(
+          rl,
+          "Procedere con l'aggiornamento dei pacchetti? (y/N): "
+        );
+        rl.close();
+
+        if (proceed !== "y" && proceed !== "yes") {
+          logger.log("🔄 Ritorno al menu principale...", "cyan");
+          return false;
+        }
+      } else {
+        logger.log("❌ Generazione annullata", "yellow");
+        rl.close();
+        return false;
+      }
+    } else {
+      logger.log("❌ Configurazione richiesta per continuare", "yellow");
+      rl.close();
+      return false;
+    }
+  } else {
+    // 4. Se il file è già configurato, procedi automaticamente
+    logger.log("✅ dependencies-config.js trovato e configurato!", "green");
+    logger.log("🚀 Procedo con l'aggiornamento automatico...", "cyan");
+  }
+
+  // Ottieni le dipendenze utilizzate
+  const usedDeps = getUsedDependencies(conditionalDeps, projectConfig);
+  const finalBaseDeps = { ...baseDeps };
+  const finalDevDeps = { ...devDeps };
+
+  // Aggiungi dipendenze condizionali utilizzate
+  Object.entries(usedDeps).forEach(([name, config]) => {
+    finalBaseDeps[name] = config.version;
+  });
+
+  // Ottieni configurazioni standard
+  const standardScripts = getStandardScripts();
+  const standardTsConfig = getStandardTsConfig();
+  const nodeEngines = getNodeEngines();
+  const deprecatedDeps = getDeprecatedDependencies();
+
+  // Ottieni componenti
+  const { getComponentDirectories } = require("./dependencies/analyzer");
+  const componentDirs = getComponentDirectories(projectConfig);
+
   if (componentDirs.length === 0) {
-    log('❌ Nessun componente trovato', 'red');
+    logger.log("❌ Nessun componente trovato", "red");
     return false;
   }
-  
-  log(`📁 Trovati ${componentDirs.length} componenti:`, 'blue');
-  componentDirs.forEach(dir => log(`   - ${dir}`, 'blue'));
-  
+
+  logger.log(`📁 Trovati ${componentDirs.length} componenti:`, "blue");
+  componentDirs.forEach((dir) => logger.log(`   - ${dir}`, "blue"));
+
   let successCount = 0;
   let totalCount = componentDirs.length;
-  
-  componentDirs.forEach(componentDir => {
+
+  componentDirs.forEach((componentDir) => {
     const fullPath = path.join(process.cwd(), componentDir);
-    log(`\n🔧 Elaborazione ${componentDir}...`, 'magenta');
-    
-    const packageSuccess = updatePackageJson(fullPath);
-    const tsConfigSuccess = updateTsConfig(fullPath);
-    const tslintSuccess = removeTslintJson(fullPath);
-    
+    logger.log(`\n🔧 Elaborazione ${componentDir}...`, "magenta");
+
+    const packageSuccess = updatePackageJson(
+      fullPath,
+      projectConfig,
+      finalBaseDeps,
+      finalDevDeps,
+      deprecatedDeps,
+      standardScripts,
+      nodeEngines
+    );
+    const tsConfigSuccess = updateTsConfig(
+      fullPath,
+      projectConfig,
+      standardTsConfig
+    );
+    const tslintSuccess = removeTslintJson(fullPath, projectConfig);
+
     if (packageSuccess && tsConfigSuccess && tslintSuccess) {
       successCount++;
     }
   });
-  
-  log(`\n📊 Risultato:`, 'cyan');
-  log(`   ✅ Aggiornati con successo: ${successCount}/${totalCount}`, 'green');
-  log(`   ❌ Errori: ${totalCount - successCount}/${totalCount}`, totalCount - successCount > 0 ? 'red' : 'green');
-  
+
+  logger.log(`\n📊 Risultato:`, "cyan");
+  logger.log(
+    `   ✅ Aggiornati con successo: ${successCount}/${totalCount}`,
+    "green"
+  );
+  logger.log(
+    `   ❌ Errori: ${totalCount - successCount}/${totalCount}`,
+    totalCount - successCount > 0 ? "red" : "green"
+  );
+
   if (successCount === totalCount) {
-    log('\n🎉 Tutte le configurazioni aggiornate con successo!', 'green');
+    logger.log(
+      "\n🎉 Tutte le configurazioni aggiornate con successo!",
+      "green"
+    );
     return true;
   } else {
-    log('\n⚠️  Alcune configurazioni non sono state aggiornate. Controlla gli errori sopra.', 'yellow');
+    logger.log(
+      "\n⚠️  Alcune configurazioni non sono state aggiornate. Controlla gli errori sopra.",
+      "yellow"
+    );
     return false;
   }
 }
 
-function main() {
-  const success = updateAllConfigs();
-  process.exit(success ? 0 : 1);
-}
-
 // Avvio script
 if (require.main === module) {
-  main();
+  updateAllConfigs().then((success) => {
+    process.exit(success ? 0 : 1);
+  });
 }
 
 module.exports = {
-  updatePackageJson,
-  updateTsConfig,
-  removeTslintJson,
-  getComponentDirectories,
-  updateAllConfigs
+  updateAllConfigs,
 };
