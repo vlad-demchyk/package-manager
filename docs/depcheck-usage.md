@@ -27,7 +27,9 @@ packman depcheck --single c106-header
 packman depcheck --exclude c106-header c106-footer
 
 # Controlla e rimuovi automaticamente le dipendenze non utilizzate
+# (equivalente a 'clean')
 packman depcheck --remove
+packman depcheck clean
 
 # Combinazioni
 packman depcheck --single c106-header --remove
@@ -47,7 +49,10 @@ node pm.js depcheck --remove
 |---------|-------------|---------|
 | `--single <component>` | Controlla solo il componente specificato | `--single c106-header` |
 | `--exclude <comp1> <comp2>` | Esclude componenti dal controllo | `--exclude c106-header c106-footer` |
-| `--remove` | Rimuove automaticamente le dipendenze non utilizzate | `--remove` |
+| `--remove`/`clean` | Avvia modalità rimozione (equivalenti) | `--remove` |
+| `--dry-run` | Mostra comandi senza eseguirli | `--dry-run` |
+| `--yes` | Conferma automatica rimozione | `--yes` |
+| `--json` | Output JSON del report | `--json --dry-run` |
 
 ## 🔍 Come Funziona
 
@@ -115,20 +120,23 @@ Il sistema applica regole specifiche per tipo di progetto:
 packman depcheck
 ```
 - Mostra solo il report delle dipendenze non utilizzate
+ - Usa `--json` per output strutturato
 
 ### Comandi Automatici (Senza Conferma)
 ```bash
-# Rimuovi automaticamente per un componente
-packman depcheck --single c106-header clean
+# Rimuovi automaticamente per un componente (senza prompt)
+packman depcheck --single c106-header clean --yes
 
 # Rimuovi automaticamente per tutti eccetto quelli specificati
-packman depcheck --exclude c106-header c106-footer clean
+packman depcheck --exclude c106-header c106-footer clean --yes
 
 # Rimuovi automaticamente per tutti i componenti
-packman depcheck clean
+packman depcheck clean --yes
 ```
 - **NON rimuove** automaticamente nulla
 - Richiede conferma esplicita per ogni rimozione
+
+> Suggerimento: aggiungi `--dry-run` per vedere cosa verrebbe eseguito.
 
 ### Modalità Rimozione Automatica
 ```bash
