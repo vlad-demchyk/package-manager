@@ -255,7 +255,7 @@ function showVersionChanges(componentDirs, finalBaseDeps, finalDevDeps, projectC
 }
 
 // Funzione principale per aggiornare tutte le configurazioni
-async function updateAllConfigs() {
+async function updateAllConfigs(scope = "all", components = []) {
   logger.log("🚀 Avvio aggiornamento configurazioni componenti...", "cyan");
 
   const dependenciesConfigPath = path.join(
@@ -371,15 +371,10 @@ async function updateAllConfigs() {
     logger.log("🚀 Procedo con l'aggiornamento automatico...", "cyan");
   }
 
-  // Ottieni le dipendenze utilizzate
-  const usedDeps = getUsedDependencies(conditionalDeps, projectConfig);
+  // Non aggiungere più tutte le dipendenze condizionali globalmente
+  // Verranno processate per ogni componente individualmente
   const finalBaseDeps = { ...baseDeps };
   const finalDevDeps = { ...devDeps };
-
-  // Aggiungi dipendenze condizionali utilizzate
-  Object.entries(usedDeps).forEach(([name, config]) => {
-    finalBaseDeps[name] = config.version;
-  });
 
   // Ottieni configurazioni standard
   const standardScripts = getStandardScripts();
@@ -387,9 +382,16 @@ async function updateAllConfigs() {
   const nodeEngines = getNodeEngines();
   const deprecatedDeps = getDeprecatedDependencies();
 
-  // Ottieni componenti
+  // Ottieni componenti con filtrazione
   const { getComponentDirectories } = require("./dependencies/analyzer");
-  const componentDirs = getComponentDirectories(projectConfig);
+  let componentDirs = getComponentDirectories(projectConfig);
+
+  // Applica filtrazione basata su scope e components
+  if (scope === "single" && components.length > 0) {
+    componentDirs = componentDirs.filter((dir) => components.includes(dir));
+  } else if (scope === "exclude" && components.length > 0) {
+    componentDirs = componentDirs.filter((dir) => !components.includes(dir));
+  }
 
   if (componentDirs.length === 0) {
     logger.log("❌ Nessun componente trovato", "red");
@@ -427,6 +429,14 @@ async function updateAllConfigs() {
     const fullPath = path.join(process.cwd(), componentDir);
     logger.log(`\n🔧 Elaborazione ${componentDir}...`, "magenta");
 
+    // Analizza dipendenze condizionali per questo componente specifico
+    const { analyzeDependencyUsage } = require("./dependencies/analyzer");
+    const usedConditionalDeps = analyzeDependencyUsage(fullPath, conditionalDeps, projectConfig);
+    const componentConditionalDeps = {};
+    usedConditionalDeps.forEach(dep => {
+      componentConditionalDeps[dep.name] = dep.version;
+    });
+
     const packageSuccess = updatePackageJson(
       fullPath,
       projectConfig,
@@ -434,7 +444,8 @@ async function updateAllConfigs() {
       finalDevDeps,
       deprecatedDeps,
       standardScripts,
-      nodeEngines
+      nodeEngines,
+      componentConditionalDeps
     );
     const tsConfigSuccess = updateTsConfig(
       fullPath,
