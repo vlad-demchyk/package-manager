@@ -566,11 +566,11 @@ async function parseAndExecuteCommand(args) {
       await executeUpdateCommand();
       break;
     case "depcheck":
-      // Controlliamo se c'è 'clean' alla fine degli argomenti
-      const hasClean = args.includes("clean");
+      // Support both 'clean' and '--remove' as removal triggers
+      const hasClean = args.includes("clean") || args.includes("--remove");
       if (hasClean) {
         // Rimuoviamo 'clean' dagli argomenti
-        const cleanArgs = args.filter((arg) => arg !== "clean");
+        const cleanArgs = args.filter((arg) => arg !== "clean" && arg !== "--remove");
         await executeDepcheckCleanCommand(scope, components, cleanArgs);
       } else {
         await executeDepcheckCommand(scope, components, args);
@@ -754,7 +754,7 @@ function showUsage() {
   logger.log("");
   logger.section("Controllo dipendenze non utilizzate (experimental)");
   logger.log(
-    "  node package-manager.js depcheck [--single component] [--exclude comp1 comp2] [--remove]",
+    "  node package-manager.js depcheck [--single component] [--exclude comp1 comp2] [clean|--remove]",
     "blue"
   );
   logger.log(
