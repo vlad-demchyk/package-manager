@@ -285,6 +285,15 @@ function partitionCandidates(pkg, unused, keepSet) {
 }
 
 function uninstallPackages(componentDir, deps, devDeps, dryRun) {
+  const nodeModulesPath = path.join(componentDir, "node_modules");
+  const hasNodeModules = fs.existsSync(nodeModulesPath);
+
+  if (!hasNodeModules) {
+    logger.log("📦 node_modules non trovato, rimozione solo da package.json", "yellow");
+    removeFromPackageJson(componentDir, deps, devDeps, dryRun);
+    return;
+  }
+
   const npmCmd = getNpmCommand();
   const commands = [];
   if (deps.length > 0) commands.push(`${npmCmd} uninstall ${deps.join(" ")}`);
@@ -301,6 +310,63 @@ function uninstallPackages(componentDir, deps, devDeps, dryRun) {
         logger.error(`Errore disinstallazione: ${e.message}`);
       }
     }
+  }
+}
+
+function removeFromPackageJson(componentDir, deps, devDeps, dryRun) {
+  const packageJsonPath = path.join(componentDir, "package.json");
+  const packageLockPath = path.join(componentDir, "package-lock.json");
+
+  if (!fs.existsSync(packageJsonPath)) {
+    logger.error("package.json non trovato");
+    return;
+  }
+
+  try {
+    const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, "utf8"));
+    let updated = false;
+
+    // Rimuovi da dependencies
+    if (packageJson.dependencies) {
+      deps.forEach((dep) => {
+        if (packageJson.dependencies[dep]) {
+          delete packageJson.dependencies[dep];
+          updated = true;
+          if (dryRun) {
+            logger.log(`DRY-RUN: rimosso ${dep} da dependencies`, "yellow");
+          } else {
+            logger.log(`🗑️  Rimosso ${dep} da dependencies`, "green");
+          }
+        }
+      });
+    }
+
+    // Rimuovi da devDependencies
+    if (packageJson.devDependencies) {
+      devDeps.forEach((dep) => {
+        if (packageJson.devDependencies[dep]) {
+          delete packageJson.devDependencies[dep];
+          updated = true;
+          if (dryRun) {
+            logger.log(`DRY-RUN: rimosso ${dep} da devDependencies`, "yellow");
+          } else {
+            logger.log(`🗑️  Rimosso ${dep} da devDependencies`, "green");
+          }
+        }
+      });
+    }
+
+    if (updated && !dryRun) {
+      fs.writeFileSync(packageJsonPath, JSON.stringify(packageJson, null, 2), "utf8");
+      
+      // Rimuovi package-lock.json se esiste
+      if (fs.existsSync(packageLockPath)) {
+        fs.unlinkSync(packageLockPath);
+        logger.log("🗑️  Rimosso package-lock.json", "green");
+      }
+    }
+  } catch (e) {
+    logger.error(`Errore aggiornando package.json: ${e.message}`);
   }
 }
 

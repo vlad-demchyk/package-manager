@@ -84,9 +84,11 @@ pm
 ### 4. ⚙️ Aggiornamento Configurazioni
 
 ```
-⚙️  Aggiornamento configurazioni per tutte le web parts...
-⚠️  Questo aggiornerà le configurazioni per TUTTE le web parts!
-Continua? (y/N):
+⚙️  Aggiornamento configurazioni:
+1. Tutte le web parts
+2. Una web part specifica
+3. Tutte eccetto quelle specificate
+0. Torna al menu principale
 ```
 
 ### 5. 🔍 Controllo Dipendenze Non Utilizzate
@@ -191,8 +193,14 @@ packman clean --exclude c106-header c106-footer
 
 #### ⚙️ Aggiornamento
 ```bash
-# Aggiorna configurazioni per tutte le web parts (sempre globale)
+# Aggiorna configurazioni per tutte le web parts
 packman update
+
+# Aggiorna per un singolo componente
+packman update --single c106-header
+
+# Aggiorna per tutti eccetto quelli specificati
+packman update --exclude c106-header c106-footer
 ```
 
 #### 🔍 Controllo Dipendenze

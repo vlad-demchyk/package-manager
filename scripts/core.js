@@ -553,17 +553,7 @@ async function parseAndExecuteCommand(args) {
       executeCleanCommand(scope, components);
       break;
     case "update":
-      if (scope !== "all") {
-        logger.log(
-          "⚠️  Il comando update supporta solo l'aggiornamento globale di tutti i componenti",
-          "yellow"
-        );
-        logger.log(
-          "   Questo garantisce che tutte le versioni rimangano sincronizzate",
-          "blue"
-        );
-      }
-      await executeUpdateCommand();
+      await executeUpdateCommand(scope, components);
       break;
     case "depcheck":
       // Support both 'clean' and '--remove' as removal triggers
@@ -655,9 +645,9 @@ function executeCleanCommand(scope, components) {
   }, 100);
 }
 
-async function executeUpdateCommand() {
-  // Update è sempre globale per mantenere sincronizzate le versioni
-  const success = await updateAllConfigs();
+async function executeUpdateCommand(scope = "all", components = []) {
+  // Passa i parametri di scope e components al modulo update-configs
+  const success = await updateAllConfigs(scope, components);
 
   if (!success) {
     logger.log("🔄 Ritorno al menu principale...", "cyan");
@@ -791,7 +781,7 @@ function showUsage() {
 function showMenu() {
   logger.section(`Gestore Pacchetti ${projectConfig.project.name}`);
   logger.success(
-    "1. ⚙️  Aggiornamento configurazioni (globale | importante ad impostare dependencies-config.js)"
+    "1. ⚙️  Aggiornamento configurazioni (importante ad impostare dependencies-config.js)"
   );
   logger.info("2. 🔍 Controllo dipendenze non utilizzate (experimental)");
   logger.info("3. 📦 Installazione pacchetti");
@@ -931,6 +921,359 @@ function showDetailedComponentList() {
       if (askQuestion) askQuestion();
     }, 100);
   });
+}
+
+function showUpdateMenu() {
+  logger.section("⚙️  Aggiornamento configurazioni");
+  logger.info("1. Tutte le web parts");
+  logger.info("2. Una web part specifica");
+  logger.info("3. Tutte eccetto quelle specificate");
+  logger.warning("0. 🔙 Torna al menu principale");
+
+  if (rl) {
+    rl.question("\nScegli opzione (0-3): ", (answer) => {
+      switch (answer.trim()) {
+        case "1":
+          showUpdateConfirmation("all", []);
+          break;
+        case "2":
+          showUpdateComponentSelection();
+          break;
+        case "3":
+          showUpdateExcludeSelection();
+          break;
+        case "0":
+          setTimeout(() => {
+            if (askQuestion) askQuestion();
+          }, 100);
+          break;
+        default:
+          logger.error("❌ Scelta non valida per aggiornamento");
+          setTimeout(() => {
+            if (askQuestion) askQuestion();
+          }, 100);
+      }
+    });
+  }
+}
+
+function showUpdateComponentSelection() {
+  const components = showComponentList();
+  if (components.length === 0) {
+    logger.error("Nessun componente trovato");
+    setTimeout(() => {
+      if (askQuestion) askQuestion();
+    }, 100);
+    return;
+  }
+
+  if (rl) {
+    rl.question(`\nScegli componente (1-${components.length}): `, (answer) => {
+      const index = parseInt(answer) - 1;
+      if (index >= 0 && index < components.length) {
+        const selectedComponent = components[index];
+        showUpdateConfirmation("single", [selectedComponent]);
+      } else {
+        logger.error("❌ Componente non valido");
+        setTimeout(() => {
+          if (askQuestion) askQuestion();
+        }, 100);
+      }
+    });
+  }
+}
+
+function showUpdateExcludeSelection() {
+  const components = showComponentList();
+  if (components.length === 0) {
+    logger.error("Nessun componente trovato");
+    setTimeout(() => {
+      if (askQuestion) askQuestion();
+    }, 100);
+    return;
+  }
+
+  if (rl) {
+    rl.question("\nInserisci i nomi dei componenti da escludere (separati da spazio): ", (answer) => {
+      const excludeList = answer.trim().split(/\s+/).filter(name => name.length > 0);
+      const validExcludes = excludeList.filter(name => components.includes(name));
+      
+      if (validExcludes.length > 0) {
+        showUpdateConfirmation("exclude", validExcludes);
+      } else {
+        logger.error("❌ Nessun componente valido specificato");
+        setTimeout(() => {
+          if (askQuestion) askQuestion();
+        }, 100);
+      }
+    });
+  }
+}
+
+async function showUpdateConfirmation(scope, components) {
+  // Prima mostra cosa verrà aggiornato
+  await showUpdatePreview(scope, components);
+  
+  if (rl) {
+    rl.question("\n⚠️  Continuare con l'aggiornamento? (y/N): ", async (confirm) => {
+      if (confirm.toLowerCase() === "y" || confirm.toLowerCase() === "yes") {
+        logger.log("\n🚀 Avvio aggiornamento...", "cyan");
+        const success = await updateAllConfigs(scope, components);
+        if (!success) {
+          logger.log("🔄 Ritorno al menu principale...", "cyan");
+        }
+      } else {
+        logger.log("❌ Aggiornamento annullato", "yellow");
+      }
+      setTimeout(() => {
+        if (askQuestion) askQuestion();
+      }, 100);
+    });
+  }
+}
+
+async function showUpdatePreview(scope, components) {
+  logger.section("📋 Anteprima aggiornamento");
+  
+  // Carica la configurazione per mostrare cosa verrà aggiornato
+  const dependenciesConfigPath = path.join(projectRoot, "package-manager", "dependencies-config.js");
+  
+  if (!fs.existsSync(dependenciesConfigPath)) {
+    logger.error("❌ dependencies-config.js non trovato!");
+    return;
+  }
+
+  try {
+    // Ricarica il modulo dependencies-config
+    delete require.cache[require.resolve(dependenciesConfigPath)];
+    const depsConfig = require(dependenciesConfigPath);
+
+    const baseDeps = depsConfig.getBaseDependencies ? depsConfig.getBaseDependencies() : {};
+    const devDeps = depsConfig.getDevDependencies ? depsConfig.getDevDependencies() : {};
+    const scripts = depsConfig.getStandardScripts ? depsConfig.getStandardScripts() : {};
+    const deprecatedDeps = depsConfig.getDeprecatedDependencies ? depsConfig.getDeprecatedDependencies() : [];
+    const conditionalDeps = depsConfig.getConditionalDependencies ? depsConfig.getConditionalDependencies() : {};
+
+    // Log per debug
+    if (Object.keys(conditionalDeps).length > 0) {
+      logger.log(`🔍 Trovate ${Object.keys(conditionalDeps).length} dipendenze condizionali`, "blue");
+    }
+
+    // Determina i componenti che verranno aggiornati
+    const { getComponentDirectories } = require("./dependencies/analyzer");
+    let targetComponents = getComponentDirectories(projectConfig);
+    
+    if (scope === "single" && components.length > 0) {
+      targetComponents = targetComponents.filter(comp => components.includes(comp));
+    } else if (scope === "exclude" && components.length > 0) {
+      targetComponents = targetComponents.filter(comp => !components.includes(comp));
+    }
+
+    logger.log(`📁 Componenti da aggiornare: ${targetComponents.length}`, "blue");
+    targetComponents.forEach(comp => logger.log(`   - ${comp}`, "blue"));
+
+    // Analizza le modifiche per ogni componente
+    let totalNewDeps = 0;
+    let totalUpdatedDeps = 0;
+    let totalNewDevDeps = 0;
+    let totalUpdatedDevDeps = 0;
+    let totalDeprecatedToRemove = 0;
+    let totalScriptsToUpdate = 0;
+
+    for (const component of targetComponents) {
+      const componentPath = path.join(projectRoot, component);
+      const packageJsonPath = path.join(componentPath, "package.json");
+      
+      if (!fs.existsSync(packageJsonPath)) {
+        logger.warning(`⚠️  package.json non trovato per ${component}`, "yellow");
+        continue;
+      }
+
+      try {
+        const currentPkg = JSON.parse(fs.readFileSync(packageJsonPath, "utf8"));
+        const currentDeps = currentPkg.dependencies || {};
+        const currentDevDeps = currentPkg.devDependencies || {};
+        const currentScripts = currentPkg.scripts || {};
+
+        // Analizza dependencies (base + conditional per questo componente)
+        const usedConditionalDeps = analyzeDependencyUsageForComponent(componentPath, conditionalDeps);
+        const targetDeps = { ...baseDeps, ...usedConditionalDeps };
+        
+        
+        const { newDeps, updatedDeps } = analyzeDependencies(currentDeps, targetDeps);
+        totalNewDeps += newDeps.length;
+        totalUpdatedDeps += updatedDeps.length;
+
+        // Analizza devDependencies
+        const { newDeps: newDevDeps, updatedDeps: updatedDevDeps } = analyzeDependencies(currentDevDeps, devDeps);
+        totalNewDevDeps += newDevDeps.length;
+        totalUpdatedDevDeps += updatedDevDeps.length;
+
+        // Analizza deprecated dependencies
+        const deprecatedToRemove = deprecatedDeps.filter(dep => 
+          currentDeps[dep] || currentDevDeps[dep]
+        );
+        totalDeprecatedToRemove += deprecatedToRemove.length;
+
+        // Analizza scripts
+        const scriptsToUpdate = Object.entries(scripts).filter(([name, script]) => 
+          !currentScripts[name] || currentScripts[name] !== script
+        );
+        totalScriptsToUpdate += scriptsToUpdate.length;
+
+        // Mostra dettagli solo se ci sono modifiche per questo componente
+        if (newDeps.length > 0 || updatedDeps.length > 0 || newDevDeps.length > 0 || 
+            updatedDevDeps.length > 0 || deprecatedToRemove.length > 0 || scriptsToUpdate.length > 0) {
+          
+          logger.log(`\n📦 ${component}:`, "blue");
+          
+          if (newDeps.length > 0) {
+            logger.log(`   🆕 Nuove dipendenze (${newDeps.length}):`, "green");
+            newDeps.forEach(([name, version]) => {
+              logger.log(`      + ${name}@${version}`, "green");
+            });
+          }
+
+          if (updatedDeps.length > 0) {
+            logger.log(`   🔄 Dipendenze da aggiornare (${updatedDeps.length}):`, "yellow");
+            updatedDeps.forEach(([name, currentVersion, newVersion]) => {
+              logger.log(`      ${name}: ${currentVersion} → ${newVersion}`, "yellow");
+            });
+          }
+
+          if (newDevDeps.length > 0) {
+            logger.log(`   🆕 Nuove devDependencies (${newDevDeps.length}):`, "cyan");
+            newDevDeps.forEach(([name, version]) => {
+              logger.log(`      + ${name}@${version}`, "cyan");
+            });
+          }
+
+          if (updatedDevDeps.length > 0) {
+            logger.log(`   🔄 DevDependencies da aggiornare (${updatedDevDeps.length}):`, "yellow");
+            updatedDevDeps.forEach(([name, currentVersion, newVersion]) => {
+              logger.log(`      ${name}: ${currentVersion} → ${newVersion}`, "yellow");
+            });
+          }
+
+          if (deprecatedToRemove.length > 0) {
+            logger.log(`   🗑️  Deprecated da rimuovere (${deprecatedToRemove.length}):`, "red");
+            deprecatedToRemove.forEach(dep => {
+              const currentVersion = currentDeps[dep] || currentDevDeps[dep];
+              logger.log(`      - ${dep}@${currentVersion}`, "red");
+            });
+          }
+
+          if (scriptsToUpdate.length > 0) {
+            logger.log(`   📝 Scripts da aggiornare (${scriptsToUpdate.length}):`, "magenta");
+            scriptsToUpdate.forEach(([name, newScript]) => {
+              const currentScript = currentScripts[name] || "(non presente)";
+              logger.log(`      ${name}: "${currentScript}" → "${newScript}"`, "magenta");
+            });
+          }
+        } else {
+          logger.log(`\n✅ ${component}: nessuna modifica necessaria`, "green");
+        }
+
+      } catch (error) {
+        logger.error(`❌ Errore analizzando ${component}: ${error.message}`);
+      }
+    }
+
+    // Riepilogo finale
+    logger.log(`\n📊 Riepilogo modifiche:`, "blue");
+    if (totalNewDeps > 0) logger.log(`   🆕 Nuove dipendenze: ${totalNewDeps}`, "green");
+    if (totalUpdatedDeps > 0) logger.log(`   🔄 Dipendenze aggiornate: ${totalUpdatedDeps}`, "yellow");
+    if (totalNewDevDeps > 0) logger.log(`   🆕 Nuove devDependencies: ${totalNewDevDeps}`, "cyan");
+    if (totalUpdatedDevDeps > 0) logger.log(`   🔄 DevDependencies aggiornate: ${totalUpdatedDevDeps}`, "yellow");
+    if (totalDeprecatedToRemove > 0) logger.log(`   🗑️  Deprecated rimosse: ${totalDeprecatedToRemove}`, "red");
+    if (totalScriptsToUpdate > 0) logger.log(`   📝 Scripts aggiornati: ${totalScriptsToUpdate}`, "magenta");
+
+    const totalChanges = totalNewDeps + totalUpdatedDeps + totalNewDevDeps + totalUpdatedDevDeps + totalDeprecatedToRemove + totalScriptsToUpdate;
+    if (totalChanges === 0) {
+      logger.log(`\n✅ Tutti i componenti sono già aggiornati!`, "green");
+    }
+
+  } catch (error) {
+    logger.error(`❌ Errore caricando configurazione: ${error.message}`);
+    logger.warning("💡 Assicurati che dependencies-config.js contenga tutte le funzioni necessarie");
+  }
+}
+
+function analyzeDependencies(currentDeps, targetDeps) {
+  const newDeps = [];
+  const updatedDeps = [];
+
+  for (const [name, targetVersion] of Object.entries(targetDeps)) {
+    if (!currentDeps[name]) {
+      // Nuova dipendenza
+      newDeps.push([name, targetVersion]);
+    } else if (currentDeps[name] !== targetVersion) {
+      // Versione diversa
+      updatedDeps.push([name, currentDeps[name], targetVersion]);
+    }
+    // Se la versione è uguale, non fare nulla
+  }
+
+  return { newDeps, updatedDeps };
+}
+
+function analyzeDependencyUsageForComponent(componentPath, conditionalDeps) {
+  const usedDeps = {};
+  
+  Object.entries(conditionalDeps).forEach(([depName, depConfig]) => {
+    const patterns = depConfig.patterns || [depName];
+    const foundPatterns = scanDirectoryForPatterns(componentPath, patterns);
+    
+    if (foundPatterns.length > 0) {
+      usedDeps[depName] = depConfig.version;
+    }
+  });
+  
+  return usedDeps;
+}
+
+function scanDirectoryForPatterns(dirPath, patterns, extensions = [".js", ".ts", ".tsx", ".jsx"]) {
+  const results = new Set();
+
+  function scanFile(filePath) {
+    try {
+      const content = fs.readFileSync(filePath, "utf8");
+      patterns.forEach((pattern) => {
+        if (content.includes(pattern)) {
+          results.add(pattern);
+        }
+      });
+    } catch (error) {
+      // Ignora errori di lettura file
+    }
+  }
+
+  function scanDirectory(currentPath) {
+    try {
+      const items = fs.readdirSync(currentPath);
+      items.forEach((item) => {
+        const fullPath = path.join(currentPath, item);
+        const stat = fs.statSync(fullPath);
+
+        if (stat.isDirectory()) {
+          // Salta node_modules e altre cartelle da ignorare
+          if (!["node_modules", ".git", "dist", "build"].includes(item)) {
+            scanDirectory(fullPath);
+          }
+        } else if (stat.isFile()) {
+          const ext = path.extname(item);
+          if (extensions.includes(ext)) {
+            scanFile(fullPath);
+          }
+        }
+      });
+    } catch (error) {
+      // Ignora errori di accesso directory
+    }
+  }
+
+  scanDirectory(dirPath);
+  return Array.from(results);
 }
 
 function showInstallMenu() {
@@ -1321,30 +1664,7 @@ async function main() {
         rl.question("\nScegli opzione (0-5, 9): ", (answer) => {
           switch (answer.trim()) {
             case "1":
-              logger.log(
-                "\n⚙️  Aggiornamento configurazioni per tutti i componenti...",
-                "cyan"
-              );
-              logger.log(
-                "⚠️  Questo aggiornerà le configurazioni per TUTTI i componenti!",
-                "yellow"
-              );
-              if (rl) {
-                rl.question("Continua? (y/N): ", async (confirm) => {
-                  if (
-                    confirm.toLowerCase() === "y" ||
-                    confirm.toLowerCase() === "yes"
-                  ) {
-                    const success = await updateAllConfigs();
-                    if (!success) {
-                      logger.log("🔄 Ritorno al menu principale...", "cyan");
-                    }
-                  }
-                  setTimeout(() => {
-                    if (askQuestion) askQuestion();
-                  }, 100);
-                });
-              }
+              showUpdateMenu();
               break;
             case "2":
               showDepcheckMenu();

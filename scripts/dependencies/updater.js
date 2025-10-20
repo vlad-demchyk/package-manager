@@ -16,7 +16,8 @@ function updatePackageJson(
   devDeps,
   deprecatedDeps,
   standardScripts,
-  nodeEngines
+  nodeEngines,
+  conditionalDeps = {}
 ) {
   const packageJsonPath = path.join(
     componentPath,
@@ -46,6 +47,15 @@ function updatePackageJson(
       if (packageJson.dependencies[name] !== version) {
         packageJson.dependencies[name] = version;
         updated = true;
+      }
+    });
+
+    // Aggiungi dipendenze condizionali utilizzate
+    Object.entries(conditionalDeps).forEach(([name, version]) => {
+      if (packageJson.dependencies[name] !== version) {
+        packageJson.dependencies[name] = version;
+        updated = true;
+        logger.log(`✅ Aggiunta dipendenza condizionale: ${name}@${version}`, "green", projectConfig);
       }
     });
 

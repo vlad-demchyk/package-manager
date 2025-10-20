@@ -224,7 +224,7 @@ async function configureProject() {
 // Funzione per copiare i file del modulo nella cartella package-manager
 function copyModuleFiles(targetDir) {
   const sourceDir = __dirname;
-  const itemsToCopy = ["scripts", "docs"];
+  const itemsToCopy = ["docs"]; // Solo docs, scripts vengono usati da node_modules
 
   itemsToCopy.forEach((item) => {
     const sourcePath = path.join(sourceDir, item);
@@ -247,26 +247,52 @@ function copyModuleFiles(targetDir) {
     }
   });
 
-  // Copia il file dependencies-config.js nella cartella package-manager
-  const configPath = path.join(sourceDir, "dependencies-config.js");
-  const targetConfigPath = path.join(targetDir, "dependencies-config.js");
+  // Copia i file di configurazione nella cartella package-manager (solo se non esistono)
+  const configFiles = [
+    { source: "dependencies-config.js", target: "dependencies-config.js" },
+    { source: "project-config.js", target: "project-config.js" }
+  ];
 
-  if (fs.existsSync(configPath)) {
-    try {
-      fs.copyFileSync(configPath, targetConfigPath);
-      logger.log(
-        `✅ dependencies-config.js copiato in package-manager/`,
-        "green"
-      );
-    } catch (error) {
-      logger.log(
-        `❌ Errore copiando dependencies-config.js: ${error.message}`,
-        "red"
-      );
+  configFiles.forEach(({ source, target }) => {
+    const configPath = path.join(sourceDir, source);
+    const targetConfigPath = path.join(targetDir, target);
+
+    if (fs.existsSync(configPath)) {
+      if (fs.existsSync(targetConfigPath)) {
+        // File esiste già, non sovrascrivere
+        logger.log(
+          `ℹ️  ${target} esistente, non sovrascritto`,
+          "blue"
+        );
+        
+        // Crea backup con timestamp
+        const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+        const backupPath = `${targetConfigPath}.backup-${timestamp}`;
+        try {
+          fs.copyFileSync(targetConfigPath, backupPath);
+          logger.log(`📋 Backup creato: ${path.basename(backupPath)}`, "cyan");
+        } catch (error) {
+          logger.log(`⚠️  Errore creando backup: ${error.message}`, "yellow");
+        }
+      } else {
+        // File non esiste, copia template
+        try {
+          fs.copyFileSync(configPath, targetConfigPath);
+          logger.log(
+            `✅ ${target} copiato in package-manager/`,
+            "green"
+          );
+        } catch (error) {
+          logger.log(
+            `❌ Errore copiando ${target}: ${error.message}`,
+            "red"
+          );
+        }
+      }
+    } else {
+      logger.log(`❌ ${source} non trovato in ${configPath}`, "red");
     }
-  } else {
-    logger.log(`❌ dependencies-config.js non trovato in ${configPath}`, "red");
-  }
+  });
 
   // Copia anche il template nella root del progetto per facilità d'uso
   const templatePath = path.join(
@@ -576,10 +602,11 @@ async function startPackageManager() {
     }
   }
 
-  // Avviamo lo script principale
-  const mainScript = path.join(packageManagerDir, "scripts", "core.js");
+  // Avviamo lo script principale da node_modules
+  const nodeModulesPath = path.join(projectRoot, "node_modules", "@vlad-demchyk", "package-manager");
+  const mainScript = path.join(nodeModulesPath, "scripts", "core.js");
   if (!fs.existsSync(mainScript)) {
-    logger.error("Script principale core.js non trovato!");
+    logger.error("Script principale core.js non trovato in node_modules!");
     logger.warning("   Il modulo non è stato installato correttamente.");
     process.exit(1);
   }
