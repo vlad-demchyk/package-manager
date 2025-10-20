@@ -2,10 +2,10 @@
 
 /**
  * Shared Logger Module
- * Централізований модуль логування для всіх скриптів package-manager
+ * Modulo centralizzato di logging per tutti gli script package-manager
  */
 
-// Кольори для консолі
+// Colori per la console
 const colors = {
   reset: "\x1b[0m",
   bright: "\x1b[1m",
@@ -18,28 +18,28 @@ const colors = {
   white: "\x1b[37m",
 };
 
-// Глобальні налаштування логування
+// Impostazioni globali di logging
 let verbose = false;
 let silent = false;
 
 /**
- * Встановлює режим verbose
- * @param {boolean} value - true для детального логування
+ * Imposta la modalità verbose
+ * @param {boolean} value - true per logging dettagliato
  */
 function setVerbose(value) {
   verbose = value;
 }
 
 /**
- * Встановлює режим silent
- * @param {boolean} value - true для приховування всіх повідомлень
+ * Imposta la modalità silent
+ * @param {boolean} value - true per nascondere tutti i messaggi
  */
 function setSilent(value) {
   silent = value;
 }
 
 /**
- * Перевіряє чи увімкнений verbose режим
+ * Verifica se la modalità verbose è attiva
  * @returns {boolean}
  */
 function isVerbose() {
@@ -47,7 +47,7 @@ function isVerbose() {
 }
 
 /**
- * Перевіряє чи увімкнений silent режим
+ * Verifica se la modalità silent è attiva
  * @returns {boolean}
  */
 function isSilent() {
@@ -55,10 +55,10 @@ function isSilent() {
 }
 
 /**
- * Основна функція логування
- * @param {string} message - Повідомлення для виводу
- * @param {string} color - Колір повідомлення (опціонально)
- * @param {boolean} force - Примусово вивести навіть в silent режимі
+ * Funzione principale di logging
+ * @param {string} message - Messaggio da visualizzare
+ * @param {string} color - Colore del messaggio (opzionale)
+ * @param {boolean} force - Forza la visualizzazione anche in modalità silent
  */
 function log(message, color = null, force = false) {
   if (silent && !force) {
@@ -73,49 +73,49 @@ function log(message, color = null, force = false) {
 }
 
 /**
- * Логування помилок (завжди червоним кольором)
- * @param {string} message - Повідомлення про помилку
+ * Logging degli errori (sempre in rosso)
+ * @param {string} message - Messaggio di errore
  */
 function error(message) {
   log(`❌ ${message}`, "red", true);
 }
 
 /**
- * Логування успішних операцій (завжди зеленим кольором)
- * @param {string} message - Повідомлення про успіх
+ * Logging delle operazioni riuscite (sempre in verde)
+ * @param {string} message - Messaggio di successo
  */
 function success(message) {
   log(`✅ ${message}`, "green");
 }
 
 /**
- * Логування попереджень (завжди жовтим кольором)
- * @param {string} message - Повідомлення-попередження
+ * Logging degli avvisi (sempre in giallo)
+ * @param {string} message - Messaggio di avviso
  */
 function warning(message) {
   log(`⚠️  ${message}`, "yellow");
 }
 
 /**
- * Логування інформації (завжди синім кольором)
- * @param {string} message - Інформаційне повідомлення
+ * Logging delle informazioni (sempre in blu)
+ * @param {string} message - Messaggio informativo
  */
 function info(message) {
   log(`ℹ️  ${message}`, "blue");
 }
 
 /**
- * Логування процесів (завжди ціан кольором)
- * @param {string} message - Повідомлення про процес
+ * Logging dei processi (sempre in ciano)
+ * @param {string} message - Messaggio di processo
  */
 function process(message) {
   log(`🔧 ${message}`, "cyan");
 }
 
 /**
- * Детальне логування (тільки в verbose режимі)
- * @param {string} message - Детальне повідомлення
- * @param {string} color - Колір повідомлення (опціонально)
+ * Logging dettagliato (solo in modalità verbose)
+ * @param {string} message - Messaggio dettagliato
+ * @param {string} color - Colore del messaggio (opzionale)
  */
 function debug(message, color = "cyan") {
   if (verbose) {
@@ -124,17 +124,17 @@ function debug(message, color = "cyan") {
 }
 
 /**
- * Логування заголовків секцій
- * @param {string} message - Заголовок секції
+ * Logging degli header delle sezioni
+ * @param {string} message - Header della sezione
  */
 function section(message) {
   log(`\n📋 ${message}`, "bright");
 }
 
 /**
- * Логування кроків процесу
- * @param {string} message - Повідомлення про крок
- * @param {number} step - Номер кроку (опціонально)
+ * Logging dei passaggi del processo
+ * @param {string} message - Messaggio del passaggio
+ * @param {number} step - Numero del passaggio (opzionale)
  */
 function step(message, step = null) {
   const prefix = step ? `${step}. ` : "";
@@ -142,9 +142,9 @@ function step(message, step = null) {
 }
 
 /**
- * Логування результатів
- * @param {string} message - Повідомлення про результат
- * @param {boolean} isSuccess - Чи успішний результат
+ * Logging dei risultati
+ * @param {string} message - Messaggio del risultato
+ * @param {boolean} isSuccess - Se il risultato è di successo
  */
 function result(message, isSuccess = true) {
   const color = isSuccess ? "green" : "red";
@@ -153,10 +153,10 @@ function result(message, isSuccess = true) {
 }
 
 /**
- * Логування списків
- * @param {Array} items - Масив елементів для виводу
- * @param {string} title - Заголовок списку (опціонально)
- * @param {string} color - Колір (опціонально)
+ * Logging delle liste
+ * @param {Array} items - Array di elementi da visualizzare
+ * @param {string} title - Titolo della lista (opzionale)
+ * @param {string} color - Colore (opzionale)
  */
 function list(items, title = null, color = "blue") {
   if (title) {
@@ -169,10 +169,10 @@ function list(items, title = null, color = "blue") {
 }
 
 /**
- * Логування прогресу
- * @param {string} message - Повідомлення про прогрес
- * @param {number} current - Поточний крок
- * @param {number} total - Загальна кількість кроків
+ * Logging del progresso
+ * @param {string} message - Messaggio del progresso
+ * @param {number} current - Passaggio corrente
+ * @param {number} total - Numero totale di passaggi
  */
 function progress(message, current, total) {
   const percentage = Math.round((current / total) * 100);
@@ -180,18 +180,18 @@ function progress(message, current, total) {
 }
 
 /**
- * Логування з таймстампом
- * @param {string} message - Повідомлення
- * @param {string} color - Колір (опціонально)
+ * Logging con timestamp
+ * @param {string} message - Messaggio
+ * @param {string} color - Colore (opzionale)
  */
 function timestamp(message, color = null) {
   const now = new Date().toISOString();
   log(`[${now}] ${message}`, color);
 }
 
-// Експорт всіх функцій
+// Esporta tutte le funzioni
 module.exports = {
-  // Основні функції
+  // Funzioni principali
   log,
   error,
   success,
@@ -206,12 +206,12 @@ module.exports = {
   progress,
   timestamp,
 
-  // Налаштування
+  // Impostazioni
   setVerbose,
   setSilent,
   isVerbose,
   isSilent,
 
-  // Кольори (для зовнішнього використання)
+  // Colori (per uso esterno)
   colors,
 };

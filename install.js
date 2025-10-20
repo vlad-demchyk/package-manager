@@ -448,7 +448,7 @@ async function installPackageManager() {
   const rootPackageJsonPath = path.join(projectRoot, "package.json");
 
   if (!fs.existsSync(rootPackageJsonPath)) {
-    logger.warning("Root package.json не знайдено, створюю мінімальний...");
+    logger.warning("Root package.json non trovato, creo uno minimo...");
 
     const minimalPackageJson = {
       name: path.basename(projectRoot),
@@ -465,7 +465,7 @@ async function installPackageManager() {
       JSON.stringify(minimalPackageJson, null, 2)
     );
 
-    logger.success("Створено мінімальний package.json");
+    logger.success("Creato package.json minimo");
   } else {
     // Se esiste, aggiungi/aggiorna scripts
     try {
@@ -490,9 +490,9 @@ async function installPackageManager() {
         JSON.stringify(existingPkg, null, 2)
       );
 
-      logger.success("Оновлено scripts в package.json");
+      logger.success("Aggiornati scripts in package.json");
     } catch (error) {
-      logger.warning("Не вдалося оновити package.json");
+      logger.warning("Non è stato possibile aggiornare package.json");
     }
   }
 

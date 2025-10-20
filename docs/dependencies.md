@@ -11,28 +11,28 @@ File principale per la configurazione delle dipendenze. Contiene:
 - Dipendenze di sviluppo
 - Dipendenze obsolete (rimosse automaticamente)
 
-## 🤖 Автогенерація залежностей
+## 🤖 Autogenerazione dipendenze
 
-Якщо у вас вже є багатокомпонентний проект з існуючими `package.json`, ви можете автоматично згенерувати `dependencies-config.js`:
+Se hai già un progetto multi-componente con `package.json` esistenti, puoi generare automaticamente `dependencies-config.js`:
 
-1. Встановіть модуль: `npm install https://github.com/vlad-demchyk/package-manager`
-2. Запустіть: `npx packman update`
-3. Коли система виявить порожній `dependencies-config.js`, вона запропонує автогенерацію
-4. Система проаналізує всі `package.json` в компонентах
-5. Знайде найвищу версію кожної залежності
-6. Покаже результат для підтвердження
-7. Збереже конфігурацію якщо ви підтвердите
+1. Installa il modulo: `npm install https://github.com/vlad-demchyk/package-manager`
+2. Avvia: `npx packman update`
+3. Quando il sistema rileva un `dependencies-config.js` vuoto, proporrà l'autogenerazione
+4. Il sistema analizzerà tutti i `package.json` nei componenti
+5. Troverà la versione più alta di ogni dipendenza
+6. Mostrerà il risultato per conferma
+7. Salverà la configurazione se confermi
 
-### Приклад виводу
+### Esempio output
 
 ```
-⚠️  dependencies-config.js порожній!
-💡 Бажаєте згенерувати автоматично з існуючих проектів? (y/N): y
+⚠️  dependencies-config.js vuoto!
+💡 Vuoi generare automaticamente dai progetti esistenti? (y/N): y
 
-📦 Аналіз 5 компонентів...
-✅ Знайдено 25 унікальних залежностей
+📦 Analisi 5 componenti...
+✅ Trovate 25 dipendenze uniche
 
-📦 Згенеровані залежності:
+📦 Dipendenze generate:
 
 BASE_DEPENDENCIES:
   "react": "^18.2.0"
@@ -43,20 +43,20 @@ DEV_DEPENDENCIES:
   "eslint": "8.57.1"
   "@types/react": "^18.0.0"
 
-📊 Статистика:
-  Базових залежностей: 15
-  Dev залежностей: 10
+📊 Statistiche:
+  Dipendenze base: 15
+  Dipendenze dev: 10
 
-Зберегти цю конфігурацію? (y/N): y
-✅ Конфігурацію збережено!
+Salvare questa configurazione? (y/N): y
+✅ Configurazione salvata!
 ```
 
-### Вибір версії
+### Selezione versione
 
-Система обирає найвищу версію з усіх знайдених:
-- Для semver (^1.2.0, ~1.2.0) - порівнює числові версії
-- Для git urls - використовує останню знайдену
-- Для file: paths - пропускає з попередженням
+Il sistema sceglie la versione più alta tra tutte quelle trovate:
+- Per semver (^1.2.0, ~1.2.0) - confronta le versioni numeriche
+- Per git urls - usa l'ultima trovata
+- Per file: paths - salta con avviso
 
 ## 🔧 Struttura Configurazione
 

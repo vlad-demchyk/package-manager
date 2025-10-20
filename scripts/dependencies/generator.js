@@ -90,6 +90,35 @@ function compareVersions(version1, version2) {
   return 0;
 }
 
+function findLatestTypeScriptComponent(componentDirs, projectConfig) {
+  let latestVersion = null;
+  let latestComponent = null;
+  
+  componentDirs.forEach((componentDir) => {
+    const packageJsonPath = path.join(process.cwd(), componentDir, "package.json");
+    if (fs.existsSync(packageJsonPath)) {
+      const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, "utf8"));
+      const tsVersion = packageJson.devDependencies?.typescript || packageJson.dependencies?.typescript;
+      
+      if (tsVersion && (!latestVersion || compareVersions(tsVersion, latestVersion) > 0)) {
+        latestVersion = tsVersion;
+        latestComponent = componentDir;
+      }
+    }
+  });
+  
+  return { component: latestComponent, version: latestVersion };
+}
+
+function extractTsConfig(componentDir, projectConfig) {
+  const tsConfigPath = path.join(process.cwd(), componentDir, "tsconfig.json");
+  if (fs.existsSync(tsConfigPath)) {
+    const tsConfig = JSON.parse(fs.readFileSync(tsConfigPath, "utf8"));
+    return tsConfig;
+  }
+  return {};
+}
+
 function generateDependenciesConfig(projectConfig) {
   const componentDirs = getComponentDirectories(projectConfig);
   const allDeps = {};
@@ -147,9 +176,20 @@ function generateDependenciesConfig(projectConfig) {
     }
   });
 
+  // Trova il componente con la versione TypeScript più alta e estrai il suo tsconfig
+  const { component: latestTsComponent, version: latestTsVersion } = findLatestTypeScriptComponent(componentDirs, projectConfig);
+  let tsConfig = {};
+  
+  if (latestTsComponent) {
+    tsConfig = extractTsConfig(latestTsComponent, projectConfig);
+    logger.log(`📋 TypeScript ${latestTsVersion} trovato in ${latestTsComponent}`, "cyan", projectConfig);
+  }
+
   return {
     baseDeps: allDeps,
     devDeps: allDevDeps,
+    tsConfig: tsConfig,
+    tsVersion: latestTsVersion
   };
 }
 
@@ -172,6 +212,12 @@ function displayGeneratedDependencies(generated, projectConfig) {
     });
     logger.log("", "reset", projectConfig);
   }
+
+  if (generated.tsConfig && Object.keys(generated.tsConfig).length > 0) {
+    logger.log("⚙️  STANDARD TSCONFIG:", "yellow", projectConfig);
+    logger.log(`   Preso dal componente con TypeScript ${generated.tsVersion}`, "blue", projectConfig);
+    logger.log("", "reset", projectConfig);
+  }
 }
 
 function saveDependenciesConfig(generated, projectConfig) {
@@ -182,7 +228,7 @@ function saveDependenciesConfig(generated, projectConfig) {
     "dependencies-config.js"
   );
 
-  // Перевіряємо чи існує папка package-manager
+  // Verifichiamo se esiste la cartella package-manager
   const packageManagerDir = path.join(projectRoot, "package-manager");
   if (!fs.existsSync(packageManagerDir)) {
     fs.mkdirSync(packageManagerDir, { recursive: true });
@@ -236,7 +282,12 @@ const STANDARD_SCRIPTS = {
 // TSCONFIG.JSON STANDARD
 // ============================================================================
 const STANDARD_TSCONFIG = {
-  // Esempio: "compilerOptions": { "target": "es2016" }
+${generated.tsConfig && Object.keys(generated.tsConfig).length > 0 
+  ? Object.entries(generated.tsConfig)
+      .map(([key, value]) => `  "${key}": ${JSON.stringify(value, null, 2).replace(/\n/g, '\n  ')}`)
+      .join(',\n')
+  : '  // Esempio: "compilerOptions": { "target": "es2016" }'
+}
 };
 
 // ============================================================================
@@ -317,4 +368,6 @@ module.exports = {
   generateDependenciesConfig,
   displayGeneratedDependencies,
   saveDependenciesConfig,
+  findLatestTypeScriptComponent,
+  extractTsConfig,
 };
