@@ -223,7 +223,7 @@ async function updateAllConfigs() {
 
 // Funzioni per depcheck
 function showDepcheckMenu() {
-  logger.section("Controllo dipendenze non utilizzate");
+  logger.section("Controllo dipendenze non utilizzate (experimental)");
   logger.step("Controlla tutti i componenti", 1);
   logger.step("Controlla un componente", 2);
   logger.step("Controlla tutti eccetto quelli specificati", 3);
@@ -752,7 +752,7 @@ function showUsage() {
   logger.log("  node package-manager.js update");
   logger.warning("  (sempre globale per mantenere versioni sincronizzate)");
   logger.log("");
-  logger.section("Controllo dipendenze non utilizzate");
+  logger.section("Controllo dipendenze non utilizzate (experimental)");
   logger.log(
     "  node package-manager.js depcheck [--single component] [--exclude comp1 comp2] [--remove]",
     "blue"
@@ -793,7 +793,7 @@ function showMenu() {
   logger.success(
     "1. ⚙️  Aggiornamento configurazioni (globale | importante ad impostare dependencies-config.js)"
   );
-  logger.info("2. 🔍 Controllo dipendenze non utilizzate");
+  logger.info("2. 🔍 Controllo dipendenze non utilizzate (experimental)");
   logger.info("3. 📦 Installazione pacchetti");
   logger.info("4. 🔄 Reinstallazione pacchetti (clean install)");
   logger.warning("5. 🧹 Pulizia/rimozione pacchetti");

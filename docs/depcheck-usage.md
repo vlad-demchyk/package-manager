@@ -51,24 +51,62 @@ node pm.js depcheck --remove
 
 ## 🔍 Come Funziona
 
-### 1. Analisi dei File
-Il sistema analizza tutti i file JavaScript/TypeScript nei componenti:
-- `.js`, `.ts`, `.tsx`, `.jsx`
-- Scansiona ricorsivamente le cartelle `src/` e altre directory
-- Esclude automaticamente `node_modules`, `.git`, `dist`, `lib`, `temp`, `release`
+### 1. Rilevamento Intelligente del Tipo di Progetto
+Il sistema rileva automaticamente il tipo di progetto analizzando:
+- **Dipendenze**: `package.json` dependencies e devDependencies
+- **File di configurazione**: `angular.json`, `next.config.js`, `vite.config.js`, ecc.
+- **Scripts**: comandi di build e sviluppo
+- **Struttura**: presenza di file specifici del framework
 
-### 2. Rilevamento Utilizzo
-Per ogni dipendenza, cerca i seguenti pattern:
-- `require('package-name')`
-- `import ... from 'package-name'`
-- `import 'package-name'`
-- `from 'package-name'`
-- Riferimenti diretti nel codice
+**Tipi supportati**: Angular, React, Next.js, Nuxt.js, Vue.js, Svelte, SharePoint/SPFx, WordPress, Vite, Webpack, TypeScript
 
-### 3. Report dei Risultati
-- ✅ **Dipendenze utilizzate**: Elenco delle dipendenze effettivamente utilizzate
-- ❌ **Dipendenze non utilizzate**: Elenco delle dipendenze che possono essere rimosse
-- 📊 **Statistiche**: Conteggio totale e per componente
+### 2. Analisi Avanzata dei File
+Il sistema analizza tutti i file rilevanti nei componenti:
+- **Codice**: `.js`, `.ts`, `.tsx`, `.jsx`, `.mjs`, `.cjs`, `.vue`, `.svelte`
+- **Configurazione**: `.json`, `.jsonc`, `.json5`, `.yml`, `.yaml`, `.toml`
+- **Stili**: `.css`, `.scss`, `.sass`, `.less`, `.styl`
+- **HTML**: `.html`, `.htm`, `.xhtml`
+- **Documentazione**: `.md`, `.mdx` (per esempi di codice)
+
+### 3. Rilevamento Utilizzo Avanzato
+Per ogni dipendenza, cerca pattern multipli:
+- **ES6 Imports**: `import ... from 'package'`, `import 'package'`
+- **CommonJS**: `require('package')`, `require('package/sub')`
+- **Dynamic Imports**: `import('package')`, `import('package/sub')`
+- **AMD**: `define(['package'], ...)`
+- **Webpack**: `require.ensure`, `require.context`
+- **SystemJS**: `System.import('package')`
+- **CSS**: `@import 'package'`, `url('package')`
+- **HTML**: `src="package"`, `href="package"`
+- **Template Literals**: `` `path/${package}/file` ``
+- **Environment Variables**: `process.env.PACKAGE_*`
+
+### 4. Analisi Configurazione Intelligente
+Il sistema analizza oltre 30 tipi di file di configurazione:
+- **Build Tools**: `webpack.config.js`, `vite.config.js`, `rollup.config.js`
+- **Frameworks**: `angular.json`, `next.config.js`, `nuxt.config.js`
+- **Linting**: `.eslintrc.*`, `eslint.config.js`, `.prettierrc`
+- **Testing**: `jest.config.js`, `cypress.config.js`, `playwright.config.js`
+- **CSS**: `tailwind.config.js`, `postcss.config.js`
+- **TypeScript**: `tsconfig.json`, `jsconfig.json`
+- **Environment**: `.env*`, `nodemon.json`
+
+### 5. Regole di Sicurezza Contestuali
+Il sistema applica regole specifiche per tipo di progetto:
+
+**Angular**: Mantiene `@angular/*`, `rxjs`, `zone.js`
+**React**: Mantiene `react`, `react-dom`, `react-scripts`
+**Next.js**: Mantiene `next`, `react`, `react-dom`
+**Vue.js**: Mantiene `vue`, `vue-router`, `vuex`
+**SharePoint**: Mantiene `@microsoft/sp-*`, `gulp`, `webpack`
+**WordPress**: Mantiene `wp-*`, `@wordpress/*`
+
+### 6. Report dei Risultati Avanzati
+- ✅ **Dipendenze utilizzate**: Con motivo (codice/confiurazione)
+- ❌ **Dipendenze sicure da rimuovere**: Convalidato come non utilizzato
+- ⚠️ **Dipendenze da rivedere manualmente**: Potenzialmente pericolose
+- 🔧 **Dipendenze di configurazione**: Utilizzate solo nei file di config
+- 📊 **Statistiche dettagliate**: Per tipo di progetto e categoria
 
 ## 🛡️ Sicurezza e Conferme
 
