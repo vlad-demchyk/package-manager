@@ -65,11 +65,11 @@ Scegli metodo (1-5): 1
 📋 Prossimi passi:
    ✅ Configurazione progetto completata
    2. Configura package-manager/dependencies-config.js (opzionale)
-   3. Testa: node package-manager.js update
+   3. Testa: packman update
 
 💡 Per utilizzare il manager:
-   - Modalità interattiva: node package-manager.js
-   - Comando diretto: node package-manager.js update
+   - Modalità interattiva: packman
+   - Comando diretto: packman update
    - Wrapper Windows: package-manager.bat
    - Wrapper Unix/Linux/macOS: ./package-manager.sh
 ```
@@ -91,12 +91,12 @@ root-files/package-manager.js  # File da copiare nella root del progetto
 #### Utilizzo
 ```bash
 # Modalità interattiva
-node package-manager.js
+packman
 
 # Modalità comando
-node package-manager.js install --single c106-header
-node package-manager.js update
-node package-manager.js clean
+packman install --single c106-header
+packman update
+packman clean
 ```
 
 #### Struttura
@@ -133,7 +133,7 @@ package-manager/scripts/core.js
 #### Utilizzo
 ```bash
 # Chiamato automaticamente da package-manager.js
-node package-manager.js
+packman
 ```
 
 ### 4. update-configs.js (Aggiornamento Configurazioni)
@@ -154,7 +154,7 @@ package-manager/scripts/update-configs.js
 #### Utilizzo
 ```bash
 # Tramite package manager (raccomandato)
-node package-manager.js update
+packman update
 
 # Direttamente
 node package-manager/scripts/update-configs.js
@@ -194,7 +194,7 @@ package-manager/scripts/clean-only.js
 #### Utilizzo
 ```bash
 # Tramite package manager (raccomandato)
-node package-manager.js clean
+packman clean
 
 # Direttamente
 node package-manager/scripts/clean-only.js --all
@@ -221,15 +221,15 @@ package-manager/scripts/depcheck.js
 #### Utilizzo
 ```bash
 # Tramite package manager (raccomandato)
-node package-manager.js depcheck
-node package-manager.js depcheck --single c106-header
-node package-manager.js depcheck --exclude c106-header c106-footer
-node package-manager.js depcheck --remove
+packman depcheck
+packman depcheck --single c106-header
+packman depcheck --exclude c106-header c106-footer
+packman depcheck --remove
 
 # Comandi automatici (senza conferma)
-node package-manager.js depcheck --single c106-header clean
-node package-manager.js depcheck --exclude c106-header c106-footer clean
-node package-manager.js depcheck clean
+packman depcheck --single c106-header clean
+packman depcheck --exclude c106-header c106-footer clean
+packman depcheck clean
 
 # Direttamente
 node package-manager/scripts/depcheck.js
@@ -257,7 +257,7 @@ node package-manager/scripts/depcheck.js --remove
    ❌ Dipendenze non utilizzate trovate: 3
 
 💡 Per rimuovere le dipendenze non utilizzate utilizzare:
-   node package-manager.js depcheck --remove
+   packman depcheck --remove
 ```
 
 ## 🔧 Wrapper Scripts
@@ -273,7 +273,7 @@ package-manager/root-files/
 #### Utilizzo
 ```bash
 # Entry point principale
-node package-manager.js
+packman
 
 # Scorciatoie
 node packman.js
@@ -380,34 +380,34 @@ const DEPRECATED_DEPENDENCIES = [
 ### Setup Iniziale
 ```bash
 # 1. Aggiorna configurazioni
-node package-manager.js update
+packman update
 
 # 2. Installa tutto
-node package-manager.js install
+packman install
 
 # 3. Testa un componente
-node package-manager.js install --single c106-header
+packman install --single c106-header
 ```
 
 ### Sviluppo Quotidiano
 ```bash
 # Installa solo componenti necessari
-node package-manager.js install --exclude c106-calendario c106-organigramma
+packman install --exclude c106-calendario c106-organigramma
 
 # Pulisci quando necessario
-node package-manager.js clean --single c106-header
+packman clean --single c106-header
 ```
 
 ### Risoluzione Problemi
 ```bash
 # 1. Pulisci tutto
-node package-manager.js clean
+packman clean
 
 # 2. Aggiorna configurazioni
-node package-manager.js update
+packman update
 
 # 3. Reinstalla con legacy
-node package-manager.js reinstall legacy
+packman reinstall legacy
 ```
 
 ### Utilizzo Script Diretti
@@ -428,8 +428,8 @@ node package-manager/scripts/depcheck.js
 node package-manager/scripts/depcheck.js --remove
 
 # Comandi automatici (senza conferma)
-node package-manager.js depcheck --single c106-header clean
-node package-manager.js depcheck --exclude c106-header c106-footer clean
+packman depcheck --single c106-header clean
+packman depcheck --exclude c106-header c106-footer clean
 ```
 
 ## 🔄 Workflow Tipici
@@ -438,52 +438,52 @@ node package-manager.js depcheck --exclude c106-header c106-footer clean
 ```bash
 # 1. Modifica dependencies-config.js
 # 2. Aggiorna configurazioni
-node package-manager.js update
+packman update
 
 # 3. Installa per test
-node package-manager.js install --single c106-header
+packman install --single c106-header
 
 # 4. Se tutto ok, installa tutto
-node package-manager.js install
+packman install
 ```
 
 ### 2. Pulizia Progetto
 ```bash
 # 1. Pulisci tutto
-node package-manager.js clean
+packman clean
 
 # 2. Aggiorna configurazioni
-node package-manager.js update
+packman update
 
 # 3. Reinstalla
-node package-manager.js install
+packman install
 ```
 
 ### 3. Pulizia Dipendenze
 ```bash
 # 1. Controlla dipendenze non utilizzate
-node package-manager.js depcheck
+packman depcheck
 
 # 2. Rimuovi quelle non utilizzate (dopo verifica)
-node package-manager.js depcheck --remove
+packman depcheck --remove
 
 # 3. Aggiorna configurazioni
-node package-manager.js update
+packman update
 
 # 4. Reinstalla dipendenze
-node package-manager.js reinstall
+packman reinstall
 ```
 
 ### 4. Pulizia Automatica Dipendenze
 ```bash
 # 1. Rimuovi automaticamente per un componente
-node package-manager.js depcheck --single c106-header clean
+packman depcheck --single c106-header clean
 
 # 2. Rimuovi automaticamente per tutti eccetto quelli specificati
-node package-manager.js depcheck --exclude c106-header c106-footer clean
+packman depcheck --exclude c106-header c106-footer clean
 
 # 3. Rimuovi automaticamente per tutti i componenti
-node package-manager.js depcheck clean
+packman depcheck clean
 ```
 
 ### 5. Setup Nuovo Progetto
@@ -499,46 +499,46 @@ node install.js
 # 4. Configura dependencies-config.js
 
 # 5. Testa
-node package-manager.js update
+packman update
 ```
 
 ## 🎯 Comandi Rapidi
 
 ### Aggiornamento Rapido
 ```bash
-node package-manager.js update
+packman update
 ```
 
 ### Installazione Test
 ```bash
-node package-manager.js install --single c106-header
+packman install --single c106-header
 ```
 
 ### Pulizia Rapida
 ```bash
-node package-manager.js clean --single c106-header
+packman clean --single c106-header
 ```
 
 ### Reinstallazione Problematica
 ```bash
-node package-manager.js reinstall --single c106-header legacy
+packman reinstall --single c106-header legacy
 ```
 
 ### Controllo Dipendenze
 ```bash
-node package-manager.js depcheck
+packman depcheck
 ```
 
 ### Pulizia Dipendenze
 ```bash
-node package-manager.js depcheck --remove
+packman depcheck --remove
 ```
 
 ### Pulizia Automatica Dipendenze
 ```bash
-node package-manager.js depcheck --single c106-header clean
-node package-manager.js depcheck --exclude c106-header c106-footer clean
-node package-manager.js depcheck clean
+packman depcheck --single c106-header clean
+packman depcheck --exclude c106-header c106-footer clean
+packman depcheck clean
 ```
 
 ## ⚠️ Note Importanti
@@ -559,7 +559,7 @@ node package-manager.js depcheck clean
 ### Modifica Configurazione
 1. Modifica `project-config.js` per filtraggio componenti
 2. Modifica `dependencies-config.js` per dipendenze
-3. Testa con `node package-manager.js update`
+3. Testa con `packman update`
 
 ### Aggiunta Nuovo Metodo Filtraggio
 1. Aggiungi logica in `core.js`

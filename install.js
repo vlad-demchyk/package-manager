@@ -1,36 +1,23 @@
 #!/usr/bin/env node
 
 /**
- * Cross-platform Package Manager Module Installer
- * Installa automaticamente i file necessari nella root del progetto
- * e configura il modulo per il progetto specifico
+ * Custom Package Manager - Installer & Main Entry Point
+ * Installa automaticamente i file necessari e configura il modulo
+ * Può essere eseguito come install.js o come entry point principale
  */
 
-const fs = require('fs');
-const path = require('path');
-const readline = require('readline');
+const fs = require("fs");
+const path = require("path");
+const readline = require("readline");
 
-// Colori per console
-const colors = {
-  reset: '\x1b[0m',
-  bright: '\x1b[1m',
-  red: '\x1b[31m',
-  green: '\x1b[32m',
-  yellow: '\x1b[33m',
-  blue: '\x1b[34m',
-  magenta: '\x1b[35m',
-  cyan: '\x1b[36m'
-};
-
-function log(message, color = 'reset') {
-  console.log(`${colors[color]}${message}${colors.reset}`);
-}
+// Import shared logger
+const logger = require("./scripts/utils/logger");
 
 // Funzione per creare interfaccia readline
 function createReadlineInterface() {
   return readline.createInterface({
     input: process.stdin,
-    output: process.stdout
+    output: process.stdout,
   });
 }
 
@@ -43,255 +30,301 @@ function askQuestion(rl, question) {
   });
 }
 
-// Funzione per rilevare automaticamente il tipo di progetto
-function detectProjectType(projectRoot) {
-  const items = fs.readdirSync(projectRoot);
-  
-  // Controlla package.json nella root
-  const rootPackageJson = path.join(projectRoot, 'package.json');
-  if (fs.existsSync(rootPackageJson)) {
-    try {
-      const packageContent = JSON.parse(fs.readFileSync(rootPackageJson, 'utf8'));
-      const dependencies = { ...packageContent.dependencies, ...packageContent.devDependencies };
-      
-      // Rileva React/Next.js
-      if (dependencies.react || dependencies.next || dependencies['react-scripts']) {
-        return 'react';
-      }
-      
-      // Rileva Vue.js
-      if (dependencies.vue || dependencies['@vue/cli'] || dependencies['vue-loader']) {
-        return 'vue';
-      }
-      
-      // Rileva Angular
-      if (dependencies['@angular/core'] || dependencies['@angular/cli']) {
-        return 'angular';
-      }
-      
-      // Rileva Node.js/Express
-      if (dependencies.express || dependencies.koa || dependencies.fastify) {
-        return 'nodejs';
-      }
-    } catch (error) {
-      // Ignora errori di parsing
-    }
-  }
-  
-  // Controlla file di configurazione specifici
-  if (fs.existsSync(path.join(projectRoot, 'next.config.js')) || 
-      fs.existsSync(path.join(projectRoot, 'next.config.ts'))) {
-    return 'react';
-  }
-  
-  if (fs.existsSync(path.join(projectRoot, 'vue.config.js')) || 
-      fs.existsSync(path.join(projectRoot, 'vite.config.js'))) {
-    return 'vue';
-  }
-  
-  if (fs.existsSync(path.join(projectRoot, 'angular.json'))) {
-    return 'angular';
-  }
-  
-  // Controlla se è un monorepo (Lerna, Nx)
-  if (fs.existsSync(path.join(projectRoot, 'lerna.json')) || 
-      fs.existsSync(path.join(projectRoot, 'nx.json'))) {
-    return 'monorepo';
-  }
-  
-  // Controlla se è SharePoint/SPFx
-  let hasSpfxComponents = false;
-  for (const item of items) {
-    const fullPath = path.join(projectRoot, item);
-    if (fs.statSync(fullPath).isDirectory()) {
-      const packageJsonPath = path.join(fullPath, 'package.json');
-      if (fs.existsSync(packageJsonPath)) {
-        try {
-          const packageContent = JSON.parse(fs.readFileSync(packageJsonPath, 'utf8'));
-          const dependencies = { ...packageContent.dependencies, ...packageContent.devDependencies };
-          if (dependencies['@microsoft/sp-core-library'] || dependencies['@microsoft/sp-webpart-base']) {
-            hasSpfxComponents = true;
-            break;
-          }
-        } catch (error) {
-          // Ignora errori di parsing
-        }
-      }
-    }
-  }
-  
-  if (hasSpfxComponents) {
-    return 'default'; // SharePoint/SPFx
-  }
-  
-  return 'default';
-}
-
 // Funzione per configurare il progetto
 async function configureProject() {
   const rl = createReadlineInterface();
-  
-  log('🔧 Configurazione del progetto...', 'cyan');
-  log('');
-  
-  // Rileva automaticamente il tipo di progetto
-  const projectRoot = path.join(__dirname, '..');
-  const detectedType = detectProjectType(projectRoot);
-  
-  log(`🎯 Tipo progetto rilevato: ${detectedType}`, 'green');
-  log('');
-  
+
+  logger.process("Configurazione del progetto...");
+  logger.log("");
+
   const config = {
     project: {
-      name: '',
-      version: '1.0.0',
-      description: '',
-      type: detectedType
+      name: "",
+      version: "1.0.0",
+      description: "",
     },
     components: {
-      filterByPrefix: { enabled: false, prefix: '' },
-      filterByStructure: { enabled: false, requiredFiles: [], requiredFolders: [] },
+      filterByPrefix: { enabled: false, prefix: "" },
+      filterByStructure: {
+        enabled: false,
+        requiredFiles: [],
+        requiredFolders: [],
+      },
       filterByList: { enabled: false, folders: [] },
-      filterByRegex: { enabled: false, pattern: '' }
-    }
+      filterByRegex: { enabled: false, pattern: "" },
+    },
   };
-  
+
   try {
     // Nome del progetto
-    const projectName = await askQuestion(rl, '📝 Nome del progetto: ');
-    config.project.name = projectName || 'My Project';
-    
+    const projectName = await askQuestion(rl, "📝 Nome del progetto: ");
+    config.project.name = projectName || "My Project";
+
     // Descrizione del progetto
-    const projectDesc = await askQuestion(rl, '📝 Descrizione del progetto (opzionale): ');
-    config.project.description = projectDesc || `Gestore pacchetti per ${config.project.name}`;
-    
-    log('');
-    log('🎯 Metodo di identificazione componenti:', 'cyan');
-    log('1. Per prefisso (es: c106-, my-app-)');
-    log('2. Per struttura cartella (package.json + cartelle specifiche)');
-    log('3. Per lista cartelle specifiche');
-    log('4. Per espressione regolare');
-    log('5. Salta configurazione (usa impostazioni predefinite)');
-    log('');
-    
-    const methodChoice = await askQuestion(rl, 'Scegli metodo (1-5): ');
-    
+    const projectDesc = await askQuestion(
+      rl,
+      "📝 Descrizione del progetto (opzionale): "
+    );
+    config.project.description =
+      projectDesc || `Gestore pacchetti per ${config.project.name}`;
+
+    logger.log("");
+    logger.section("Metodo di identificazione componenti");
+    logger.step("Per prefisso (es: c106-, my-app-)", 1);
+    logger.step(
+      "Per struttura cartella (package.json + cartelle specifiche)",
+      2
+    );
+    logger.step("Per lista cartelle specifiche", 3);
+    logger.step("Per espressione regolare", 4);
+    logger.step("Salta configurazione (usa impostazioni predefinite)", 5);
+    logger.log("");
+
+    const methodChoice = await askQuestion(rl, "Scegli metodo (1-5): ");
+
     switch (methodChoice) {
-      case '1':
-        const prefix = await askQuestion(rl, '🔤 Prefisso componenti (es: c106-): ');
+      case "1":
+        const prefix = await askQuestion(
+          rl,
+          "🔤 Prefisso componenti (es: c106-): "
+        );
         config.components.filterByPrefix = {
           enabled: true,
-          prefix: prefix || 'c106-'
+          prefix: prefix || "c106-",
         };
         break;
-        
-      case '2':
+
+      case "2":
         // Chiedi se il progetto usa TypeScript
-        const useTypeScript = await askQuestion(rl, '🔧 Il progetto usa TypeScript? (s/n, default: s): ');
-        const hasTypeScript = useTypeScript.toLowerCase() !== 'n' && useTypeScript.toLowerCase() !== 'no';
-        
+        const useTypeScript = await askQuestion(
+          rl,
+          "🔧 Il progetto usa TypeScript? (s/n, default: s): "
+        );
+        const hasTypeScript =
+          useTypeScript.toLowerCase() !== "n" &&
+          useTypeScript.toLowerCase() !== "no";
+
         // File base richiesti
-        let baseFiles = ['package.json'];
+        let baseFiles = ["package.json"];
         if (hasTypeScript) {
-          baseFiles.push('tsconfig.json');
+          baseFiles.push("tsconfig.json");
         }
-        
+
         config.components.filterByStructure = {
           enabled: true,
           requiredFiles: baseFiles,
-          requiredFolders: ['src']
+          requiredFolders: ["src"],
         };
-        
-        const customFiles = await askQuestion(rl, `📄 File richiesti (separati da virgola, default: ${baseFiles.join(',')}): `);
+
+        const customFiles = await askQuestion(
+          rl,
+          `📄 File richiesti (separati da virgola, default: ${baseFiles.join(
+            ","
+          )}): `
+        );
         if (customFiles) {
-          config.components.filterByStructure.requiredFiles = customFiles.split(',').map(f => f.trim());
+          config.components.filterByStructure.requiredFiles = customFiles
+            .split(",")
+            .map((f) => f.trim());
         }
-        
-        const customFolders = await askQuestion(rl, '📁 Cartelle richieste (separate da virgola, default: src): ');
+
+        const customFolders = await askQuestion(
+          rl,
+          "📁 Cartelle richieste (separate da virgola, default: src): "
+        );
         if (customFolders) {
-          config.components.filterByStructure.requiredFolders = customFolders.split(',').map(f => f.trim());
+          config.components.filterByStructure.requiredFolders = customFolders
+            .split(",")
+            .map((f) => f.trim());
         }
         break;
-        
-      case '3':
-        const folders = await askQuestion(rl, '📁 Lista cartelle componenti (separate da virgola): ');
+
+      case "3":
+        const folders = await askQuestion(
+          rl,
+          "📁 Lista cartelle componenti (separate da virgola): "
+        );
         if (folders) {
           config.components.filterByList = {
             enabled: true,
-            folders: folders.split(',').map(f => f.trim())
+            folders: folders.split(",").map((f) => f.trim()),
           };
         }
         break;
-        
-      case '4':
-        const regex = await askQuestion(rl, '🔍 Espressione regolare (es: ^my-app-\\w+$): ');
+
+      case "4":
+        const regex = await askQuestion(
+          rl,
+          "🔍 Espressione regolare (es: ^my-app-\\w+$): "
+        );
         if (regex) {
           config.components.filterByRegex = {
             enabled: true,
-            pattern: regex
+            pattern: regex,
           };
         }
         break;
-        
-      case '5':
+
+      case "5":
       default:
-        log('⏭️  Configurazione saltata - verranno usate le impostazioni predefinite', 'yellow');
+        logger.log(
+          "⏭️  Configurazione saltata - verranno usate le impostazioni predefinite",
+          "yellow"
+        );
         // Imposta configurazione predefinita per struttura cartelle
         // Verifica se il progetto usa TypeScript controllando la presenza di tsconfig.json nei componenti
-        const projectRoot = path.join(__dirname, '..');
+        const projectRoot = process.cwd();
         const items = fs.readdirSync(projectRoot);
-        
+
         // Cerca tsconfig.json in almeno un componente
         let hasTsConfig = false;
         for (const item of items) {
           const fullPath = path.join(projectRoot, item);
           if (fs.statSync(fullPath).isDirectory()) {
-            const tsConfigPath = path.join(fullPath, 'tsconfig.json');
+            const tsConfigPath = path.join(fullPath, "tsconfig.json");
             if (fs.existsSync(tsConfigPath)) {
               hasTsConfig = true;
               break;
             }
           }
         }
-        
-        let defaultFiles = ['package.json'];
+
+        let defaultFiles = ["package.json"];
         if (hasTsConfig) {
-          defaultFiles.push('tsconfig.json');
-          log('🔧 Rilevato TypeScript nel progetto - incluso tsconfig.json nei filtri', 'cyan');
+          defaultFiles.push("tsconfig.json");
+          logger.log(
+            "🔧 Rilevato TypeScript nel progetto - incluso tsconfig.json nei filtri",
+            "cyan"
+          );
         } else {
-          log('🔧 TypeScript non rilevato - solo package.json nei filtri', 'cyan');
+          logger.log(
+            "🔧 TypeScript non rilevato - solo package.json nei filtri",
+            "cyan"
+          );
         }
-        
+
         config.components.filterByStructure = {
           enabled: true,
           requiredFiles: defaultFiles,
-          requiredFolders: ['src']
+          requiredFolders: ["src"],
         };
         break;
     }
-    
+
     rl.close();
     return config;
-    
   } catch (error) {
     rl.close();
-    log('❌ Errore durante la configurazione:', 'red');
-    log(`   ${error.message}`, 'yellow');
+    logger.error("Errore durante la configurazione:");
+    logger.warning(`   ${error.message}`);
     return null;
   }
 }
 
+// Funzione per copiare i file del modulo nella cartella package-manager
+function copyModuleFiles(targetDir) {
+  const sourceDir = __dirname;
+  const itemsToCopy = ["scripts", "docs"];
+
+  itemsToCopy.forEach((item) => {
+    const sourcePath = path.join(sourceDir, item);
+    const targetPath = path.join(targetDir, item);
+
+    if (fs.existsSync(sourcePath)) {
+      try {
+        if (fs.statSync(sourcePath).isDirectory()) {
+          // Copia ricorsivamente le cartelle
+          copyDirectoryRecursive(sourcePath, targetPath);
+          logger.log(`✅ Cartella ${item}/ copiata`, "green");
+        } else {
+          // Copia i file
+          fs.copyFileSync(sourcePath, targetPath);
+          logger.log(`✅ File ${item} copiato`, "green");
+        }
+      } catch (error) {
+        logger.log(`❌ Errore copiando ${item}: ${error.message}`, "red");
+      }
+    }
+  });
+
+  // Copia il file dependencies-config.js nella cartella package-manager
+  const configPath = path.join(sourceDir, "dependencies-config.js");
+  const targetConfigPath = path.join(targetDir, "dependencies-config.js");
+
+  if (fs.existsSync(configPath)) {
+    try {
+      fs.copyFileSync(configPath, targetConfigPath);
+      logger.log(
+        `✅ dependencies-config.js copiato in package-manager/`,
+        "green"
+      );
+    } catch (error) {
+      logger.log(
+        `❌ Errore copiando dependencies-config.js: ${error.message}`,
+        "red"
+      );
+    }
+  } else {
+    logger.log(`❌ dependencies-config.js non trovato in ${configPath}`, "red");
+  }
+
+  // Copia anche il template nella root del progetto per facilità d'uso
+  const templatePath = path.join(
+    sourceDir,
+    "templates",
+    "dependencies-config.js"
+  );
+  const rootTemplatePath = path.join(process.cwd(), "dependencies-config.js");
+
+  if (fs.existsSync(templatePath)) {
+    try {
+      fs.copyFileSync(templatePath, rootTemplatePath);
+      logger.log(
+        `✅ Template dependencies-config.js copiato nella root del progetto`,
+        "green"
+      );
+    } catch (error) {
+      logger.log(
+        `❌ Errore copiando template nella root: ${error.message}`,
+        "red"
+      );
+    }
+  } else {
+    logger.log(`❌ Template non trovato in ${templatePath}`, "red");
+  }
+}
+
+// Funzione per copiare ricorsivamente una cartella
+function copyDirectoryRecursive(source, target) {
+  if (!fs.existsSync(target)) {
+    fs.mkdirSync(target, { recursive: true });
+  }
+
+  const items = fs.readdirSync(source);
+  items.forEach((item) => {
+    const sourcePath = path.join(source, item);
+    const targetPath = path.join(target, item);
+
+    if (fs.statSync(sourcePath).isDirectory()) {
+      copyDirectoryRecursive(sourcePath, targetPath);
+    } else {
+      fs.copyFileSync(sourcePath, targetPath);
+    }
+  });
+}
+
 // Funzione per salvare la configurazione
-function saveProjectConfig(config) {
-  const configPath = path.join(__dirname, 'project-config.js');
-  
+function saveProjectConfig(config, targetDir = null) {
+  const configPath = targetDir
+    ? path.join(targetDir, "project-config.js")
+    : path.join(__dirname, "project-config.js");
+
   const configContent = `module.exports = {
   // Configurazione del progetto
   project: {
     name: "${config.project.name}",
     version: "${config.project.version}",
-    description: "${config.project.description}",
-    type: "${config.project.type}"
+    description: "${config.project.description}"
   },
   
   // Configurazione ricerca componenti
@@ -305,8 +338,12 @@ function saveProjectConfig(config) {
     // Metodo 2: Per struttura cartella
     filterByStructure: {
       enabled: ${config.components.filterByStructure.enabled},
-      requiredFiles: ${JSON.stringify(config.components.filterByStructure.requiredFiles)},
-      requiredFolders: ${JSON.stringify(config.components.filterByStructure.requiredFolders)}
+      requiredFiles: ${JSON.stringify(
+        config.components.filterByStructure.requiredFiles
+      )},
+      requiredFolders: ${JSON.stringify(
+        config.components.filterByStructure.requiredFolders
+      )}
     },
     
     // Metodo 3: Per lista cartelle
@@ -318,7 +355,11 @@ function saveProjectConfig(config) {
     // Metodo 4: Per regex
     filterByRegex: {
       enabled: ${config.components.filterByRegex.enabled},
-      pattern: ${config.components.filterByRegex.pattern ? `/${config.components.filterByRegex.pattern}/` : 'null'}
+      pattern: ${
+        config.components.filterByRegex.pattern
+          ? `/${config.components.filterByRegex.pattern}/`
+          : "null"
+      }
     }
   },
   
@@ -355,146 +396,257 @@ function saveProjectConfig(config) {
 };`;
 
   try {
-    fs.writeFileSync(configPath, configContent, 'utf8');
-    log('✅ Configurazione salvata in project-config.js', 'green');
+    fs.writeFileSync(configPath, configContent, "utf8");
+    logger.success("Configurazione salvata in project-config.js");
     return true;
   } catch (error) {
-    log('❌ Errore salvataggio configurazione:', 'red');
-    log(`   ${error.message}`, 'yellow');
+    logger.error("Errore salvataggio configurazione:");
+    logger.warning(`   ${error.message}`);
     return false;
   }
 }
 
-async function main() {
-  log('🚀 Installazione Package Manager Module...', 'cyan');
-  log('');
+// Funzione principale per l'installazione
+async function installPackageManager() {
+  logger.section("Installazione Package Manager Module");
+  logger.log("");
 
-  // Verifica che siamo nella cartella package-manager
-  const rootFilesDir = path.join(__dirname, 'root-files');
-  
-  if (!fs.existsSync(rootFilesDir)) {
-    log('❌ Errore: Cartella root-files non trovata!', 'red');
-    log('   Assicurati di eseguire questo script dalla cartella package-manager/', 'yellow');
+  // Verifica se siamo in modalità npm install
+  const isNpmInstall =
+    process.env.npm_config_user_config ||
+    process.env.npm_lifecycle_event === "postinstall";
+
+  if (isNpmInstall) {
+    logger.success("Modalità installazione NPM rilevata");
+    logger.info("   Creazione cartella package-manager nel progetto...");
+  } else {
+    logger.success("Modalità installazione manuale rilevata");
+  }
+
+  // Determina la root del progetto
+  // Se siamo in modalità npm install, process.cwd() potrebbe essere la cartella del modulo
+  // Dobbiamo trovare la cartella del progetto che ha chiamato npm install
+  let projectRoot = process.cwd();
+
+  // Se siamo in node_modules, saliamo alla cartella del progetto
+  if (projectRoot.includes("node_modules")) {
+    // Trova la cartella del progetto (quella che contiene node_modules)
+    const parts = projectRoot.split(path.sep);
+    const nodeModulesIndex = parts.lastIndexOf("node_modules");
+    if (nodeModulesIndex > 0) {
+      projectRoot = parts.slice(0, nodeModulesIndex).join(path.sep);
+    }
+  }
+
+  // Se siamo in modalità npm install, usa la cartella del progetto che ha chiamato npm install
+  if (isNpmInstall && process.env.INIT_CWD) {
+    // INIT_CWD contiene la cartella del progetto che ha chiamato npm install
+    projectRoot = process.env.INIT_CWD;
+  }
+
+  // Verifica e crea/aggiorna root package.json
+  const rootPackageJsonPath = path.join(projectRoot, "package.json");
+
+  if (!fs.existsSync(rootPackageJsonPath)) {
+    logger.warning("Root package.json не знайдено, створюю мінімальний...");
+
+    const minimalPackageJson = {
+      name: path.basename(projectRoot),
+      version: "1.0.0",
+      private: true,
+      scripts: {
+        packman: "npx packman",
+        pm: "npx pm",
+      },
+    };
+
+    fs.writeFileSync(
+      rootPackageJsonPath,
+      JSON.stringify(minimalPackageJson, null, 2)
+    );
+
+    logger.success("Створено мінімальний package.json");
+  } else {
+    // Se esiste, aggiungi/aggiorna scripts
+    try {
+      const existingPkg = JSON.parse(
+        fs.readFileSync(rootPackageJsonPath, "utf8")
+      );
+
+      if (!existingPkg.scripts) {
+        existingPkg.scripts = {};
+      }
+
+      // Aggiungi packman comandi se non esistono
+      if (!existingPkg.scripts.packman) {
+        existingPkg.scripts.packman = "npx packman";
+      }
+      if (!existingPkg.scripts.pm) {
+        existingPkg.scripts.pm = "npx pm";
+      }
+
+      fs.writeFileSync(
+        rootPackageJsonPath,
+        JSON.stringify(existingPkg, null, 2)
+      );
+
+      logger.success("Оновлено scripts в package.json");
+    } catch (error) {
+      logger.warning("Не вдалося оновити package.json");
+    }
+  }
+
+  // Crea la cartella package-manager se non esiste
+  const packageManagerDir = path.join(projectRoot, "package-manager");
+  if (!fs.existsSync(packageManagerDir)) {
+    fs.mkdirSync(packageManagerDir, { recursive: true });
+    logger.success("Creata cartella package-manager/");
+  }
+
+  // Copia tutti i file del modulo nella cartella package-manager
+  logger.process("Copia file del modulo nella cartella package-manager...");
+  copyModuleFiles(packageManagerDir);
+
+  // Configurazione del progetto avverrà al primo utilizzo di npx packman
+
+  logger.log("");
+  logger.success("Installazione completata!");
+  logger.log("");
+
+  logger.section("Comandi disponibili");
+  logger.log(
+    "   npx packman           - Modalità interattiva (prima configurazione)"
+  );
+  logger.log("   npx packman install   - Installa pacchetti");
+  logger.log("   npx packman update    - Aggiorna configurazioni");
+  logger.log("   npx packman clean     - Pulisci componenti");
+  logger.log("   npx packman depcheck  - Controlla dipendenze non utilizzate");
+  logger.log("   npx pm                - Alias per packman");
+  logger.log("");
+  logger.section("Prossimi passi");
+  logger.step("Esegui 'npx packman' per configurare il progetto", 1);
+  logger.step(
+    "Modifica dependencies-config.js nella root del progetto se necessario",
+    2
+  );
+  logger.step("Usa 'npx packman update' per aggiornare le configurazioni", 3);
+  logger.log("");
+  logger.warning(
+    "IMPORTANTE: Esegui i comandi dalla directory root del progetto:"
+  );
+  logger.log(`   cd "${projectRoot}"`);
+  logger.log("");
+}
+
+// Funzione principale per l'avvio del package manager
+async function startPackageManager() {
+  // Cerchiamo la cartella package-manager nel progetto corrente
+  const projectRoot = process.cwd();
+  const packageManagerDir = path.join(projectRoot, "package-manager");
+
+  if (!fs.existsSync(packageManagerDir)) {
+    logger.error("Cartella package-manager non trovata!");
+    logger.warning("   Il modulo non è stato installato correttamente.");
+    logger.log(
+      "   Esegui: npm install https://github.com/vlad-demchyk/package-manager"
+    );
     process.exit(1);
   }
 
-  // Configurazione del progetto
-  log('🔧 Configurazione iniziale del modulo...', 'cyan');
-  const projectConfig = await configureProject();
-  
-  if (projectConfig) {
-    const configSaved = saveProjectConfig(projectConfig);
-    if (!configSaved) {
-      log('⚠️  Continuo con l\'installazione senza configurazione personalizzata', 'yellow');
-    }
-  } else {
-    log('⚠️  Continuo con l\'installazione senza configurazione personalizzata', 'yellow');
-  }
-  
-  log('');
+  // Carichiamo la configurazione del progetto dalla cartella package-manager
+  const projectConfigPath = path.join(packageManagerDir, "project-config.js");
+  if (!fs.existsSync(projectConfigPath)) {
+    logger.process("Prima esecuzione rilevata - configurazione progetto...");
+    logger.log("");
 
-  // Vai nella cartella parent (root del progetto)
-  const projectRoot = path.join(__dirname, '..');
-  
-  // File da copiare
-  const filesToCopy = [
-    'package-manager.js',
-    'packman.js',
-    'pm.js'
-  ];
-
-  log('📁 Copia file nella root del progetto...', 'blue');
-
-  let copiedCount = 0;
-  let overwrittenCount = 0;
-
-  filesToCopy.forEach(fileName => {
-    const sourcePath = path.join(rootFilesDir, fileName);
-    const targetPath = path.join(projectRoot, fileName);
-    
-    if (fs.existsSync(sourcePath)) {
-      // Verifica se il file di destinazione esiste già
-      const exists = fs.existsSync(targetPath);
-      
-      try {
-        // Copia il file
-        fs.copyFileSync(sourcePath, targetPath);
-        
-        // Rendi eseguibile il file .sh su sistemi Unix-like
-        if (fileName.endsWith('.sh') && process.platform !== 'win32') {
-          fs.chmodSync(targetPath, '755');
-        }
-        
-        if (exists) {
-          log(`🔄 ${fileName} sovrascritto`, 'yellow');
-          overwrittenCount++;
-        } else {
-          log(`✅ ${fileName} copiato`, 'green');
-          copiedCount++;
-        }
-        
-      } catch (error) {
-        log(`❌ Errore copiando ${fileName}: ${error.message}`, 'red');
+    // Avvia la configurazione del progetto
+    const projectConfig = await configureProject();
+    if (projectConfig) {
+      const configSaved = saveProjectConfig(projectConfig, packageManagerDir);
+      if (configSaved) {
+        logger.success("Configurazione progetto completata!");
+        logger.log("");
+      } else {
+        logger.error("Errore durante il salvataggio della configurazione");
+        process.exit(1);
       }
     } else {
-      log(`❌ ${fileName} non trovato in root-files/`, 'red');
+      logger.error("Errore durante la configurazione del progetto");
+      process.exit(1);
     }
-  });
+  }
 
-  log('');
-  log('🎉 Installazione completata!', 'green');
-  log('');
-  
-  // Statistiche
-  if (copiedCount > 0 || overwrittenCount > 0) {
-    log('📊 Statistiche:', 'cyan');
-    if (copiedCount > 0) {
-      log(`   ✅ File copiati: ${copiedCount}`, 'green');
-    }
-    if (overwrittenCount > 0) {
-      log(`   🔄 File sovrascritti: ${overwrittenCount}`, 'yellow');
-    }
-    log('');
+  // Avviamo lo script principale
+  const mainScript = path.join(packageManagerDir, "scripts", "core.js");
+  if (!fs.existsSync(mainScript)) {
+    logger.error("Script principale core.js non trovato!");
+    logger.warning("   Il modulo non è stato installato correttamente.");
+    process.exit(1);
   }
-  
-  log('📋 Prossimi passi:', 'cyan');
-  if (projectConfig) {
-    log('   ✅ Configurazione progetto completata', 'green');
+
+  try {
+    // Carichiamo e avviamo lo script principale
+    const coreModule = require(mainScript);
+
+    // Passiamo gli argomenti della riga di comando
+    const args = process.argv.slice(2);
+
+    if (args.length === 0) {
+      // Modalità interattiva
+      await coreModule.main();
+    } else {
+      // Modalità riga di comando
+      await coreModule.parseAndExecuteCommand(args);
+    }
+  } catch (error) {
+    logger.error("Errore durante l'avvio:");
+    logger.warning(`   ${error.message}`);
+
+    if (error.code === "MODULE_NOT_FOUND") {
+      logger.log(
+        "   Assicurati che tutti i file necessari si trovino nella cartella package-manager."
+      );
+    }
+
+    process.exit(1);
+  }
+}
+
+// Funzione principale
+async function main() {
+  // Verifica se siamo in modalità installazione o avvio
+  const isInstallMode =
+    process.argv[1].endsWith("install.js") ||
+    process.env.npm_lifecycle_event === "postinstall" ||
+    process.argv.includes("--install");
+
+  if (isInstallMode) {
+    await installPackageManager();
   } else {
-    log('   1. Configura package-manager/project-config.js (opzionale)', 'blue');
+    await startPackageManager();
   }
-  log('   2. Configura package-manager/dependencies-config.js (opzionale)', 'blue');
-  log('   3. Testa: node package-manager.js update', 'blue');
-  log('');
-  log('🚀 Pronto per utilizzare il package manager!', 'bright');
-  log('');
-  log('📋 Comandi disponibili:', 'cyan');
-  log('   node package-manager.js update    - Aggiorna configurazioni', 'blue');
-  log('   node package-manager.js install   - Installa pacchetti', 'blue');
-  log('   node package-manager.js depcheck  - Controlla dipendenze non utilizzate', 'blue');
-  log('   node package-manager.js           - Modalità interattiva', 'blue');
-  log('');
-  log('⚠️  IMPORTANTE: Esegui i comandi dalla directory root del progetto:', 'yellow');
-  log(`   cd "${projectRoot}"`, 'blue');
-  log('');
 }
 
 // Gestione errori
-process.on('uncaughtException', (error) => {
-  log('❌ Errore imprevisto:', 'red');
-  log(`   ${error.message}`, 'yellow');
+process.on("uncaughtException", (error) => {
+  logger.error("Errore imprevisto:");
+  logger.warning(`   ${error.message}`);
   process.exit(1);
 });
 
-process.on('unhandledRejection', (reason, promise) => {
-  log('❌ Errore di promessa non gestita:', 'red');
-  log(`   ${reason}`, 'yellow');
+process.on("unhandledRejection", (reason, promise) => {
+  logger.error("Errore di promessa non gestita:");
+  logger.warning(`   ${reason}`);
   process.exit(1);
 });
 
 // Avvio della funzione principale
 if (require.main === module) {
-  main();
+  main().catch((error) => {
+    logger.error("Errore durante l'esecuzione:");
+    logger.warning(`   ${error.message}`);
+    process.exit(1);
+  });
 }
 
-module.exports = { main };
+module.exports = { main, installPackageManager, startPackageManager };
