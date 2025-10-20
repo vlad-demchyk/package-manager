@@ -52,11 +52,12 @@ function updatePackageJson(
     // Dipendenze condizionali sono già incluse in baseDeps
     // (vengono processate in update-configs.js prima di chiamare questa funzione)
 
-    // Rimuovi dipendenze deprecate
+    // Rimuovi dipendenze deprecate da dependencies
     deprecatedDeps.forEach((depName) => {
-      if (packageJson.dependencies[depName]) {
+      if (packageJson.dependencies && packageJson.dependencies[depName]) {
         delete packageJson.dependencies[depName];
         updated = true;
+        logger.log(`🗑️  Rimosso deprecato: ${depName} (dependencies)`, "yellow", projectConfig);
       }
     });
 
@@ -69,6 +70,15 @@ function updatePackageJson(
       if (packageJson.devDependencies[name] !== version) {
         packageJson.devDependencies[name] = version;
         updated = true;
+      }
+    });
+
+    // Rimuovi dipendenze deprecate da devDependencies
+    deprecatedDeps.forEach((depName) => {
+      if (packageJson.devDependencies && packageJson.devDependencies[depName]) {
+        delete packageJson.devDependencies[depName];
+        updated = true;
+        logger.log(`🗑️  Rimosso deprecato: ${depName} (devDependencies)`, "yellow", projectConfig);
       }
     });
 
