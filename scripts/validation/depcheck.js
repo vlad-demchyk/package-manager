@@ -701,7 +701,7 @@ async function executeDepcheckCommand(
 
   // Mostra il risultato
   if (!logger.isVerbose()) {
-    // Stampa lista concisa e ritorна
+    // Stampa lista concisa e ritorna
     conciseOutput.forEach((line) => console.log(line));
   } else {
     logger.section("Risultato controllo");

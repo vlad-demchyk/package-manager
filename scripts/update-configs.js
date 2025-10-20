@@ -14,12 +14,12 @@ const readline = require("readline");
 // Import shared logger
 const logger = require("./utils/logger");
 
-// Функція для створення пустого темплейту dependencies-config.js
+// Funzione per creare un template vuoto dependencies-config.js
 function createEmptyDependenciesConfig(projectRoot) {
-  // Спочатку пробуємо знайти темплейт в корені проекту
+  // Prima proviamo a trovare il template nella root del progetto
   let templatePath = path.join(projectRoot, "dependencies-config.js");
 
-  // Якщо немає в корені, пробуємо в node_modules
+  // Se non c'è nella root, proviamo in node_modules
   if (!fs.existsSync(templatePath)) {
     templatePath = path.join(
       projectRoot,
@@ -30,7 +30,7 @@ function createEmptyDependenciesConfig(projectRoot) {
     );
   }
 
-  // Якщо і там немає, використовуємо відносний шлях (для розробки)
+  // Se non c'è nemmeno lì, usiamo il percorso relativo (per sviluppo)
   if (!fs.existsSync(templatePath)) {
     templatePath = path.join(
       __dirname,
@@ -47,29 +47,29 @@ function createEmptyDependenciesConfig(projectRoot) {
   );
 
   try {
-    // Перевіряємо чи існує папка package-manager
+    // Verifichiamo se esiste la cartella package-manager
     const packageManagerDir = path.join(projectRoot, "package-manager");
     if (!fs.existsSync(packageManagerDir)) {
       fs.mkdirSync(packageManagerDir, { recursive: true });
     }
 
-    // Перевіряємо чи існує темплейт
+    // Verifichiamo se esiste il template
     if (!fs.existsSync(templatePath)) {
-      logger.error(`Темплейт не знайдено в жодному з місць: ${templatePath}`);
+      logger.error(`Template non trovato in nessuno dei luoghi: ${templatePath}`);
       return false;
     }
 
-    // Копіюємо темплейт
+    // Copiamo il template
     fs.copyFileSync(templatePath, targetPath);
-    logger.log(`✅ Темплейт скопійовано з: ${templatePath}`, "green");
+    logger.log(`✅ Template copiato da: ${templatePath}`, "green");
     return true;
   } catch (error) {
-    logger.error(`Помилка створення темплейту: ${error.message}`);
+    logger.error(`Errore creando template: ${error.message}`);
     return false;
   }
 }
 
-// Функція для перезавантаження модуля dependencies-config
+// Funzione per ricaricare il modulo dependencies-config
 function reloadDependenciesConfig(projectRoot) {
   try {
     delete require.cache[
@@ -89,13 +89,13 @@ function reloadDependenciesConfig(projectRoot) {
     getStandardTsConfig = depsConfig.getStandardTsConfig;
     getNodeEngines = depsConfig.getNodeEngines;
     logger.log(
-      "✅ Модуль dependencies-config успішно перезавантажено!",
+      "✅ Modulo dependencies-config ricaricato con successo!",
       "green"
     );
     return true;
   } catch (error) {
-    logger.error(`Помилка перезавантаження модуля: ${error.message}`);
-    // Використовуємо функції за замовчуванням
+    logger.error(`Errore ricaricando modulo: ${error.message}`);
+    // Usiamo funzioni di default
     getBaseDependencies = () => ({});
     getConditionalDependencies = () => ({});
     getDevDependencies = () => ({});
@@ -177,6 +177,83 @@ function askQuestion(rl, question) {
   });
 }
 
+// Funzione per mostrare le modifiche delle versioni
+function showVersionChanges(componentDirs, finalBaseDeps, finalDevDeps, projectConfig) {
+  logger.log("\n📊 Riepilogo modifiche versioni:", "cyan");
+  
+  const changes = {
+    dependencies: {},
+    devDependencies: {}
+  };
+  
+  // Raccoglie le versioni attuali dal primo componente per il confronto
+  componentDirs.forEach((componentDir) => {
+    const packageJsonPath = path.join(process.cwd(), componentDir, "package.json");
+    if (fs.existsSync(packageJsonPath)) {
+      const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, "utf8"));
+      
+      // Controlla dependencies
+      Object.entries(finalBaseDeps).forEach(([name, newVersion]) => {
+        const oldVersion = packageJson.dependencies?.[name];
+        if (oldVersion && oldVersion !== newVersion) {
+          if (!changes.dependencies[name]) {
+            changes.dependencies[name] = { old: oldVersion, new: newVersion };
+          }
+        } else if (!oldVersion) {
+          if (!changes.dependencies[name]) {
+            changes.dependencies[name] = { old: null, new: newVersion };
+          }
+        }
+      });
+      
+      // Controlla devDependencies
+      Object.entries(finalDevDeps).forEach(([name, newVersion]) => {
+        const oldVersion = packageJson.devDependencies?.[name];
+        if (oldVersion && oldVersion !== newVersion) {
+          if (!changes.devDependencies[name]) {
+            changes.devDependencies[name] = { old: oldVersion, new: newVersion };
+          }
+        } else if (!oldVersion) {
+          if (!changes.devDependencies[name]) {
+            changes.devDependencies[name] = { old: null, new: newVersion };
+          }
+        }
+      });
+    }
+  });
+  
+  // Mostra le modifiche dependencies
+  if (Object.keys(changes.dependencies).length > 0) {
+    logger.log("\nDependencies:", "yellow");
+    Object.entries(changes.dependencies).forEach(([name, versions]) => {
+      if (versions.old) {
+        logger.log(`  ${name}: ${versions.old} → ${versions.new}`, "blue");
+      } else {
+        logger.log(`  ${name}: [NUOVO] → ${versions.new}`, "green");
+      }
+    });
+  }
+  
+  // Mostra le modifiche devDependencies
+  if (Object.keys(changes.devDependencies).length > 0) {
+    logger.log("\nDevDependencies:", "yellow");
+    Object.entries(changes.devDependencies).forEach(([name, versions]) => {
+      if (versions.old) {
+        logger.log(`  ${name}: ${versions.old} → ${versions.new}`, "blue");
+      } else {
+        logger.log(`  ${name}: [NUOVO] → ${versions.new}`, "green");
+      }
+    });
+  }
+  
+  // Mostra lo stato tsconfig
+  if (Object.keys(getStandardTsConfig()).length > 0) {
+    logger.log("\ntsconfig.json sarà aggiornato", "yellow");
+  }
+  
+  logger.log("");
+}
+
 // Funzione principale per aggiornare tutte le configurazioni
 async function updateAllConfigs() {
   logger.log("🚀 Avvio aggiornamento configurazioni componenti...", "cyan");
@@ -240,6 +317,22 @@ async function updateAllConfigs() {
     if (answer === "y" || answer === "yes") {
       const generated = generateDependenciesConfig(projectConfig);
       displayGeneratedDependencies(generated, projectConfig);
+
+      // Conferma salvataggio tsconfig
+      if (generated.tsConfig && Object.keys(generated.tsConfig).length > 0) {
+        logger.log("\nSTANDARD_TSCONFIG trovato dal componente con la versione TypeScript più alta:", "cyan");
+        logger.log(JSON.stringify(generated.tsConfig, null, 2), "blue");
+        
+        const confirmTs = await askQuestion(
+          rl,
+          "Salvare questa configurazione TypeScript? (y/N): "
+        );
+        
+        if (confirmTs !== "y" && confirmTs !== "yes") {
+          delete generated.tsConfig;
+          logger.log("Configurazione TypeScript non sarà salvata", "yellow");
+        }
+      }
 
       const confirm = await askQuestion(
         rl,
@@ -306,6 +399,27 @@ async function updateAllConfigs() {
   logger.log(`📁 Trovati ${componentDirs.length} componenti:`, "blue");
   componentDirs.forEach((dir) => logger.log(`   - ${dir}`, "blue"));
 
+  // Conferma aggiornamento tsconfig
+  if (Object.keys(standardTsConfig).length > 0) {
+    logger.log("\ntsconfig.json sarà aggiornato secondo STANDARD_TSCONFIG", "yellow");
+    
+    const rl = createReadlineInterface();
+    const confirmTsUpdate = await askQuestion(
+      rl,
+      "Continuare l'aggiornamento tsconfig.json per tutti i componenti? (y/N): "
+    );
+    rl.close();
+    
+    if (confirmTsUpdate !== "y" && confirmTsUpdate !== "yes") {
+      logger.log("Aggiornamento tsconfig.json saltato", "yellow");
+      // Salta l'aggiornamento tsconfig
+      Object.keys(standardTsConfig).forEach(key => delete standardTsConfig[key]);
+    }
+  }
+
+  // Mostra il riepilogo delle modifiche delle versioni
+  showVersionChanges(componentDirs, finalBaseDeps, finalDevDeps, projectConfig);
+
   let successCount = 0;
   let totalCount = componentDirs.length;
 
@@ -368,4 +482,5 @@ if (require.main === module) {
 
 module.exports = {
   updateAllConfigs,
+  showVersionChanges,
 };
