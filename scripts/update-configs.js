@@ -463,14 +463,20 @@ async function updateAllConfigs() {
       "\n🎉 Tutte le configurazioni aggiornate con successo!",
       "green"
     );
-    return true;
   } else {
     logger.log(
       "\n⚠️  Alcune configurazioni non sono state aggiornate. Controlla gli errori sopra.",
       "yellow"
     );
-    return false;
   }
+
+  // Pausa per permettere all'utente di leggere i risultati
+  logger.log("\n🔙 Premi INVIO per tornare al menu principale...", "cyan");
+  const rl = createReadlineInterface();
+  await askQuestion(rl, "");
+  rl.close();
+
+  return successCount === totalCount;
 }
 
 // Avvio script
