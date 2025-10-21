@@ -5,6 +5,9 @@
  * Modulo centralizzato di logging per tutti gli script package-manager
  */
 
+const fs = require("fs");
+const path = require("path");
+
 // Colori per la console
 const colors = {
   reset: "\x1b[0m",
@@ -21,6 +24,9 @@ const colors = {
 // Impostazioni globali di logging
 let verbose = false;
 let silent = false;
+let logToFile = false;
+let logFilePath = null;
+let currentSessionId = null;
 
 /**
  * Imposta la modalità verbose
@@ -28,6 +34,109 @@ let silent = false;
  */
 function setVerbose(value) {
   verbose = value;
+}
+
+/**
+ * Abilita il logging su file
+ * @param {boolean} enable - true per abilitare il logging su file
+ * @param {string} projectRoot - percorso root del progetto
+ */
+function enableFileLogging(enable, projectRoot = process.cwd()) {
+  logToFile = enable;
+  
+  if (enable) {
+    // Crea la cartella logs se non esiste
+    const logsDir = path.join(projectRoot, "package-manager", "logs");
+    if (!fs.existsSync(logsDir)) {
+      fs.mkdirSync(logsDir, { recursive: true });
+    }
+    
+    // Genera un ID sessione unico
+    currentSessionId = new Date().toISOString().replace(/[:.]/g, '-');
+    
+    // Crea il percorso del file di log
+    logFilePath = path.join(logsDir, `session-${currentSessionId}.log`);
+    
+    // Inizializza il file di log
+    const timestamp = new Date().toISOString();
+    const header = `\n=== PACKAGE MANAGER SESSION STARTED ===\nTimestamp: ${timestamp}\nSession ID: ${currentSessionId}\nProject Root: ${projectRoot}\n${'='.repeat(50)}\n\n`;
+    
+    try {
+      fs.writeFileSync(logFilePath, header, 'utf8');
+    } catch (error) {
+      console.error(`Errore creando file di log: ${error.message}`);
+      logToFile = false;
+    }
+  }
+}
+
+/**
+ * Ottiene il percorso del file di log corrente
+ * @returns {string|null} percorso del file di log o null se non abilitato
+ */
+function getLogFilePath() {
+  return logFilePath;
+}
+
+/**
+ * Ottiene l'ID della sessione corrente
+ * @returns {string|null} ID della sessione o null se non abilitato
+ */
+function getCurrentSessionId() {
+  return currentSessionId;
+}
+
+/**
+ * Scrive un messaggio nel file di log
+ * @param {string} message - messaggio da scrivere
+ * @param {string} level - livello del log (INFO, WARN, ERROR, etc.)
+ */
+function writeToLogFile(message, level = 'INFO') {
+  if (!logToFile || !logFilePath) return;
+  
+  try {
+    const timestamp = new Date().toISOString();
+    const logEntry = `[${timestamp}] [${level}] ${message}\n`;
+    fs.appendFileSync(logFilePath, logEntry, 'utf8');
+  } catch (error) {
+    console.error(`Errore scrivendo nel file di log: ${error.message}`);
+  }
+}
+
+/**
+ * Pulisce i log vecchi (mantiene solo gli ultimi N file)
+ * @param {string} projectRoot - percorso root del progetto
+ * @param {number} keepFiles - numero di file da mantenere (default: 10)
+ */
+function cleanupOldLogs(projectRoot = process.cwd(), keepFiles = 10) {
+  try {
+    const logsDir = path.join(projectRoot, "package-manager", "logs");
+    if (!fs.existsSync(logsDir)) return;
+    
+    const files = fs.readdirSync(logsDir)
+      .filter(file => file.startsWith('session-') && file.endsWith('.log'))
+      .map(file => ({
+        name: file,
+        path: path.join(logsDir, file),
+        stats: fs.statSync(path.join(logsDir, file))
+      }))
+      .sort((a, b) => b.stats.mtime - a.stats.mtime);
+    
+    // Rimuovi i file più vecchi
+    if (files.length > keepFiles) {
+      const filesToDelete = files.slice(keepFiles);
+      filesToDelete.forEach(file => {
+        try {
+          fs.unlinkSync(file.path);
+          console.log(`🗑️  Rimosso log vecchio: ${file.name}`);
+        } catch (error) {
+          console.error(`Errore rimuovendo ${file.name}: ${error.message}`);
+        }
+      });
+    }
+  } catch (error) {
+    console.error(`Errore pulendo i log: ${error.message}`);
+  }
 }
 
 /**
@@ -65,6 +174,11 @@ function log(message, color = null, force = false) {
     return;
   }
 
+  // Scrivi nel file di log se abilitato
+  if (logToFile) {
+    writeToLogFile(message, 'INFO');
+  }
+
   if (color && colors[color]) {
     console.log(`${colors[color]}${message}${colors.reset}`);
   } else {
@@ -77,6 +191,9 @@ function log(message, color = null, force = false) {
  * @param {string} message - Messaggio di errore
  */
 function error(message) {
+  if (logToFile) {
+    writeToLogFile(`❌ ${message}`, 'ERROR');
+  }
   log(`❌ ${message}`, "red", true);
 }
 
@@ -85,6 +202,9 @@ function error(message) {
  * @param {string} message - Messaggio di successo
  */
 function success(message) {
+  if (logToFile) {
+    writeToLogFile(`✅ ${message}`, 'SUCCESS');
+  }
   log(`✅ ${message}`, "green");
 }
 
@@ -93,6 +213,9 @@ function success(message) {
  * @param {string} message - Messaggio di avviso
  */
 function warning(message) {
+  if (logToFile) {
+    writeToLogFile(`⚠️  ${message}`, 'WARN');
+  }
   log(`⚠️  ${message}`, "yellow");
 }
 
@@ -211,6 +334,13 @@ module.exports = {
   setSilent,
   isVerbose,
   isSilent,
+  
+  // Funzioni di file logging
+  enableFileLogging,
+  getLogFilePath,
+  getCurrentSessionId,
+  writeToLogFile,
+  cleanupOldLogs,
 
   // Colori (per uso esterno)
   colors,
