@@ -122,10 +122,19 @@ const {
 
 // Carica configurazione progetto dinamicamente
 const projectRoot = process.cwd();
+// logger.log(`🔍 Project root: ${projectRoot}`, "blue");
+// logger.log(`🔍 Project config path: ${path.join(projectRoot, "package-manager/project-config")}`, "blue");
+
 const projectConfig = require(path.join(
   projectRoot,
   "package-manager/project-config"
 ));
+
+// logger.log(`🔍 Project config loaded:`, "blue");
+// logger.log(`   - filterByPrefix: ${projectConfig.components.filterByPrefix.enabled}`, "blue");
+// logger.log(`   - prefix: ${projectConfig.components.filterByPrefix.prefix}`, "blue");
+// logger.log(`   - filterByStructure: ${projectConfig.components.filterByStructure.enabled}`, "blue");
+// logger.log(`   - requiredFiles: ${JSON.stringify(projectConfig.components.filterByStructure.requiredFiles)}`, "blue");
 
 // Import configurazione dipendenze dinamicamente (con fallback se non esiste)
 let getBaseDependencies,
@@ -385,12 +394,19 @@ async function updateAllConfigs(scope = "all", components = []) {
   // Ottieni componenti con filtrazione
   const { getComponentDirectories } = require("./dependencies/analyzer");
   let componentDirs = getComponentDirectories(projectConfig);
+  
+  // logger.log(`🔍 Trovati ${componentDirs.length} componenti:`, "blue");
+  // componentDirs.forEach((dir, index) => {
+  //   logger.log(`   ${index + 1}. ${dir}`, "blue");
+  // });
 
   // Applica filtrazione basata su scope e components
   if (scope === "single" && components.length > 0) {
     componentDirs = componentDirs.filter((dir) => components.includes(dir));
+    // logger.log(`🔍 Dopo filtro single: ${componentDirs.length} componenti`, "blue");
   } else if (scope === "exclude" && components.length > 0) {
     componentDirs = componentDirs.filter((dir) => !components.includes(dir));
+    // logger.log(`🔍 Dopo filtro exclude: ${componentDirs.length} componenti`, "blue");
   }
 
   if (componentDirs.length === 0) {
@@ -428,6 +444,24 @@ async function updateAllConfigs(scope = "all", components = []) {
   componentDirs.forEach((componentDir) => {
     const fullPath = path.join(process.cwd(), componentDir);
     logger.log(`\n🔧 Elaborazione ${componentDir}...`, "magenta");
+    
+    // Debug: mostra il percorso completo
+    // logger.log(`   📁 Percorso completo: ${fullPath}`, "blue");
+    const packageJsonPath = path.join(fullPath, "package.json");
+    // logger.log(`   📄 package.json: ${packageJsonPath}`, "blue");
+    // logger.log(`   ✅ Esiste: ${fs.existsSync(packageJsonPath)}`, "blue");
+    
+    // Verifica se il componente esiste
+    if (!fs.existsSync(fullPath)) {
+      logger.error(`❌ Directory non trovata: ${fullPath}`, "red");
+      return;
+    }
+    
+    // Verifica se package.json esiste
+    if (!fs.existsSync(packageJsonPath)) {
+      logger.error(`❌ package.json non trovato in ${componentDir}`, "red");
+      return;
+    }
 
     // Analizza dipendenze condizionali per questo componente specifico
     const { analyzeDependencyUsage } = require("./dependencies/analyzer");

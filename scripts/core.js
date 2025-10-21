@@ -19,6 +19,9 @@ const {
   cleanAllComponents: cleanAllComponentsFromModule,
 } = require("./operations/cleaner");
 
+// Import component detection function
+const { getComponentDirectories } = require("./dependencies/analyzer");
+
 // Carica configurazione progetto dinamicamente
 const projectRoot = process.cwd();
 let projectConfig = {};
@@ -46,66 +49,6 @@ function getNpmCommand() {
     : projectConfig.commands.npm.unix;
 }
 
-function getComponentDirectories() {
-  const currentDir = process.cwd();
-  const items = fs.readdirSync(currentDir);
-
-  return items.filter((item) => {
-    const fullPath = path.join(currentDir, item);
-
-    if (!fs.statSync(fullPath).isDirectory()) {
-      return false;
-    }
-
-    // Controllo per prefisso
-    if (projectConfig.components.filterByPrefix.enabled) {
-      if (!item.startsWith(projectConfig.components.filterByPrefix.prefix)) {
-        return false;
-      }
-    }
-
-    // Controllo per struttura
-    if (projectConfig.components.filterByStructure.enabled) {
-      const requiredFiles =
-        projectConfig.components.filterByStructure.requiredFiles;
-      const requiredFolders =
-        projectConfig.components.filterByStructure.requiredFolders;
-
-      for (const file of requiredFiles) {
-        if (!fs.existsSync(path.join(fullPath, file))) {
-          return false;
-        }
-      }
-
-      for (const folder of requiredFolders) {
-        const folderPath = path.join(fullPath, folder);
-        if (
-          !fs.existsSync(folderPath) ||
-          !fs.statSync(folderPath).isDirectory()
-        ) {
-          return false;
-        }
-      }
-    }
-
-    // Controllo per lista
-    if (projectConfig.components.filterByList.enabled) {
-      if (!projectConfig.components.filterByList.folders.includes(item)) {
-        return false;
-      }
-    }
-
-    // Controllo per regex
-    if (projectConfig.components.filterByRegex.enabled) {
-      if (!projectConfig.components.filterByRegex.pattern.test(item)) {
-        return false;
-      }
-    }
-
-    // Controlliamo sempre la presenza di package.json
-    return fs.existsSync(path.join(fullPath, projectConfig.files.packageJson));
-  });
-}
 
 function removeDirectory(dirPath) {
   if (fs.existsSync(dirPath)) {
@@ -146,6 +89,12 @@ function installPackages(componentPath, mode = "normal") {
     logger.projectConfig = projectConfig;
   } catch (e) {}
   const componentName = path.basename(componentPath);
+  
+  if (!projectConfig.files || !projectConfig.files.packageJson) {
+    logger.log(`❌ projectConfig.files.packageJson non definito`, "red");
+    return false;
+  }
+  
   const packageJsonPath = path.join(
     componentPath,
     projectConfig.files.packageJson
@@ -202,7 +151,7 @@ function installPackages(componentPath, mode = "normal") {
       `✅ Installati con successo i pacchetti per ${componentName}`,
       "green"
     );
-    return false;
+    return true;
   } catch (error) {
     logger.log(
       `❌ Errore durante l'installazione dei pacchetti per ${componentName}: ${error.message}`,
@@ -210,8 +159,8 @@ function installPackages(componentPath, mode = "normal") {
     );
     return false;
   } finally {
-    // Torniamo alla directory root
-    process.chdir(path.join(__dirname, "../.."));
+    // Torniamo alla directory originale del progetto
+    process.chdir(projectRoot);
   }
 }
 
@@ -449,7 +398,7 @@ function cleanAllComponents(excludeList = []) {
 }
 
 function installAllComponents(mode = "normal") {
-  const components = getComponentDirectories();
+  const components = getComponentDirectories(projectConfig);
 
   if (components.length === 0) {
     logger.error("Nessun componente trovato");
@@ -463,13 +412,15 @@ function installAllComponents(mode = "normal") {
 
   let successCount = 0;
   const totalCount = components.length;
+  const originalCwd = process.cwd(); // Save original directory
 
   components.forEach((component, index) => {
     logger.log(
       `\n[${index + 1}/${totalCount}] Elaborazione ${component}...`,
       "magenta"
     );
-    const success = installPackages(path.join(process.cwd(), component), mode);
+    const componentPath = path.join(originalCwd, component);
+    const success = installPackages(componentPath, mode);
     if (success) successCount++;
   });
 
@@ -585,7 +536,7 @@ function executeInstallCommand(scope, components, mode) {
       }
       break;
     case "exclude":
-      const allComponents = getComponentDirectories();
+      const allComponents = getComponentDirectories(projectConfig);
       const filteredComponents = allComponents.filter(
         (comp) => !components.includes(comp)
       );
@@ -792,7 +743,7 @@ function showMenu() {
 }
 
 function showComponentList() {
-  const components = getComponentDirectories();
+  const components = getComponentDirectories(projectConfig);
   logger.section("Componenti disponibili");
   components.forEach((component, index) => {
     logger.info(`${index + 1}. ${component}`);
@@ -802,7 +753,7 @@ function showComponentList() {
 }
 
 function showDetailedComponentList() {
-  const components = getComponentDirectories();
+  const components = getComponentDirectories(projectConfig);
 
   logger.section("Componenti trovati nel progetto");
   logger.log("=".repeat(50));
@@ -1710,7 +1661,6 @@ if (require.main === module) {
 module.exports = {
   main,
   parseAndExecuteCommand,
-  getComponentDirectories,
   installPackages,
   cleanComponent,
   installAllComponents,
