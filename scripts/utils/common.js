@@ -30,11 +30,140 @@ function getNpmCommand(projectConfig) {
 }
 
 /**
+ * Get component directories recursively based on project configuration
+ * @param {Object} projectConfig - Project configuration object
+ * @param {number|null} maxDepth - Maximum search depth (null = unlimited)
+ * @param {number} currentDepth - Current recursion depth
+ * @returns {string[]} Array of component directory names
+ */
+function getComponentDirectoriesRecursive(projectConfig, maxDepth = null, currentDepth = 0, baseDir = null) {
+  const components = [];
+  const recursiveConfig = projectConfig.components.recursiveSearch;
+  
+  // Check depth limit
+  if (maxDepth !== null && currentDepth > maxDepth) {
+    return components;
+  }
+  
+  const currentDir = baseDir || process.cwd();
+  
+  try {
+    const items = fs.readdirSync(currentDir);
+    
+    // Get current level components using existing logic
+    const currentLevelComponents = items.filter((item) => {
+      const fullPath = path.join(currentDir, item);
+
+      if (!fs.statSync(fullPath).isDirectory()) {
+        return false;
+      }
+
+      // Controllo per prefisso
+      if (projectConfig.components.filterByPrefix.enabled) {
+        if (!item.startsWith(projectConfig.components.filterByPrefix.prefix)) {
+          return false;
+        }
+      }
+
+      // Controllo per struttura
+      if (projectConfig.components.filterByStructure.enabled) {
+        const requiredFiles = projectConfig.components.filterByStructure.requiredFiles;
+        const requiredFolders = projectConfig.components.filterByStructure.requiredFolders;
+
+        for (const file of requiredFiles) {
+          if (!fs.existsSync(path.join(fullPath, file))) {
+            return false;
+          }
+        }
+
+        for (const folder of requiredFolders) {
+          const folderPath = path.join(fullPath, folder);
+          if (
+            !fs.existsSync(folderPath) ||
+            !fs.statSync(folderPath).isDirectory()
+          ) {
+            return false;
+          }
+        }
+      }
+
+      // Controllo per lista
+      if (projectConfig.components.filterByList.enabled) {
+        if (!projectConfig.components.filterByList.folders.includes(item)) {
+          return false;
+        }
+      }
+
+      // Controllo per regex
+      if (projectConfig.components.filterByRegex.enabled) {
+        if (!projectConfig.components.filterByRegex.pattern.test(item)) {
+          return false;
+        }
+      }
+
+      // Controlliamo sempre la presenza di package.json
+      return fs.existsSync(path.join(fullPath, projectConfig.files.packageJson));
+    });
+    
+    // Add current level components with relative paths
+    currentLevelComponents.forEach(comp => {
+      const relativePath = path.relative(process.cwd(), path.join(currentDir, comp));
+      components.push(relativePath);
+    });
+    
+    // If recursive search enabled, scan subdirectories
+    if (recursiveConfig && recursiveConfig.enabled) {
+      items.forEach(item => {
+        const fullPath = path.join(currentDir, item);
+        
+        // Skip excluded directories
+        if (!fs.statSync(fullPath).isDirectory()) return;
+        if (recursiveConfig.excludeDirs.includes(item)) return;
+        if (currentLevelComponents.includes(item)) return; // Already found as component
+        
+        // Recursively search subdirectory
+        const nestedComponents = getComponentDirectoriesRecursive(
+          projectConfig,
+          recursiveConfig.maxDepth,
+          currentDepth + 1,
+          fullPath
+        );
+        components.push(...nestedComponents);
+      });
+    }
+  } catch (error) {
+    // Ignore errors (permission denied, etc.)
+  }
+  
+  return components;
+}
+
+/**
  * Get component directories based on project configuration
  * @param {Object} projectConfig - Project configuration object
  * @returns {string[]} Array of component directory names
  */
 function getComponentDirectories(projectConfig) {
+  // Force reload project config if recursiveSearch is not defined
+  if (!projectConfig.components.recursiveSearch) {
+    try {
+      const projectRoot = process.cwd();
+      const configPath = path.join(projectRoot, "package-manager", "project-config.js");
+      delete require.cache[require.resolve(configPath)];
+      const freshConfig = require(configPath);
+      projectConfig.components.recursiveSearch = freshConfig.components.recursiveSearch;
+    } catch (error) {
+      // Ignore errors, use existing config
+    }
+  }
+  
+  // Check if recursive search is enabled
+  if (projectConfig.components.recursiveSearch && 
+      projectConfig.components.recursiveSearch.enabled) {
+    return getComponentDirectoriesRecursive(projectConfig);
+  }
+  
+  // Original non-recursive logic
   const currentDir = process.cwd();
   const items = fs.readdirSync(currentDir);
 
@@ -133,6 +262,7 @@ module.exports = {
   isWindows,
   getNpmCommand,
   getComponentDirectories,
+  getComponentDirectoriesRecursive,
   loadPackageJson,
   fileExists,
   getProjectRoot
