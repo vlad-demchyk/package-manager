@@ -12,6 +12,10 @@ const logger = require("../utils/logger");
 function getComponentDirectories(projectConfig) {
   const currentDir = process.cwd();
   const items = fs.readdirSync(currentDir);
+  
+  // console.log(`🔍 getComponentDirectories: ${currentDir}`);
+  // console.log(`🔍 Items trovati: ${items.length}`);
+  // console.log(`🔍 Items: ${items.slice(0, 5).join(', ')}...`);
 
   return items.filter((item) => {
     const fullPath = path.join(currentDir, item);
@@ -19,10 +23,18 @@ function getComponentDirectories(projectConfig) {
     if (!fs.statSync(fullPath).isDirectory()) {
       return false;
     }
+    
+    // Debug per i primi 3 componenti
+    // if (item.startsWith("c106-") && item !== "c106-breadcrumbs") {
+    //   console.log(`🔍 Controllo ${item}:`);
+    // }
 
     // Controllo per prefisso
     if (projectConfig.components.filterByPrefix.enabled) {
       if (!item.startsWith(projectConfig.components.filterByPrefix.prefix)) {
+        // if (item.startsWith("c106-") && item !== "c106-breadcrumbs") {
+        //   console.log(`   ❌ Prefisso non match: ${item} (prefisso: ${projectConfig.components.filterByPrefix.prefix})`);
+        // }
         return false;
       }
     }
@@ -36,6 +48,9 @@ function getComponentDirectories(projectConfig) {
 
       for (const file of requiredFiles) {
         if (!fs.existsSync(path.join(fullPath, file))) {
+          // if (item.startsWith("c106-") && item !== "c106-breadcrumbs") {
+          //   console.log(`   ❌ File mancante: ${file} in ${item}`);
+          // }
           return false;
         }
       }
@@ -46,6 +61,9 @@ function getComponentDirectories(projectConfig) {
           !fs.existsSync(folderPath) ||
           !fs.statSync(folderPath).isDirectory()
         ) {
+          // if (item.startsWith("c106-") && item !== "c106-breadcrumbs") {
+          //   console.log(`   ❌ Folder mancante: ${folder} in ${item}`);
+          // }
           return false;
         }
       }
@@ -54,6 +72,9 @@ function getComponentDirectories(projectConfig) {
     // Controllo per lista
     if (projectConfig.components.filterByList.enabled) {
       if (!projectConfig.components.filterByList.folders.includes(item)) {
+        // if (item.startsWith("c106-") && item !== "c106-breadcrumbs") {
+        //   console.log(`   ❌ Lista non match: ${item}`);
+        // }
         return false;
       }
     }
@@ -61,12 +82,30 @@ function getComponentDirectories(projectConfig) {
     // Controllo per regex
     if (projectConfig.components.filterByRegex.enabled) {
       if (!projectConfig.components.filterByRegex.pattern.test(item)) {
+        // if (item.startsWith("c106-") && item !== "c106-breadcrumbs") {
+        //   console.log(`   ❌ Regex non match: ${item}`);
+        // }
         return false;
       }
     }
 
     // Controlliamo sempre la presenza di package.json
-    return fs.existsSync(path.join(fullPath, projectConfig.files.packageJson));
+    const packageJsonPath = path.join(fullPath, projectConfig.files.packageJson);
+    const hasPackageJson = fs.existsSync(packageJsonPath);
+    
+    // Debug per il primo componente
+    // if (item === "c106-breadcrumbs") {
+    //   console.log(`🔍 Debug ${item}:`);
+    //   console.log(`   📁 fullPath: ${fullPath}`);
+    //   console.log(`   📄 packageJsonPath: ${packageJsonPath}`);
+    //   console.log(`   ✅ Esiste: ${hasPackageJson}`);
+    // }
+    
+    // if (item.startsWith("c106-") && item !== "c106-breadcrumbs") {
+    //   console.log(`   ✅ package.json: ${hasPackageJson}`);
+    // }
+    
+    return hasPackageJson;
   });
 }
 
