@@ -11,6 +11,14 @@ const fs = require("fs");
 const path = require("path");
 const { execSync } = require("child_process");
 const logger = require("../utils/logger");
+const { 
+  isWindows, 
+  getNpmCommand, 
+  getComponentDirectories,
+  loadPackageJson,
+  fileExists,
+  getProjectRoot
+} = require("../utils/common");
 const crypto = require("crypto");
 const { builtinModules } = require("module");
 
@@ -30,18 +38,6 @@ try {
   };
 }
 
-function isWindows() {
-  return process.platform === "win32";
-}
-
-function getNpmCommand() {
-  try {
-    if (projectConfig.commands && projectConfig.commands.npm) {
-      return isWindows() ? projectConfig.commands.npm.windows : projectConfig.commands.npm.unix;
-    }
-  } catch (_) {}
-  return isWindows() ? "npm.cmd" : "npm";
-}
 
 function listComponents() {
   const items = fs.readdirSync(projectRoot);
@@ -294,7 +290,7 @@ function uninstallPackages(componentDir, deps, devDeps, dryRun) {
     return;
   }
 
-  const npmCmd = getNpmCommand();
+  const npmCmd = getNpmCommand(projectConfig);
   const commands = [];
   if (deps.length > 0) commands.push(`${npmCmd} uninstall ${deps.join(" ")}`);
   if (devDeps.length > 0) commands.push(`${npmCmd} uninstall -D ${devDeps.join(" ")}`);

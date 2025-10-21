@@ -19,8 +19,15 @@ const {
   cleanAllComponents: cleanAllComponentsFromModule,
 } = require("./operations/cleaner");
 
-// Import component detection function
-const { getComponentDirectories } = require("./dependencies/analyzer");
+// Import common utilities
+const { 
+  isWindows, 
+  getNpmCommand, 
+  getComponentDirectories,
+  loadPackageJson,
+  fileExists,
+  getProjectRoot
+} = require("./utils/common");
 
 // Carica configurazione progetto dinamicamente
 const projectRoot = process.cwd();
@@ -35,19 +42,14 @@ try {
   projectConfig = { logging: { colors: {} } };
 }
 
+// Abilita il logging su file per tutte le operazioni
+logger.enableFileLogging(true, projectRoot);
+logger.log(`📝 Logging abilitato: ${logger.getLogFilePath()}`, "blue");
+
 // Variabili globali per readline
 let rl = null;
 let askQuestion = null;
 
-function isWindows() {
-  return process.platform === "win32";
-}
-
-function getNpmCommand() {
-  return isWindows()
-    ? projectConfig.commands.npm.windows
-    : projectConfig.commands.npm.unix;
-}
 
 
 function removeDirectory(dirPath) {
@@ -140,9 +142,9 @@ function installPackages(componentPath, mode = "normal") {
         break;
     }
 
-    logger.log(`🔄 Avvio: ${getNpmCommand()} ${npmArgs.join(" ")}`, "blue");
+    logger.log(`🔄 Avvio: ${getNpmCommand(projectConfig)} ${npmArgs.join(" ")}`, "blue");
 
-    const result = execSync(`${getNpmCommand()} ${npmArgs.join(" ")}`, {
+    const result = execSync(`${getNpmCommand(projectConfig)} ${npmArgs.join(" ")}`, {
       stdio: "inherit",
       cwd: componentPath,
     });
@@ -738,6 +740,7 @@ function showMenu() {
   logger.info("3. 📦 Installazione pacchetti");
   logger.info("4. 🔄 Reinstallazione pacchetti (clean install)");
   logger.warning("5. 🧹 Pulizia/rimozione pacchetti");
+  logger.info("6. 📝 Visualizza log delle operazioni");
   logger.info("9. 📁 Mostra tutti i componenti trovati");
   logger.error("0. 🚪 Esci");
 }
@@ -750,6 +753,172 @@ function showComponentList() {
   });
   logger.warning(`0. 🔙 Torna al menu principale`);
   return components;
+}
+
+function showLogsMenu() {
+  logger.section("📝 Gestione Log delle Operazioni");
+  
+  const logsDir = path.join(projectRoot, "package-manager", "logs");
+  
+  if (!fs.existsSync(logsDir)) {
+    logger.warning("📁 Cartella logs non trovata");
+    logger.info("I log verranno creati automaticamente durante le operazioni");
+    logger.warning("🔙 Premi INVIO per tornare al menu principale...");
+    
+    if (!rl) return;
+    rl.question("", () => {
+      logger.info("Tornando al menu principale...");
+      setTimeout(() => {
+        if (askQuestion) askQuestion();
+      }, 500);
+    });
+    return;
+  }
+  
+  const logFiles = fs.readdirSync(logsDir)
+    .filter(file => file.startsWith('session-') && file.endsWith('.log'))
+    .map(file => ({
+      name: file,
+      path: path.join(logsDir, file),
+      stats: fs.statSync(path.join(logsDir, file))
+    }))
+    .sort((a, b) => b.stats.mtime - a.stats.mtime);
+  
+  if (logFiles.length === 0) {
+    logger.warning("📁 Nessun file di log trovato");
+    logger.info("I log verranno creati durante le operazioni");
+    logger.warning("🔙 Premi INVIO per tornare al menu principale...");
+    
+    if (!rl) return;
+    rl.question("", () => {
+      logger.info("Tornando al menu principale...");
+      setTimeout(() => {
+        if (askQuestion) askQuestion();
+      }, 500);
+    });
+    return;
+  }
+  
+  logger.info(`📁 Trovati ${logFiles.length} file di log:`);
+  logFiles.forEach((file, index) => {
+    const date = file.stats.mtime.toLocaleString();
+    const size = (file.stats.size / 1024).toFixed(1);
+    logger.log(`   ${index + 1}. ${file.name} (${date}, ${size} KB)`, "blue");
+  });
+  
+  logger.info("1. Visualizza log più recente");
+  logger.info("2. Visualizza log specifico");
+  logger.info("3. Pulisci log vecchi (mantiene solo gli ultimi 10)");
+  logger.warning("0. 🔙 Torna al menu principale");
+  
+  if (!rl) return;
+  rl.question("\nScegli opzione: ", (answer) => {
+    switch (answer.trim()) {
+      case "1":
+        showLogContent(logFiles[0].path);
+        break;
+      case "2":
+        showLogSelection(logFiles);
+        break;
+      case "3":
+        cleanupLogs();
+        break;
+      case "0":
+        logger.info("Tornando al menu principale...");
+        setTimeout(() => {
+          if (askQuestion) askQuestion();
+        }, 500);
+        break;
+      default:
+        logger.log("❌ Scelta non valida. Riprova.", "red");
+        setTimeout(() => {
+          showLogsMenu();
+        }, 1000);
+    }
+  });
+}
+
+function showLogContent(logPath) {
+  logger.section(`📄 Contenuto Log: ${path.basename(logPath)}`);
+  
+  try {
+    const content = fs.readFileSync(logPath, 'utf8');
+    const lines = content.split('\n');
+    
+    logger.info(`📊 Totale righe: ${lines.length}`);
+    logger.info("📄 Ultime 50 righe del log:");
+    logger.log("─".repeat(80), "blue");
+    
+    const lastLines = lines.slice(-50);
+    lastLines.forEach(line => {
+      if (line.trim()) {
+        logger.log(line, "white");
+      }
+    });
+    
+    logger.log("─".repeat(80), "blue");
+    logger.warning("🔙 Premi INVIO per tornare al menu log...");
+    
+    if (!rl) return;
+    rl.question("", () => {
+      showLogsMenu();
+    });
+    
+  } catch (error) {
+    logger.error(`Errore leggendo log: ${error.message}`);
+    logger.warning("🔙 Premi INVIO per tornare al menu log...");
+    
+    if (!rl) return;
+    rl.question("", () => {
+      showLogsMenu();
+    });
+  }
+}
+
+function showLogSelection(logFiles) {
+  logger.section("📄 Seleziona Log da Visualizzare");
+  
+  logFiles.forEach((file, index) => {
+    const date = file.stats.mtime.toLocaleString();
+    const size = (file.stats.size / 1024).toFixed(1);
+    logger.log(`   ${index + 1}. ${file.name} (${date}, ${size} KB)`, "blue");
+  });
+  
+  logger.warning("0. 🔙 Torna al menu log");
+  
+  if (!rl) return;
+  rl.question("\nScegli numero log: ", (answer) => {
+    const index = parseInt(answer) - 1;
+    if (index >= 0 && index < logFiles.length) {
+      showLogContent(logFiles[index].path);
+    } else if (answer.trim() === "0") {
+      showLogsMenu();
+    } else {
+      logger.log("❌ Scelta non valida. Riprova.", "red");
+      setTimeout(() => {
+        showLogSelection(logFiles);
+      }, 1000);
+    }
+  });
+}
+
+function cleanupLogs() {
+  logger.section("🧹 Pulizia Log Vecchi");
+  
+  try {
+    logger.cleanupOldLogs(projectRoot, 10);
+    logger.success("✅ Pulizia log completata");
+    logger.info("Mantenuti solo gli ultimi 10 file di log");
+  } catch (error) {
+    logger.error(`Errore durante la pulizia: ${error.message}`);
+  }
+  
+  logger.warning("🔙 Premi INVIO per tornare al menu log...");
+  
+  if (!rl) return;
+  rl.question("", () => {
+    showLogsMenu();
+  });
 }
 
 function showDetailedComponentList() {
@@ -1628,6 +1797,9 @@ async function main() {
               break;
             case "5":
               showCleanMenu();
+              break;
+            case "6":
+              showLogsMenu();
               break;
             case "9":
               showDetailedComponentList();

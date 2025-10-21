@@ -7,73 +7,18 @@ const fs = require("fs");
 const path = require("path");
 const { execSync } = require("child_process");
 
-// Import shared logger
+// Import shared logger and common utilities
 const logger = require("../utils/logger");
+const { 
+  isWindows, 
+  getNpmCommand, 
+  getComponentDirectories,
+  loadPackageJson,
+  fileExists,
+  getProjectRoot
+} = require("../utils/common");
 
-function getComponentDirectories(projectConfig) {
-  const currentDir = process.cwd();
-  const items = fs.readdirSync(currentDir);
 
-  return items.filter((item) => {
-    const fullPath = path.join(currentDir, item);
-
-    if (!fs.statSync(fullPath).isDirectory()) {
-      return false;
-    }
-
-    // Controllo per prefisso
-    if (projectConfig.components.filterByPrefix.enabled) {
-      if (!item.startsWith(projectConfig.components.filterByPrefix.prefix)) {
-        return false;
-      }
-    }
-
-    // Controllo per struttura
-    if (projectConfig.components.filterByStructure.enabled) {
-      const requiredFiles =
-        projectConfig.components.filterByStructure.requiredFiles;
-      const requiredFolders =
-        projectConfig.components.filterByStructure.requiredFolders;
-
-      for (const file of requiredFiles) {
-        if (!fs.existsSync(path.join(fullPath, file))) {
-          return false;
-        }
-      }
-
-      for (const folder of requiredFolders) {
-        const folderPath = path.join(fullPath, folder);
-        if (
-          !fs.existsSync(folderPath) ||
-          !fs.statSync(folderPath).isDirectory()
-        ) {
-          return false;
-        }
-      }
-    }
-
-    // Controllo per lista
-    if (projectConfig.components.filterByList.enabled) {
-      if (!projectConfig.components.filterByList.folders.includes(item)) {
-        return false;
-      }
-    }
-
-    // Controllo per regex
-    if (projectConfig.components.filterByRegex.enabled) {
-      if (!projectConfig.components.filterByRegex.pattern.test(item)) {
-        return false;
-      }
-    }
-
-    // Controlliamo sempre la presenza di package.json
-    return fs.existsSync(path.join(fullPath, projectConfig.files.packageJson));
-  });
-}
-
-function isWindows() {
-  return process.platform === "win32";
-}
 
 function removeDirectory(dirPath) {
   if (fs.existsSync(dirPath)) {
