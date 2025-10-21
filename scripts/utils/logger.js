@@ -15,7 +15,7 @@ const colors = {
   red: "\x1b[31m",
   green: "\x1b[32m",
   yellow: "\x1b[33m",
-  blue: "\x1b[34m",
+  blue: "\x1b[94m",  // Bright blue for better readability
   magenta: "\x1b[35m",
   cyan: "\x1b[36m",
   white: "\x1b[37m",
@@ -227,12 +227,16 @@ function info(message) {
   log(`ℹ️  ${message}`, "blue");
 }
 
+function space() {
+  log(`\n`);
+}
+
 /**
  * Logging dei processi (sempre in ciano)
  * @param {string} message - Messaggio di processo
  */
 function process(message) {
-  log(`🔧 ${message}`, "cyan");
+  log(`🔧  ${message}`, "cyan");
 }
 
 /**
@@ -242,7 +246,7 @@ function process(message) {
  */
 function debug(message, color = "cyan") {
   if (verbose) {
-    log(`   🔍 DEBUG: ${message}`, color);
+    log(`🔍  DEBUG: ${message}`, color);
   }
 }
 
@@ -283,11 +287,11 @@ function result(message, isSuccess = true) {
  */
 function list(items, title = null, color = "blue") {
   if (title) {
-    log(`\n📝 ${title}:`, color);
+    log(`\n📝  ${title}:`, color);
   }
 
   items.forEach((item, index) => {
-    log(`   ${index + 1}. ${item}`, color);
+    log(`${index + 1}. ${item}`, color);
   });
 }
 
@@ -299,7 +303,7 @@ function list(items, title = null, color = "blue") {
  */
 function progress(message, current, total) {
   const percentage = Math.round((current / total) * 100);
-  log(`🔄 ${message} (${current}/${total} - ${percentage}%)`, "yellow");
+  log(`🔄  ${message} (${current}/${total} - ${percentage}%)`, "yellow");
 }
 
 /**
@@ -320,6 +324,7 @@ module.exports = {
   success,
   warning,
   info,
+  space,
   process,
   debug,
   section,

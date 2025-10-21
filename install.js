@@ -37,7 +37,7 @@ async function configureProject() {
   logger.process("Configurazione del progetto...");
   logger.log("");
 
-  const config = {
+    const config = {
     project: {
       name: "",
       version: "1.0.0",
@@ -52,6 +52,11 @@ async function configureProject() {
       },
       filterByList: { enabled: false, folders: [] },
       filterByRegex: { enabled: false, pattern: "" },
+      recursiveSearch: {
+        enabled: false,
+        maxDepth: 3,
+        excludeDirs: ['node_modules', 'dist', 'build', '.git', 'coverage']
+      },
     },
   };
 
@@ -92,6 +97,13 @@ async function configureProject() {
           enabled: true,
           prefix: prefix || "c106-",
         };
+        
+        // Aggiungi recursiveSearch alla configurazione
+        config.components.recursiveSearch = {
+          enabled: false,
+          maxDepth: 3,
+          excludeDirs: ['node_modules', 'dist', 'build', '.git', 'coverage']
+        };
         break;
 
       case "2":
@@ -113,7 +125,7 @@ async function configureProject() {
         config.components.filterByStructure = {
           enabled: true,
           requiredFiles: baseFiles,
-          requiredFolders: ["src"],
+          requiredFolders: [],
         };
 
         const customFiles = await askQuestion(
@@ -130,13 +142,20 @@ async function configureProject() {
 
         const customFolders = await askQuestion(
           rl,
-          "📁 Cartelle richieste (separate da virgola, default: src): "
+          "📁 Cartelle richieste (separate da virgola, default: nessuna): "
         );
         if (customFolders) {
           config.components.filterByStructure.requiredFolders = customFolders
             .split(",")
             .map((f) => f.trim());
         }
+        
+        // Aggiungi recursiveSearch alla configurazione
+        config.components.recursiveSearch = {
+          enabled: false,
+          maxDepth: 3,
+          excludeDirs: ['node_modules', 'dist', 'build', '.git', 'coverage']
+        };
         break;
 
       case "3":
@@ -150,6 +169,13 @@ async function configureProject() {
             folders: folders.split(",").map((f) => f.trim()),
           };
         }
+        
+        // Aggiungi recursiveSearch alla configurazione
+        config.components.recursiveSearch = {
+          enabled: false,
+          maxDepth: 3,
+          excludeDirs: ['node_modules', 'dist', 'build', '.git', 'coverage']
+        };
         break;
 
       case "4":
@@ -163,6 +189,13 @@ async function configureProject() {
             pattern: regex,
           };
         }
+        
+        // Aggiungi recursiveSearch alla configurazione
+        config.components.recursiveSearch = {
+          enabled: false,
+          maxDepth: 3,
+          excludeDirs: ['node_modules', 'dist', 'build', '.git', 'coverage']
+        };
         break;
 
       case "5":
@@ -206,9 +239,57 @@ async function configureProject() {
         config.components.filterByStructure = {
           enabled: true,
           requiredFiles: defaultFiles,
-          requiredFolders: ["src"],
+          requiredFolders: [],
+        };
+        
+        // Aggiungi recursiveSearch alla configurazione predefinita
+        config.components.recursiveSearch = {
+          enabled: false,
+          maxDepth: 3,
+          excludeDirs: ['node_modules', 'dist', 'build', '.git', 'coverage']
         };
         break;
+    }
+
+    // Chiedi se abilitare la ricerca ricorsiva (EXPERIMENTAL)
+    logger.log("");
+    logger.warning("🔬 FUNZIONE SPERIMENTALE - Ricerca ricorsiva progetti");
+    logger.info("Questa funzione permette di trovare progetti in sottocartelle");
+    logger.warning("Attenzione: questa funzione è in fase di test");
+    
+    const recursiveAnswer = await askQuestion(
+      rl,
+      "Abilita ricerca ricorsiva progetti? (s/n, default: n): "
+    );
+    
+    if (recursiveAnswer.toLowerCase() === "s" || recursiveAnswer.toLowerCase() === "si") {
+      const depthAnswer = await askQuestion(
+        rl,
+        "Profondità massima ricerca (numero o 'illimitata', default: 3): "
+      );
+      
+      let maxDepth = 3;
+      if (depthAnswer.toLowerCase() === "illimitata" || depthAnswer.toLowerCase() === "unlimited") {
+        maxDepth = null;
+      } else if (depthAnswer && !isNaN(parseInt(depthAnswer))) {
+        maxDepth = parseInt(depthAnswer);
+      }
+      
+      config.components.recursiveSearch = {
+        enabled: true,
+        maxDepth: maxDepth,
+        excludeDirs: ['node_modules', 'dist', 'build', '.git', 'coverage']
+      };
+      
+      logger.success("✅ Ricerca ricorsiva abilitata");
+      logger.info(`   Profondità massima: ${maxDepth || 'ILLIMITATA'}`);
+    } else {
+      config.components.recursiveSearch = {
+        enabled: false,
+        maxDepth: 3,
+        excludeDirs: ['node_modules', 'dist', 'build', '.git', 'coverage']
+      };
+      logger.info("Ricerca ricorsiva disabilitata");
     }
 
     rl.close();
@@ -386,6 +467,13 @@ function saveProjectConfig(config, targetDir = null) {
           ? `/${config.components.filterByRegex.pattern}/`
           : "null"
       }
+    },
+    
+    // Configurazione ricerca ricorsiva
+    recursiveSearch: {
+      enabled: ${config.components.recursiveSearch.enabled},
+      maxDepth: ${config.components.recursiveSearch.maxDepth === null ? 'null' : config.components.recursiveSearch.maxDepth},
+      excludeDirs: ${JSON.stringify(config.components.recursiveSearch.excludeDirs)}
     }
   },
   

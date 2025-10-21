@@ -732,17 +732,48 @@ function showUsage() {
 
 // Funzioni per menu interattivo
 function showMenu() {
-  logger.section(`Gestore Pacchetti ${projectConfig.project.name}`);
-  logger.success(
-    "1. ⚙️  Aggiornamento configurazioni (importante ad impostare dependencies-config.js)"
-  );
-  logger.info("2. 🔍 Controllo dipendenze non utilizzate (experimental)");
-  logger.info("3. 📦 Installazione pacchetti");
-  logger.info("4. 🔄 Reinstallazione pacchetti (clean install)");
-  logger.warning("5. 🧹 Pulizia/rimozione pacchetti");
-  logger.info("6. 📝 Visualizza log delle operazioni");
+  // Reload project config to get latest settings
+  try {
+    const configPath = path.join(projectRoot, "package-manager", "project-config.js");
+    // Clear all cached modules
+    Object.keys(require.cache).forEach(key => {
+      if (key.includes('project-config') || key.includes('package-manager')) {
+        delete require.cache[key];
+      }
+    });
+    projectConfig = require(configPath);
+  } catch (error) {
+    // Use cached version if reload fails
+  }
+  
+  // Get search mode indicator
+  const recursiveEnabled = projectConfig.components.recursiveSearch?.enabled;
+  
+  logger.section(`📋 Gestore Pacchetti ${projectConfig.project.name}`);
+  
+  if (recursiveEnabled) {
+    logger.info("🔍 Modalità ricerca: RICORSIVA - Scansiona progetti in sottocartelle");
+    const maxDepth = projectConfig.components.recursiveSearch?.maxDepth;
+    if (maxDepth) {
+      logger.info(`📊 Profondità massima: ${maxDepth} livelli`);
+    } else {
+      logger.info("📊 Profondità massima: ILLIMITATA");
+    }
+  } else {
+    logger.info("📁 Modalità ricerca: STANDARD - Solo cartelle di primo livello");
+  }
+  
+  // Empty line to separate info from menu
+  logger.space();
+  logger.success("1. ⚙️ Aggiornamento configurazioni (importante ad impostare dependencies-config.js)");
+  logger.info("2. 📦 Installazione pacchetti");
+  logger.info("3. 🔄 Reinstallazione pacchetti (clean install)");
+  logger.warning("4. 🧹 Pulizia/rimozione pacchetti");
+  logger.info("5. 📝 Visualizza log delle operazioni");
+  logger.warning("6. 🔬 EXPERIMENTAL - Funzioni sperimentali");
+  logger.space();
   logger.info("9. 📁 Mostra tutti i componenti trovati");
-  logger.error("0. 🚪 Esci");
+  logger.error("0. 🚪Esci");
 }
 
 function showComponentList() {
@@ -922,6 +953,20 @@ function cleanupLogs() {
 }
 
 function showDetailedComponentList() {
+  // Reload project config to get latest settings
+  try {
+    const configPath = path.join(projectRoot, "package-manager", "project-config.js");
+    // Clear all cached modules
+    Object.keys(require.cache).forEach(key => {
+      if (key.includes('project-config')) {
+        delete require.cache[key];
+      }
+    });
+    projectConfig = require(configPath);
+  } catch (error) {
+    logger.warning("Could not reload project config, using cached version");
+  }
+  
   const components = getComponentDirectories(projectConfig);
 
   logger.section("Componenti trovati nel progetto");
@@ -1736,6 +1781,20 @@ function showCleanMenu() {
 }
 
 async function main() {
+  // Reload project config to get latest settings
+  try {
+    const configPath = path.join(projectRoot, "package-manager", "project-config.js");
+    // Clear all cached modules
+    Object.keys(require.cache).forEach(key => {
+      if (key.includes('project-config')) {
+        delete require.cache[key];
+      }
+    });
+    projectConfig = require(configPath);
+  } catch (error) {
+    logger.warning("Could not reload project config, using cached version");
+  }
+  
   logger.log(
     `🚀 ${projectConfig.project.name} - ${projectConfig.project.description}`,
     "bright"
@@ -1781,25 +1840,25 @@ async function main() {
       // Mostra il menu e chiedi l'opzione
       showMenu();
       if (rl) {
-        rl.question("\nScegli opzione (0-5, 9): ", (answer) => {
+        rl.question("\nScegli opzione (0-6, 9): ", (answer) => {
           switch (answer.trim()) {
             case "1":
               showUpdateMenu();
               break;
             case "2":
-              showDepcheckMenu();
-              break;
-            case "3":
               showInstallMenu();
               break;
-            case "4":
+            case "3":
               showReinstallMenu();
               break;
-            case "5":
+            case "4":
               showCleanMenu();
               break;
-            case "6":
+            case "5":
               showLogsMenu();
+              break;
+            case "6":
+              showExperimentalMenu();
               break;
             case "9":
               showDetailedComponentList();
@@ -1828,6 +1887,260 @@ async function main() {
 // Avvio script
 if (require.main === module) {
   main();
+}
+
+// Experimental menu functions
+function showExperimentalMenu() {
+  logger.section("🔬 EXPERIMENTAL - Funzioni Sperimentali");
+  logger.warning("Attenzione: queste funzioni sono in fase di test");
+  logger.info("1. Analisi profonda - Mostra progetti a tutti i livelli");
+  logger.info("2. Cambia modalita di ricerca progetti (ricorsiva on/off)");
+  logger.info("3. 🔍 Controllo dipendenze non utilizzate");
+  logger.warning("0. Torna al menu principale");
+  
+  if (!rl) return;
+  rl.question("\nScegli opzione: ", (answer) => {
+    switch (answer.trim()) {
+      case "1":
+        showDeepAnalysis();
+        break;
+      case "2":
+        toggleRecursiveSearch();
+        break;
+      case "3":
+        showDepcheckMenu();
+        break;
+      case "0":
+        logger.info("Tornando al menu principale...");
+        setTimeout(() => {
+          if (askQuestion) askQuestion();
+        }, 500);
+        break;
+      default:
+        logger.log("Scelta non valida. Riprova.", "red");
+        setTimeout(() => showExperimentalMenu(), 1000);
+    }
+  });
+}
+
+function showDeepAnalysis() {
+  logger.section("Analisi Profonda Progetti");
+  
+  // Reload project config to get latest settings
+  try {
+    const configPath = path.join(projectRoot, "package-manager", "project-config.js");
+    Object.keys(require.cache).forEach(key => {
+      if (key.includes('project-config')) {
+        delete require.cache[key];
+      }
+    });
+    projectConfig = require(configPath);
+  } catch (error) {
+    logger.warning("Could not reload project config, using cached version");
+  }
+  
+  const recursiveEnabled = projectConfig.components.recursiveSearch?.enabled || false;
+  const maxDepth = projectConfig.components.recursiveSearch?.maxDepth;
+  
+  logger.info(`Ricerca ricorsiva: ${recursiveEnabled ? 'ABILITATA' : 'DISABILITATA'}`);
+  if (recursiveEnabled && maxDepth) {
+    logger.info(`Profondita massima: ${maxDepth} livelli`);
+  } else if (recursiveEnabled) {
+    logger.info(`Profondita massima: ILLIMITATA`);
+  }
+  
+  logger.log("\nScansione in corso...", "cyan");
+  
+  const components = getComponentDirectories(projectConfig);
+  
+  logger.success(`\nTrovati ${components.length} progetti:`);
+  
+  // Group by depth level
+  const byLevel = {};
+  components.forEach(comp => {
+    const depth = comp.split(path.sep).length - 1;
+    if (!byLevel[depth]) byLevel[depth] = [];
+    byLevel[depth].push(comp);
+  });
+  
+  Object.keys(byLevel).sort().forEach(level => {
+    logger.log(`\nLivello ${level}:`, "blue");
+    byLevel[level].forEach(comp => {
+      const pkgPath = path.join(process.cwd(), comp, 'package.json');
+      try {
+        const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf8'));
+        logger.log(`  - ${comp} (${pkg.name}@${pkg.version})`, "green");
+      } catch (e) {
+        logger.log(`  - ${comp}`, "yellow");
+      }
+    });
+  });
+  
+  logger.warning("\nPremi INVIO per tornare al menu sperimentale...");
+  if (!rl) return;
+  rl.question("", () => showExperimentalMenu());
+}
+
+function toggleRecursiveSearch() {
+  logger.section("Cambio Modalita Ricerca");
+  
+  const currentState = projectConfig.components.recursiveSearch?.enabled || false;
+  logger.info(`Stato attuale: ${currentState ? 'RICORSIVA' : 'STANDARD'}`);
+  
+  if (currentState) {
+    // Se attualmente abilitata, mostra solo opzioni per disabilitare
+    logger.info("1. Disabilita ricerca ricorsiva");
+    logger.info("2. Configura profondita massima");
+    logger.warning("0. Annulla");
+    
+    if (!rl) return;
+    rl.question("\nScegli opzione: ", async (answer) => {
+      switch (answer.trim()) {
+        case "1":
+          await disableRecursiveSearch();
+          break;
+        case "2":
+          await configureMaxDepth();
+          break;
+        case "0":
+          showExperimentalMenu();
+          break;
+        default:
+          logger.log("Scelta non valida", "red");
+          setTimeout(() => toggleRecursiveSearch(), 1000);
+      }
+    });
+  } else {
+    // Se attualmente disabilitata, mostra solo opzioni per abilitare
+    logger.info("1. Abilita ricerca ricorsiva");
+    logger.info("2. Configura profondita massima");
+    logger.warning("0. Annulla");
+    
+    if (!rl) return;
+    rl.question("\nScegli opzione: ", async (answer) => {
+      switch (answer.trim()) {
+        case "1":
+          await enableRecursiveSearch();
+          break;
+        case "2":
+          await configureMaxDepth();
+          break;
+        case "0":
+          showExperimentalMenu();
+          break;
+        default:
+          logger.log("Scelta non valida", "red");
+          setTimeout(() => toggleRecursiveSearch(), 1000);
+      }
+    });
+  }
+}
+
+async function enableRecursiveSearch() {
+  const configPath = path.join(projectRoot, "package-manager", "project-config.js");
+  
+  // Read, modify, and write config
+  try {
+    let configContent = fs.readFileSync(configPath, 'utf8');
+    
+    // Check if recursiveSearch section exists
+    if (configContent.includes('recursiveSearch:')) {
+      // Update existing recursiveSearch.enabled to true
+      configContent = configContent.replace(
+        /(recursiveSearch:\s*\{[^}]*enabled:\s*)(false)/,
+        '$1true'
+      );
+    } else {
+      // Add recursiveSearch section if it doesn't exist
+      const recursiveSearchSection = `    
+    // Configurazione ricerca ricorsiva
+    recursiveSearch: {
+      enabled: true,
+      maxDepth: 3,
+      excludeDirs: ["node_modules","dist","build",".git","coverage"]
+    }`;
+      
+      // Insert before the closing brace of components
+      configContent = configContent.replace(
+        /(\s*)(\},\s*\/\/ Configurazione file)/,
+        `$1${recursiveSearchSection}$1$2`
+      );
+    }
+    
+    fs.writeFileSync(configPath, configContent, 'utf8');
+    
+    // Reload config
+    delete require.cache[require.resolve(configPath)];
+    projectConfig = require(configPath);
+    
+    logger.success("Ricerca ricorsiva ABILITATA");
+    logger.info("Riavvia il package manager per applicare le modifiche");
+  } catch (error) {
+    logger.error(`Errore: ${error.message}`);
+  }
+  
+  logger.warning("\nPremi INVIO per tornare...");
+  if (!rl) return;
+  rl.question("", () => showExperimentalMenu());
+}
+
+async function disableRecursiveSearch() {
+  const configPath = path.join(projectRoot, "package-manager", "project-config.js");
+  
+  try {
+    let configContent = fs.readFileSync(configPath, 'utf8');
+    
+    // Check if recursiveSearch section exists
+    if (configContent.includes('recursiveSearch:')) {
+      // Update existing recursiveSearch.enabled to false
+      configContent = configContent.replace(
+        /(recursiveSearch:\s*\{[^}]*enabled:\s*)(true)/,
+        '$1false'
+      );
+    } else {
+      // Add recursiveSearch section if it doesn't exist (disabled by default)
+      const recursiveSearchSection = `    
+    // Configurazione ricerca ricorsiva
+    recursiveSearch: {
+      enabled: false,
+      maxDepth: 3,
+      excludeDirs: ["node_modules","dist","build",".git","coverage"]
+    }`;
+      
+      // Insert before the closing brace of components
+      configContent = configContent.replace(
+        /(\s*)(\},\s*\/\/ Configurazione file)/,
+        `$1${recursiveSearchSection}$1$2`
+      );
+    }
+    
+    fs.writeFileSync(configPath, configContent, 'utf8');
+    
+    // Reload config
+    delete require.cache[require.resolve(configPath)];
+    projectConfig = require(configPath);
+    
+    logger.success("Ricerca ricorsiva DISABILITATA");
+    logger.info("Riavvia il package manager per applicare le modifiche");
+  } catch (error) {
+    logger.error(`Errore: ${error.message}`);
+  }
+  
+  logger.warning("\nPremi INVIO per tornare...");
+  if (!rl) return;
+  rl.question("", () => showExperimentalMenu());
+}
+
+async function configureMaxDepth() {
+  logger.info("Configura profondita massima ricerca");
+  logger.warning("NOTA: modifica manualmente project-config.js");
+  logger.info("Imposta components.recursiveSearch.maxDepth a:");
+  logger.info("  - Numero (es: 3) per limitare la profondita");
+  logger.info("  - null per ricerca illimitata");
+  
+  logger.warning("\nPremi INVIO per tornare...");
+  if (!rl) return;
+  rl.question("", () => showExperimentalMenu());
 }
 
 module.exports = {
