@@ -267,6 +267,13 @@ function showVersionChanges(componentDirs, finalBaseDeps, finalDevDeps, projectC
 async function updateAllConfigs(scope = "all", components = []) {
   logger.log("🚀 Avvio aggiornamento configurazioni componenti...", "cyan");
 
+  // Clear all cached modules to ensure fresh loading
+  Object.keys(require.cache).forEach(key => {
+    if (key.includes('dependencies-config') || key.includes('project-config')) {
+      delete require.cache[key];
+    }
+  });
+
   const dependenciesConfigPath = path.join(
     projectRoot,
     "package-manager",
@@ -304,16 +311,23 @@ async function updateAllConfigs(scope = "all", components = []) {
   // 2. Carica la configurazione
   reloadDependenciesConfig(projectRoot);
 
-  // 3. Verifica se è vuota
+  // 3. Verifica se è vuota (controlla se contiene solo commenti)
   const baseDeps = getBaseDependencies();
   const conditionalDeps = getConditionalDependencies();
   const devDeps = getDevDependencies();
 
-  if (
-    Object.keys(baseDeps).length === 0 &&
-    Object.keys(conditionalDeps).length === 0 &&
-    Object.keys(devDeps).length === 0
-  ) {
+  // Check if dependencies are empty (no real dependencies, only comments)
+  const hasRealDependencies = Object.keys(baseDeps).length > 0 && Object.keys(baseDeps).some(key => 
+    baseDeps[key] && typeof baseDeps[key] === 'string' && baseDeps[key].trim() !== ''
+  );
+  const hasRealConditionalDeps = Object.keys(conditionalDeps).length > 0 && Object.keys(conditionalDeps).some(key => 
+    conditionalDeps[key] && typeof conditionalDeps[key] === 'object' && conditionalDeps[key].version
+  );
+  const hasRealDevDeps = Object.keys(devDeps).length > 0 && Object.keys(devDeps).some(key => 
+    devDeps[key] && typeof devDeps[key] === 'string' && devDeps[key].trim() !== ''
+  );
+
+  if (!hasRealDependencies && !hasRealConditionalDeps && !hasRealDevDeps) {
     logger.log("⚠️  dependencies-config.js è vuoto!", "yellow");
     logger.log(
       "💡 Vuoi generare automaticamente dai progetti esistenti?",
@@ -350,7 +364,7 @@ async function updateAllConfigs(scope = "all", components = []) {
 
       if (confirm === "y" || confirm === "yes") {
         saveDependenciesConfig(generated, projectConfig);
-        logger.log("✅ Configurazione salvata!", "green");
+        logger.log("Configurazione salvata!", "green");
         reloadDependenciesConfig(projectRoot);
 
         // Chiedi se vuole procedere con l'aggiornamento
@@ -508,6 +522,55 @@ async function updateAllConfigs(scope = "all", components = []) {
       "\n🎉 Tutte le configurazioni aggiornate con successo!",
       "green"
     );
+    
+    // Check if workspace mode is enabled and install packages
+    try {
+      const projectConfigPath = path.join(process.cwd(), "package-manager", "project-config.js");
+      if (fs.existsSync(projectConfigPath)) {
+        const projectConfig = require(projectConfigPath);
+        
+        if (projectConfig.workspace?.enabled && projectConfig.workspace?.initialized) {
+          logger.log("\n🔄 Workspace rilevato - installazione pacchetti centralizzata...", "cyan");
+          
+          // Use workspace installation
+          const { installAllComponentsWorkspace } = require("./operations/workspace-install");
+          const workspaceSuccess = installAllComponentsWorkspace(projectConfig, "normal");
+          
+          if (workspaceSuccess) {
+            logger.success("✅ Pacchetti installati tramite workspace!");
+          } else {
+            logger.warning("⚠️  Errore durante l'installazione workspace");
+          }
+        } else {
+          logger.log("\n🔄 Installazione pacchetti standard...", "cyan");
+          
+          // Use standard installation for each component
+          const { getComponentDirectories } = require("./utils/common");
+          const components = getComponentDirectories(projectConfig);
+          
+          let installSuccess = 0;
+          for (const component of components) {
+            try {
+              const componentPath = path.join(process.cwd(), component);
+              const { installPackagesStandard } = require("./operations/standard-install");
+              const success = installPackagesStandard(componentPath, "normal", projectConfig);
+              if (success) installSuccess++;
+            } catch (error) {
+              logger.warning(`⚠️  Errore installazione ${component}: ${error.message}`);
+            }
+          }
+          
+          if (installSuccess === components.length) {
+            logger.success("✅ Tutti i pacchetti installati con successo!");
+          } else {
+            logger.warning(`⚠️  Installati ${installSuccess}/${components.length} componenti`);
+          }
+        }
+      }
+    } catch (error) {
+      logger.warning("⚠️  Errore durante l'installazione automatica pacchetti");
+      logger.warning(`   ${error.message}`);
+    }
   } else {
     logger.log(
       "\n⚠️  Alcune configurazioni non sono state aggiornate. Controlla gli errori sopra.",

@@ -86,83 +86,53 @@ function cleanComponent(componentPath) {
 }
 
 function installPackages(componentPath, mode = "normal") {
-  // expose projectConfig to logger for color rendering if needed
+  // Reload project config to get latest settings
+  let currentProjectConfig = projectConfig;
   try {
-    logger.projectConfig = projectConfig;
-  } catch (e) {}
-  const componentName = path.basename(componentPath);
-  
-  if (!projectConfig.files || !projectConfig.files.packageJson) {
-    logger.log(`❌ projectConfig.files.packageJson non definito`, "red");
-    return false;
-  }
-  
-  const packageJsonPath = path.join(
-    componentPath,
-    projectConfig.files.packageJson
-  );
-
-  if (!fs.existsSync(packageJsonPath)) {
-    logger.log(
-      `❌ ${projectConfig.files.packageJson} non trovato in ${componentName}`,
-      "red"
-    );
-    return false;
-  }
-
-  logger.log(
-    `📦 Installazione pacchetti per ${componentName} (modalità: ${mode})...`,
-    "cyan"
-  );
-
-  try {
-    process.chdir(componentPath);
-
-    let npmArgs = ["install"];
-
-    switch (mode) {
-      case "clean":
-        logger.log(`🧹 Pulizia ${componentName}...`, "yellow");
-        removeDirectory(projectConfig.files.nodeModules);
-        removeFile(projectConfig.files.packageLock);
-        logger.log(`✅ Pulito ${componentName}`, "green");
-        break;
-
-      case "legacy":
-        npmArgs.push("--legacy-peer-deps");
-        logger.log(
-          `⚠️  Usando --legacy-peer-deps per ${componentName}`,
-          "yellow"
-        );
-        break;
-
-      case "force":
-        npmArgs.push("--force");
-        logger.log(`⚠️  Usando --force per ${componentName}`, "yellow");
-        break;
-    }
-
-    logger.log(`🔄 Avvio: ${getNpmCommand(projectConfig)} ${npmArgs.join(" ")}`, "blue");
-
-    const result = execSync(`${getNpmCommand(projectConfig)} ${npmArgs.join(" ")}`, {
-      stdio: "inherit",
-      cwd: componentPath,
-    });
-
-    logger.log(
-      `✅ Installati con successo i pacchetti per ${componentName}`,
-      "green"
-    );
-    return true;
+    const configPath = path.join(process.cwd(), "package-manager", "project-config.js");
+    delete require.cache[require.resolve(configPath)];
+    currentProjectConfig = require(configPath);
   } catch (error) {
-    logger.log(
-      `❌ Errore durante l'installazione dei pacchetti per ${componentName}: ${error.message}`,
-      "red"
-    );
-    return false;
-  } finally {
-    // Torniamo alla directory originale del progetto
-    process.chdir(projectRoot);
+    logger.warning("⚠️  Impossibile ricaricare la configurazione");
+  }
+  
+  // Auto-detect workspace configuration from files
+  const { detectWorkspaceConfiguration } = require("./utils/workspace-detector");
+  const workspaceDetection = detectWorkspaceConfiguration(process.cwd());
+  
+  // Resolve lock file conflicts before proceeding
+  const { resolveLockFileConflicts } = require("./operations/cleaner");
+  resolveLockFileConflicts(currentProjectConfig);
+  
+  // Check if workspace mode is enabled in config OR detected from files
+  let isWorkspaceMode = currentProjectConfig.workspace?.enabled && currentProjectConfig.workspace?.initialized;
+  
+  // If workspace is detected in files but not enabled in config, auto-enable it
+  if (workspaceDetection && workspaceDetection.hasWorkspaceConfig && workspaceDetection.hasYarnLock && !isWorkspaceMode) {
+    logger.section("🔍 Rilevamento automatico Yarn Workspace");
+    logger.info("📦 Trovati workspaces in root package.json");
+    logger.info(`📊 Numero workspace: ${workspaceDetection.workspaceCount}`);
+    logger.info(`📁 Package manager: ${workspaceDetection.packageManager}`);
+    
+    // Auto-enable workspace mode
+    const { updateProjectConfigWorkspace, syncRootPackageJson } = require("./operations/workspace");
+    updateProjectConfigWorkspace(currentProjectConfig, true, true, workspaceDetection.workspaces);
+    
+    // Sync package.json with workspace configuration
+    syncRootPackageJson(currentProjectConfig);
+    
+    logger.success("✅ Modalità Workspace abilitata automaticamente!");
+    isWorkspaceMode = true;
+  }
+  
+  if (isWorkspaceMode) {
+    // Use workspace installation logic
+    const { installAllComponentsWorkspace } = require("./operations/workspace-install");
+    return installAllComponentsWorkspace(currentProjectConfig, mode);
+  } else {
+    // Use standard installation logic
+    const { installPackagesStandard } = require("./operations/standard-install");
+    return installPackagesStandard(componentPath, mode, currentProjectConfig);
   }
 }
 
@@ -174,7 +144,18 @@ async function updateAllConfigs() {
 
 // Funzioni per depcheck
 function showDepcheckMenu() {
+  // Check workspace mode
+  const isWorkspaceMode = projectConfig.workspace?.enabled && projectConfig.workspace?.initialized;
+  
   logger.section("Controllo dipendenze non utilizzate (experimental)");
+  
+  if (isWorkspaceMode) {
+    logger.info("🏢 Modalità: WORKSPACE - Analisi centralizzata dipendenze");
+    logger.info("📦 Verranno analizzati tutti i workspace per dipendenze condivise");
+  } else {
+    logger.info("📦 Modalità: STANDARD - Analisi locale dipendenze");
+  }
+  
   logger.step("Controlla tutti i componenti", 1);
   logger.step("Controlla un componente", 2);
   logger.step("Controlla tutti eccetto quelli specificati", 3);
@@ -400,38 +381,30 @@ function cleanAllComponents(excludeList = []) {
 }
 
 function installAllComponents(mode = "normal") {
-  const components = getComponentDirectories(projectConfig);
-
-  if (components.length === 0) {
-    logger.error("Nessun componente trovato");
-    return;
+  // Reload project config to get latest settings
+  let currentProjectConfig = projectConfig;
+  try {
+    const configPath = path.join(process.cwd(), "package-manager", "project-config.js");
+    delete require.cache[require.resolve(configPath)];
+    currentProjectConfig = require(configPath);
+  } catch (error) {
+    logger.warning("⚠️  Impossibile ricaricare la configurazione");
   }
-
-  logger.log(
-    `🚀 Installazione pacchetti per tutti i ${components.length} componenti...`,
-    "cyan"
-  );
-
-  let successCount = 0;
-  const totalCount = components.length;
-  const originalCwd = process.cwd(); // Save original directory
-
-  components.forEach((component, index) => {
-    logger.log(
-      `\n[${index + 1}/${totalCount}] Elaborazione ${component}...`,
-      "magenta"
-    );
-    const componentPath = path.join(originalCwd, component);
-    const success = installPackages(componentPath, mode);
-    if (success) successCount++;
-  });
-
-  logger.log(`\n📊 Risultato:`, "cyan");
-  logger.log(`   ✅ Successo: ${successCount}/${totalCount}`, "green");
-  logger.log(
-    `   ❌ Errori: ${totalCount - successCount}/${totalCount}`,
-    totalCount - successCount > 0 ? "red" : "green"
-  );
+  
+  // Check if workspace mode is enabled - use actual status from files
+  let isWorkspaceMode = currentProjectConfig.workspace?.enabled && currentProjectConfig.workspace?.initialized;
+  
+  // Use ONLY projectConfig for workspace status - no file checking
+  
+  if (isWorkspaceMode) {
+    // Use workspace installation logic
+    const { installAllComponentsWorkspace } = require("./operations/workspace-install");
+    return installAllComponentsWorkspace(currentProjectConfig, mode);
+  } else {
+    // Use standard installation logic
+    const { installAllComponentsStandard } = require("./operations/standard-install");
+    return installAllComponentsStandard(mode, currentProjectConfig);
+  }
 }
 
 // Funzioni per parsing comandi
@@ -568,27 +541,54 @@ function executeReinstallCommand(scope, components, mode) {
   // Prima pulizia, poi installazione
   executeCleanCommand(scope, components);
   executeInstallCommand(scope, components, mode);
-
-  // Ritorna al menu dopo la reinstallazione
-  setTimeout(() => {
-    if (askQuestion) askQuestion();
-  }, 100);
+  // executeInstallCommand already handles the setTimeout for returning to menu
 }
 
 function executeCleanCommand(scope, components) {
+  // Reload project config to get latest settings
+  try {
+    const configPath = path.join(process.cwd(), "package-manager", "project-config.js");
+    delete require.cache[require.resolve(configPath)];
+    projectConfig = require(configPath);
+  } catch (error) {
+    logger.warning("⚠️  Impossibile ricaricare la configurazione");
+  }
+  
+  // Check if workspace mode is enabled
+  const isWorkspaceMode = projectConfig.workspace?.enabled && projectConfig.workspace?.initialized;
+  
+  
   switch (scope) {
     case "all":
       cleanAllComponents();
       break;
     case "single":
       if (components.length > 0) {
-        cleanComponent(path.join(process.cwd(), components[0]));
+        if (isWorkspaceMode) {
+          // Use workspace-specific cleaning for single component
+          const { cleanSingleWorkspaceComponent } = require("./operations/cleaner");
+          const success = cleanSingleWorkspaceComponent(components[0], projectConfig);
+          
+          if (!success) {
+            logger.error(`Errore pulizia workspace ${components[0]}`);
+          }
+        } else {
+          // Use standard cleaning
+          cleanComponent(path.join(process.cwd(), components[0]));
+        }
       } else {
         logger.error("Nessun componente specificato per --single");
       }
       break;
     case "exclude":
-      cleanAllComponents(components);
+      if (isWorkspaceMode) {
+        // Use workspace-specific cleaning with exclude list
+        const { cleanWorkspaceComponents } = require("./operations/cleaner");
+        cleanWorkspaceComponents(components, projectConfig);
+      } else {
+        // Use standard cleaning with exclude list
+        cleanAllComponents(components);
+      }
       break;
   }
 
@@ -749,6 +749,13 @@ function showMenu() {
   // Get search mode indicator
   const recursiveEnabled = projectConfig.components.recursiveSearch?.enabled;
   
+  // Reload workspace status from actual files
+  let workspaceEnabled = projectConfig.workspace?.enabled || false;
+  let workspaceInitialized = projectConfig.workspace?.initialized || false;
+  
+  // Use ONLY projectConfig for workspace status - no file checking
+  // This ensures consistency and prevents conflicts
+  
   logger.section(`📋 Gestore Pacchetti ${projectConfig.project.name}`);
   
   if (recursiveEnabled) {
@@ -761,6 +768,17 @@ function showMenu() {
     }
   } else {
     logger.info("📁 Modalità ricerca: STANDARD - Solo cartelle di primo livello");
+  }
+  
+  // Workspace mode indicator
+  if (workspaceEnabled) {
+    if (workspaceInitialized) {
+      logger.info("🏢 Modalità installazione: WORKSPACE (centralizzato) - Yarn Workspaces attivo");
+    } else {
+      logger.warning("🏢 Modalità installazione: WORKSPACE (non inizializzato) - Richiede inizializzazione");
+    }
+  } else {
+    logger.info("📦 Modalità installazione: STANDARD (node_modules locali)");
   }
   
   // Empty line to separate info from menu
@@ -1660,7 +1678,19 @@ function showReinstallMenu() {
 }
 
 function showCleanMenu() {
+  // Check workspace mode
+  const isWorkspaceMode = projectConfig.workspace?.enabled && projectConfig.workspace?.initialized;
+  
   logger.log("\n🧹 Modalità pulizia:", "yellow");
+  
+  if (isWorkspaceMode) {
+    logger.info("🏢 Modalità: WORKSPACE - Pulizia workspace");
+    logger.info("📦 Verranno puliti lock files e tslint.json dai workspace");
+    logger.info("🔒 Root node_modules mantenuto per workspace centralizzato");
+  } else {
+    logger.info("📦 Modalità: STANDARD - Pulizia locale");
+  }
+  
   logger.log("1. Pulisci tutti i componenti", "blue");
   logger.log("2. Pulisci un componente", "blue");
   logger.log("3. Pulisci tutti eccetto quelli specificati", "blue");
@@ -1722,8 +1752,23 @@ function showCleanMenu() {
                 `\n🎯 Selezionato per pulizia: ${selectedComponent}`,
                 "green"
               );
-              cleanComponent(path.join(process.cwd(), selectedComponent));
-              logger.log("\n✅ Pulizia completata!", "green");
+              
+              // Check if workspace mode is enabled
+              const isWorkspaceMode = projectConfig.workspace?.enabled && projectConfig.workspace?.initialized;
+              
+              if (isWorkspaceMode) {
+                // Use workspace-specific cleaning
+                const { cleanSingleWorkspaceComponent } = require("./operations/cleaner");
+                const success = cleanSingleWorkspaceComponent(selectedComponent, projectConfig);
+                
+                if (!success) {
+                  logger.error(`Errore pulizia workspace ${selectedComponent}`);
+                }
+              } else {
+                // Use standard cleaning
+                cleanComponent(path.join(process.cwd(), selectedComponent));
+                logger.log("\n✅ Pulizia completata!", "green");
+              }
               setTimeout(() => {
                 if (askQuestion) askQuestion();
               }, 100);
@@ -1780,6 +1825,58 @@ function showCleanMenu() {
   });
 }
 
+/**
+ * Ensure workspace section exists in project config
+ * @param {Object} projectConfig - Project configuration object
+ */
+function ensureWorkspaceSectionExists(projectConfig) {
+  try {
+    // Check if workspace section exists
+    
+    // Check if workspace section exists
+    if (!projectConfig.workspace) {
+      logger.section("🆕 Aggiornamento configurazione");
+      logger.info("📦 Aggiunta nuova funzionalità sperimentale: Workspace");
+      
+      // Add default workspace configuration
+      projectConfig.workspace = {
+        enabled: false,
+        initialized: false,
+        packagesPath: [],
+        useYarn: true
+      };
+      
+      // Save updated configuration
+      const configPath = path.join(projectRoot, "package-manager", "project-config.js");
+      
+      // Create properly formatted config content
+      const configContent = `module.exports = ${JSON.stringify(projectConfig, null, 2)};`;
+      
+      try {
+        logger.debug(`📝 Salvando configurazione in: ${configPath}`);
+        fs.writeFileSync(configPath, configContent);
+        logger.success("✅ Configurazione workspace aggiunta automaticamente");
+        logger.info("💡 Usa 'Funzioni sperimentali > Gestione Monorepo Workspace' per abilitare");
+        
+        // Reload the config to reflect changes
+        delete require.cache[require.resolve(configPath)];
+        const updatedConfig = require(configPath);
+        Object.assign(projectConfig, updatedConfig);
+        logger.debug("✅ Configurazione ricaricata in memoria");
+      } catch (writeError) {
+        logger.warning("⚠️  Impossibile salvare configurazione aggiornata:");
+        logger.warning(`   ${writeError.message}`);
+      }
+    } else {
+      // Workspace section already exists, no need to add it
+      logger.debug("✅ Sezione workspace già presente");
+    }
+  } catch (error) {
+    logger.warning("⚠️  Impossibile aggiornare configurazione workspace:");
+    logger.warning(`   ${error.message}`);
+  }
+}
+
 async function main() {
   // Reload project config to get latest settings
   try {
@@ -1791,8 +1888,36 @@ async function main() {
       }
     });
     projectConfig = require(configPath);
+    
+    // Validate project config
+    if (!projectConfig || !projectConfig.project || !projectConfig.project.name) {
+      throw new Error("Invalid project configuration");
+    }
+    
+    // Check and add workspace section if missing (for new versions)
+    ensureWorkspaceSectionExists(projectConfig);
+    
   } catch (error) {
-    logger.warning("Could not reload project config, using cached version");
+    logger.error("❌ Errore caricando configurazione progetto:");
+    logger.warning(`   ${error.message}`);
+    logger.info("💡 Esegui 'npx packman' per riconfigurare il progetto");
+    process.exit(1);
+  }
+
+  // Auto-detect workspace configuration for other users
+  try {
+    const { autoDetectAndPromptWorkspace } = require("./utils/workspace-detector");
+    if (rl) {
+      await autoDetectAndPromptWorkspace(projectConfig, (question) => {
+        return new Promise((resolve) => {
+          rl.question(question, (answer) => {
+            resolve(answer.trim());
+          });
+        });
+      });
+    }
+  } catch (error) {
+    logger.warning("⚠️  Errore durante il rilevamento automatico workspace");
   }
   
   logger.log(
@@ -1893,22 +2018,24 @@ if (require.main === module) {
 function showExperimentalMenu() {
   logger.section("🔬 EXPERIMENTAL - Funzioni Sperimentali");
   logger.warning("Attenzione: queste funzioni sono in fase di test");
-  logger.info("1. Analisi profonda - Mostra progetti a tutti i livelli");
-  logger.info("2. Cambia modalita di ricerca progetti (ricorsiva on/off)");
-  logger.info("3. 🔍 Controllo dipendenze non utilizzate");
+  logger.space();
+  logger.info("1. Cambia modalita di ricerca progetti (ricorsiva on/off)");
+  logger.info("2. Controllo dipendenze non utilizzate");
+  logger.info("3. Gestione Monorepo Workspace");
+  logger.space();
   logger.warning("0. Torna al menu principale");
   
   if (!rl) return;
   rl.question("\nScegli opzione: ", (answer) => {
     switch (answer.trim()) {
       case "1":
-        showDeepAnalysis();
-        break;
-      case "2":
         toggleRecursiveSearch();
         break;
-      case "3":
+      case "2":
         showDepcheckMenu();
+        break;
+      case "3":
+        showWorkspaceMenu();
         break;
       case "0":
         logger.info("Tornando al menu principale...");
@@ -1923,70 +2050,13 @@ function showExperimentalMenu() {
   });
 }
 
-function showDeepAnalysis() {
-  logger.section("Analisi Profonda Progetti");
-  
-  // Reload project config to get latest settings
-  try {
-    const configPath = path.join(projectRoot, "package-manager", "project-config.js");
-    Object.keys(require.cache).forEach(key => {
-      if (key.includes('project-config')) {
-        delete require.cache[key];
-      }
-    });
-    projectConfig = require(configPath);
-  } catch (error) {
-    logger.warning("Could not reload project config, using cached version");
-  }
-  
-  const recursiveEnabled = projectConfig.components.recursiveSearch?.enabled || false;
-  const maxDepth = projectConfig.components.recursiveSearch?.maxDepth;
-  
-  logger.info(`Ricerca ricorsiva: ${recursiveEnabled ? 'ABILITATA' : 'DISABILITATA'}`);
-  if (recursiveEnabled && maxDepth) {
-    logger.info(`Profondita massima: ${maxDepth} livelli`);
-  } else if (recursiveEnabled) {
-    logger.info(`Profondita massima: ILLIMITATA`);
-  }
-  
-  logger.log("\nScansione in corso...", "cyan");
-  
-  const components = getComponentDirectories(projectConfig);
-  
-  logger.success(`\nTrovati ${components.length} progetti:`);
-  
-  // Group by depth level
-  const byLevel = {};
-  components.forEach(comp => {
-    const depth = comp.split(path.sep).length - 1;
-    if (!byLevel[depth]) byLevel[depth] = [];
-    byLevel[depth].push(comp);
-  });
-  
-  Object.keys(byLevel).sort().forEach(level => {
-    logger.log(`\nLivello ${level}:`, "blue");
-    byLevel[level].forEach(comp => {
-      const pkgPath = path.join(process.cwd(), comp, 'package.json');
-      try {
-        const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf8'));
-        logger.log(`  - ${comp} (${pkg.name}@${pkg.version})`, "green");
-      } catch (e) {
-        logger.log(`  - ${comp}`, "yellow");
-      }
-    });
-  });
-  
-  logger.warning("\nPremi INVIO per tornare al menu sperimentale...");
-  if (!rl) return;
-  rl.question("", () => showExperimentalMenu());
-}
 
 function toggleRecursiveSearch() {
   logger.section("Cambio Modalita Ricerca");
   
   const currentState = projectConfig.components.recursiveSearch?.enabled || false;
   logger.info(`Stato attuale: ${currentState ? 'RICORSIVA' : 'STANDARD'}`);
-  
+  logger.space();
   if (currentState) {
     // Se attualmente abilitata, mostra solo opzioni per disabilitare
     logger.info("1. Disabilita ricerca ricorsiva");
@@ -2141,6 +2211,362 @@ async function configureMaxDepth() {
   logger.warning("\nPremi INVIO per tornare...");
   if (!rl) return;
   rl.question("", () => showExperimentalMenu());
+}
+
+// Workspace menu functions
+function showWorkspaceMenu() {
+  logger.section("🏢 Gestione Monorepo Workspace");
+  logger.warning("Funzione sperimentale per gestione centralizzata pacchetti");
+  
+  // Reload project config to get latest settings
+  try {
+    const configPath = path.join(process.cwd(), "package-manager", "project-config.js");
+    delete require.cache[require.resolve(configPath)];
+    projectConfig = require(configPath);
+  } catch (error) {
+    logger.warning("⚠️  Impossibile ricaricare la configurazione");
+  }
+  
+  // Use ONLY projectConfig for workspace status - no file checking
+  // This ensures consistency and prevents conflicts
+  
+  // Get actual workspace status from files, not just config
+  let workspaceEnabled = projectConfig.workspace?.enabled || false;
+  let workspaceInitialized = projectConfig.workspace?.initialized || false;
+  
+  // Use ONLY projectConfig for workspace status - no file checking
+  
+  if (workspaceEnabled) {
+    logger.info("Workspace abilitato");
+    if (workspaceInitialized) {
+      logger.info("Workspace inizializzato");
+    } else {
+      logger.warning(" Workspace non inizializzato");
+    }
+  } else {
+    logger.info("Workspace disabilitato");
+  }
+  
+  logger.space();
+  
+  // Show different options based on workspace status
+  if (!workspaceEnabled) {
+    // Workspace disabled - show only enable and status options
+    logger.info("1. Abilita Workspace (inizializza)");
+    logger.info("2. Mostra stato Workspace");
+    logger.warning("0. Torna al menu sperimentale");
+  } else if (workspaceEnabled && !workspaceInitialized) {
+    // Workspace enabled but not initialized - show initialize and status
+    logger.info("1. Inizializza Workspace");
+    logger.info("2. Disabilita Workspace");
+    logger.info("3. Mostra stato Workspace");
+    logger.warning("0. Torna al menu sperimentale");
+  } else {
+    // Workspace enabled and initialized - show all options
+    logger.info("1. Mostra stato Workspace");
+    logger.info("2. Disabilita Workspace");
+    logger.info("3. 🧹 Pulisci node_modules locali (risparmio memoria)");
+    logger.info("4. 🔄 Sincronizza workspace con progetti attuali");
+    logger.warning("0. Torna al menu sperimentale");
+  }
+  
+  if (!rl) return;
+  rl.question("\nScegli opzione: ", (answer) => {
+    if (!workspaceEnabled) {
+      // Workspace disabled
+      switch (answer.trim()) {
+        case "1":
+          initializeWorkspaceFromMenu();
+          break;
+        case "2":
+          showWorkspaceStatus();
+          break;
+        case "0":
+          logger.info("Tornando al menu sperimentale...");
+          setTimeout(() => showExperimentalMenu(), 500);
+          break;
+        default:
+          logger.log("Scelta non valida. Riprova.", "red");
+          setTimeout(() => showWorkspaceMenu(), 1000);
+      }
+    } else if (workspaceEnabled && !workspaceInitialized) {
+      // Workspace enabled but not initialized
+      switch (answer.trim()) {
+        case "1":
+          initializeWorkspaceFromMenu();
+          break;
+        case "2":
+          disableWorkspaceFromMenu();
+          break;
+        case "3":
+          showWorkspaceStatus();
+          break;
+        case "0":
+          logger.info("Tornando al menu sperimentale...");
+          setTimeout(() => showExperimentalMenu(), 500);
+          break;
+        default:
+          logger.log("Scelta non valida. Riprova.", "red");
+          setTimeout(() => showWorkspaceMenu(), 1000);
+      }
+    } else {
+      // Workspace enabled and initialized
+      switch (answer.trim()) {
+        case "1":
+          showWorkspaceStatus();
+          break;
+        case "2":
+          disableWorkspaceFromMenu();
+          break;
+        case "3":
+          cleanLocalNodeModulesFromMenu();
+          break;
+        case "4":
+          syncWorkspaceFromMenu();
+          break;
+        case "0":
+          logger.info("Tornando al menu sperimentale...");
+          setTimeout(() => showExperimentalMenu(), 500);
+          break;
+        default:
+          logger.log("Scelta non valida. Riprova.", "red");
+          setTimeout(() => showWorkspaceMenu(), 1000);
+      }
+    }
+  });
+}
+
+function initializeWorkspaceFromMenu() {
+  logger.section("🏢 Inizializzazione Workspace");
+  
+  if (projectConfig.workspace?.enabled && projectConfig.workspace?.initialized) {
+    logger.warning("⚠️  Workspace già inizializzato!");
+    logger.info("Usa l'opzione 'Disabilita Workspace' per ripristinare");
+    setTimeout(() => showWorkspaceMenu(), 2000);
+    return;
+  }
+  
+  logger.warning("⚠️  Questa operazione modificherà la struttura del progetto");
+  logger.info("Verrà creato un root package.json con workspaces");
+  logger.info("Tutti i pacchetti saranno gestiti centralmente");
+  
+  if (!rl) return;
+  rl.question("Continuare? (y/N): ", (confirm) => {
+    if (confirm.toLowerCase() === "y" || confirm.toLowerCase() === "yes") {
+      try {
+        const { initializeWorkspace } = require("./operations/workspace");
+        const success = initializeWorkspace(projectConfig);
+        
+        if (success) {
+          logger.success("Workspace inizializzato con successo!");
+          // Reload project config
+          try {
+            const configPath = path.join(process.cwd(), "package-manager", "project-config.js");
+            delete require.cache[require.resolve(configPath)];
+            projectConfig = require(configPath);
+            logger.info("Configurazione ricaricata");
+          } catch (error) {
+            logger.warning("⚠️  Impossibile ricaricare la configurazione");
+            logger.warning("Riavvia il package manager per vedere le modifiche");
+          }
+        } else {
+          logger.error("❌ Errore durante l'inizializzazione del workspace");
+        }
+      } catch (error) {
+        logger.error(`❌ Errore: ${error.message}`);
+      }
+      
+      setTimeout(() => showWorkspaceMenu(), 2000);
+    } else {
+      logger.info("Operazione annullata");
+      setTimeout(() => showWorkspaceMenu(), 1000);
+    }
+  });
+}
+
+function disableWorkspaceFromMenu() {
+  logger.section("🔙 Disabilitazione Workspace");
+  
+  if (!projectConfig.workspace?.enabled) {
+    logger.warning("⚠️  Workspace non abilitato!");
+    setTimeout(() => showWorkspaceMenu(), 2000);
+    return;
+  }
+  
+  logger.warning("⚠️  Questa operazione rimuoverà la configurazione workspace");
+  logger.info("Verrà rimosso workspaces dal root package.json");
+  logger.info("Verrà rimosso yarn.lock");
+  logger.warning("I node_modules locali dovranno essere reinstallati manualmente");
+  
+  if (!rl) return;
+  rl.question("Continuare? (y/N): ", (confirm) => {
+    if (confirm.toLowerCase() === "y" || confirm.toLowerCase() === "yes") {
+      try {
+        const { disableWorkspace } = require("./operations/workspace");
+        const success = disableWorkspace(projectConfig);
+        
+        if (success) {
+          logger.success("Workspace disabilitato con successo!");
+          // Reload project config
+          try {
+            const configPath = path.join(process.cwd(), "package-manager", "project-config.js");
+            delete require.cache[require.resolve(configPath)];
+            projectConfig = require(configPath);
+          } catch (error) {
+            logger.warning("⚠️  Impossibile ricaricare la configurazione");
+          }
+        } else {
+          logger.error("❌ Errore durante la disabilitazione del workspace");
+        }
+      } catch (error) {
+        logger.error(`❌ Errore: ${error.message}`);
+      }
+      
+      setTimeout(() => showWorkspaceMenu(), 2000);
+    } else {
+      logger.info("Operazione annullata");
+      setTimeout(() => showWorkspaceMenu(), 1000);
+    }
+  });
+}
+
+function showWorkspaceStatus() {
+  logger.section("📊 Stato Workspace");
+  
+  try {
+    const { getWorkspaceStatus } = require("./operations/workspace");
+    const status = getWorkspaceStatus(projectConfig);
+    
+    if (!status) {
+      logger.error("❌ Impossibile ottenere lo stato del workspace");
+      setTimeout(() => showWorkspaceMenu(), 2000);
+      return;
+    }
+    
+    logger.log("📋 Informazioni Workspace:", "cyan");
+    logger.log(`   Abilitato: ${status.enabled ? '✅ Sì' : '❌ No'}`, status.enabled ? "green" : "red");
+    logger.log(`   Inizializzato: ${status.initialized ? '✅ Sì' : '❌ No'}`, status.initialized ? "green" : "red");
+    logger.log(`   Yarn Lock: ${status.hasYarnLock ? '✅ Presente' : '❌ Assente'}`, status.hasYarnLock ? "green" : "red");
+    logger.log(`   Workspaces: ${status.hasWorkspaces ? '✅ Configurati' : '❌ Non configurati'}`, status.hasWorkspaces ? "green" : "red");
+    
+    if (status.workspaces.length > 0) {
+      logger.log(`   Numero workspaces: ${status.workspaces.length}`, "blue");
+      logger.log("   Workspaces:", "blue");
+      status.workspaces.forEach((workspace, index) => {
+        logger.log(`     ${index + 1}. ${workspace}`, "blue");
+      });
+    }
+    
+    if (status.rootNodeModulesSize > 0) {
+      const { formatBytes } = require("./operations/workspace");
+      logger.log(`   Root node_modules: ${formatBytes(status.rootNodeModulesSize)}`, "cyan");
+    }
+    
+    logger.log(`   Node_modules locali: ${status.localNodeModulesCount}`, "yellow");
+    
+  } catch (error) {
+    logger.error(`❌ Errore ottenendo stato workspace: ${error.message}`);
+  }
+  
+  logger.warning("\nPremi INVIO per tornare...");
+  if (!rl) return;
+  rl.question("", () => showWorkspaceMenu());
+}
+
+function cleanLocalNodeModulesFromMenu() {
+  logger.section("🧹 Pulizia Node_modules Locali");
+  
+  // Reload project config to get latest settings
+  let currentProjectConfig = projectConfig;
+  try {
+    const configPath = path.join(process.cwd(), "package-manager", "project-config.js");
+    delete require.cache[require.resolve(configPath)];
+    currentProjectConfig = require(configPath);
+  } catch (error) {
+    logger.warning("⚠️  Impossibile ricaricare la configurazione");
+  }
+  
+  if (!currentProjectConfig.workspace?.enabled) {
+    logger.error("❌ Workspace non abilitato!");
+    logger.info("Abilita prima il workspace per utilizzare questa funzione");
+    setTimeout(() => showWorkspaceMenu(), 2000);
+    return;
+  }
+  
+  logger.warning("⚠️  Questa operazione rimuoverà tutti i node_modules locali");
+  logger.info("I pacchetti saranno disponibili solo tramite root node_modules");
+  logger.info("Utile per risparmiare spazio su disco");
+  
+  if (!rl) return;
+  rl.question("Continuare? (y/N): ", (confirm) => {
+    if (confirm.toLowerCase() === "y" || confirm.toLowerCase() === "yes") {
+      try {
+        const { cleanLocalNodeModules } = require("./operations/workspace");
+        const success = cleanLocalNodeModules(currentProjectConfig);
+        
+        if (success) {
+          logger.success("✅ Node_modules locali puliti con successo!");
+        } else {
+          logger.error("❌ Errore durante la pulizia dei node_modules locali");
+        }
+      } catch (error) {
+        logger.error(`❌ Errore: ${error.message}`);
+      }
+      
+      setTimeout(() => showWorkspaceMenu(), 2000);
+    } else {
+      logger.info("Operazione annullata");
+      setTimeout(() => showWorkspaceMenu(), 1000);
+    }
+  });
+}
+
+function syncWorkspaceFromMenu() {
+  logger.section("🔄 Sincronizzazione Workspace");
+  
+  // Reload project config to get latest settings
+  let currentProjectConfig = projectConfig;
+  try {
+    const configPath = path.join(process.cwd(), "package-manager", "project-config.js");
+    delete require.cache[require.resolve(configPath)];
+    currentProjectConfig = require(configPath);
+  } catch (error) {
+    logger.warning("⚠️  Impossibile ricaricare la configurazione");
+  }
+  
+  if (!currentProjectConfig.workspace?.enabled) {
+    logger.error("❌ Workspace non abilitato!");
+    logger.info("Abilita prima il workspace per utilizzare questa funzione");
+    setTimeout(() => showWorkspaceMenu(), 2000);
+    return;
+  }
+  
+  logger.info("🔄 Questa operazione sincronizzerà la configurazione workspace");
+  logger.info("con la struttura attuale dei progetti nel repository");
+  logger.info("Utile quando si aggiungono o rimuovono progetti");
+  
+  if (!rl) return;
+  rl.question("Continuare? (y/N): ", (confirm) => {
+    if (confirm.toLowerCase() === "y" || confirm.toLowerCase() === "yes") {
+      try {
+        const { syncWorkspaceWithProjects } = require("./operations/workspace");
+        const success = syncWorkspaceWithProjects(currentProjectConfig);
+        
+        if (success) {
+          logger.success("✅ Workspace sincronizzato con successo!");
+        } else {
+          logger.error("❌ Errore durante la sincronizzazione del workspace");
+        }
+      } catch (error) {
+        logger.error(`❌ Errore: ${error.message}`);
+      }
+      
+      setTimeout(() => showWorkspaceMenu(), 2000);
+    } else {
+      logger.info("Operazione annullata");
+      setTimeout(() => showWorkspaceMenu(), 1000);
+    }
+  });
 }
 
 module.exports = {

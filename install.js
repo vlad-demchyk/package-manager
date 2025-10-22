@@ -292,6 +292,38 @@ async function configureProject() {
       logger.info("Ricerca ricorsiva disabilitata");
     }
 
+    // Chiedi se abilitare Yarn Workspace (EXPERIMENTAL)
+    logger.log("");
+    logger.warning("🔬 FUNZIONE SPERIMENTALE - Yarn Workspace");
+    logger.info("Questa funzione permette di gestire centralmente i pacchetti");
+    logger.warning("Attenzione: questa funzione è in fase di test");
+    logger.info("Richiede Yarn per funzionare correttamente");
+    
+    const workspaceAnswer = await askQuestion(
+      rl,
+      "Vuoi configurare Yarn Workspace per gestione centralizzata? (s/n, default: n): "
+    );
+    
+    if (workspaceAnswer.toLowerCase() === "s" || workspaceAnswer.toLowerCase() === "si") {
+      config.workspace = {
+        enabled: true,
+        initialized: false,
+        packagesPath: [],
+        useYarn: true
+      };
+      
+      logger.success("✅ Yarn Workspace abilitato");
+      logger.info("   Sarà configurato al primo utilizzo");
+    } else {
+      config.workspace = {
+        enabled: false,
+        initialized: false,
+        packagesPath: [],
+        useYarn: true
+      };
+      logger.info("Yarn Workspace disabilitato");
+    }
+
     rl.close();
     return config;
   } catch (error) {
@@ -475,6 +507,14 @@ function saveProjectConfig(config, targetDir = null) {
       maxDepth: ${config.components.recursiveSearch.maxDepth === null ? 'null' : config.components.recursiveSearch.maxDepth},
       excludeDirs: ${JSON.stringify(config.components.recursiveSearch.excludeDirs)}
     }
+  },
+  
+  // Configurazione workspace
+  workspace: {
+    enabled: ${config.workspace?.enabled || false},
+    initialized: false,
+    packagesPath: [],
+    useYarn: true
   },
   
   // Configurazione file

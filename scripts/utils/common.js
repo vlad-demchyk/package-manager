@@ -139,11 +139,74 @@ function getComponentDirectoriesRecursive(projectConfig, maxDepth = null, curren
 }
 
 /**
+ * Get component directories for workspace mode
+ * @param {Object} projectConfig - Project configuration object
+ * @returns {string[]} Array of component directory names
+ */
+function getComponentDirectoriesWorkspace(projectConfig) {
+  try {
+    const projectRoot = process.cwd();
+    const rootPackageJsonPath = path.join(projectRoot, "package.json");
+    
+    if (!fs.existsSync(rootPackageJsonPath)) {
+      return [];
+    }
+    
+    const rootPackageJson = JSON.parse(fs.readFileSync(rootPackageJsonPath, "utf8"));
+    
+    if (!rootPackageJson.workspaces || !Array.isArray(rootPackageJson.workspaces)) {
+      return [];
+    }
+    
+    const components = [];
+    
+    // Process workspace patterns
+    rootPackageJson.workspaces.forEach(workspacePattern => {
+      // Handle glob patterns (e.g., "packages/*", "apps/*")
+      if (workspacePattern.includes("*")) {
+        const glob = require("glob");
+        const matches = glob.sync(workspacePattern, { cwd: projectRoot });
+        matches.forEach(match => {
+          const fullPath = path.join(projectRoot, match);
+          if (fs.existsSync(fullPath) && fs.statSync(fullPath).isDirectory()) {
+            // Check if it has package.json
+            const packageJsonPath = path.join(fullPath, "package.json");
+            if (fs.existsSync(packageJsonPath)) {
+              components.push(match);
+            }
+          }
+        });
+      } else {
+        // Handle direct paths
+        const fullPath = path.join(projectRoot, workspacePattern);
+        if (fs.existsSync(fullPath) && fs.statSync(fullPath).isDirectory()) {
+          const packageJsonPath = path.join(fullPath, "package.json");
+          if (fs.existsSync(packageJsonPath)) {
+            components.push(workspacePattern);
+          }
+        }
+      }
+    });
+    
+    return components;
+    
+  } catch (error) {
+    console.error("Error getting workspace components:", error);
+    return [];
+  }
+}
+
+/**
  * Get component directories based on project configuration
  * @param {Object} projectConfig - Project configuration object
  * @returns {string[]} Array of component directory names
  */
 function getComponentDirectories(projectConfig) {
+  // Check if workspace mode is enabled
+  if (projectConfig.workspace?.enabled && projectConfig.workspace?.initialized) {
+    return getComponentDirectoriesWorkspace(projectConfig);
+  }
+  
   // Force reload project config if recursiveSearch is not defined
   if (!projectConfig.components.recursiveSearch) {
     try {
@@ -263,6 +326,7 @@ module.exports = {
   getNpmCommand,
   getComponentDirectories,
   getComponentDirectoriesRecursive,
+  getComponentDirectoriesWorkspace,
   loadPackageJson,
   fileExists,
   getProjectRoot
