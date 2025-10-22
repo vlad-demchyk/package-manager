@@ -4,9 +4,10 @@ Guida completa per utilizzare il Package Manager con interfaccia interattiva e c
 
 ## 🎯 Panoramica
 
-Il Package Manager offre due modalità di utilizzo:
+Il Package Manager offre tre modalità di utilizzo:
 - **Modalità interattiva** - Menu user-friendly
 - **Modalità comando** - Comandi da terminale
+- **Modalità Workspace** - Gestione centralizzata con Yarn Workspaces (sperimentale)
 
 ## 🖥️ Modalità Interattiva
 
@@ -22,12 +23,30 @@ pm
 ### Menu Principale
 ```
 📋 Gestore Pacchetti Cherry 106:
-1. ⚙️  Aggiornamento configurazioni (globale)
-2. 🔍 Controllo dipendenze non utilizzate
-3. 📦 Installazione pacchetti
-4. 🔄 Reinstallazione pacchetti (clean install)
-5. 🧹 Pulizia/rimozione pacchetti
-0. 🚪 Esci
+ℹ️  🔍 Modalità ricerca: RICORSIVA - Scansiona progetti in sottocartelle
+ℹ️  📊 Profondità massima: 3 livelli
+ℹ️  📦 Modalità installazione: STANDARD (node_modules locali)
+✅ 1. ⚙️  Aggiornamento configurazioni (importante ad impostare dependencies-config.js)
+ℹ️  2. 📦 Installazione pacchetti
+ℹ️  3. 🔄 Reinstallazione pacchetti (clean install)
+⚠️  4. 🧹 Pulizia/rimozione pacchetti
+ℹ️  5. 📝 Visualizza log delle operazioni
+⚠️  6. 🔬 EXPERIMENTAL - Funzioni sperimentali
+ℹ️  9. 📁 Mostra tutti i componenti trovati
+❌ 0. 🚪Esci
+```
+
+### Menu Workspace (Sperimentale)
+```
+🏢 Gestione Monorepo Workspace
+⚠️  Funzione sperimentale per gestione centralizzata pacchetti
+ℹ️  ✅ Workspace abilitato
+ℹ️  ✅ Workspace inizializzato
+
+ℹ️  1. Mostra stato Workspace
+ℹ️  2. Disabilita Workspace
+ℹ️  3. 🧹 Pulisci node_modules locali (risparmio memoria)
+⚠️  0. Torna al menu sperimentale
 ```
 
 ### 1. 📦 Installazione Pacchetti
@@ -584,6 +603,31 @@ Il manager mostra automaticamente:
    ❌ Errori: 0/1
 ```
 
+## 🏢 Modalità Workspace (Sperimentale)
+
+### Panoramica
+La modalità Workspace è una **funzione sperimentale** che permette di gestire centralmente tutti i pacchetti del progetto utilizzando Yarn Workspaces.
+
+### Vantaggi
+- **Gestione centralizzata**: Un solo `node_modules` per tutto il progetto
+- **Risparmio di spazio**: Eliminazione dei `node_modules` locali
+- **Sincronizzazione**: Tutti i componenti utilizzano le stesse versioni
+- **Performance**: Installazione più veloce e gestione semplificata
+
+### Attivazione
+1. **Durante la configurazione**: Rispondi "s" alla domanda sul Workspace
+2. **Dopo la configurazione**: Menu Sperimentale > Gestione Monorepo Workspace
+
+### Operazioni Disponibili
+- **Inizializzazione**: Configura il Workspace per il progetto
+- **Stato**: Mostra informazioni dettagliate sul Workspace
+- **Pulizia**: Rimuove i `node_modules` locali per risparmiare spazio
+- **Disabilitazione**: Ripristina la modalità standard
+
+### Documentazione Completa
+Per informazioni dettagliate sulla modalità Workspace, consulta:
+- [Guida Workspace Mode](./workspace-usage.md)
+
 ## ⚠️ Note Importanti
 
 1. **Esegui dalla directory root del progetto**
@@ -591,3 +635,4 @@ Il manager mostra automaticamente:
 3. **Per i test usa solo un componente**
 4. **Crea un backup prima di aggiornamenti massivi**
 5. **L'aggiornamento è sempre globale per mantenere versioni sincronizzate**
+6. **La modalità Workspace è sperimentale - testala in sviluppo prima di usarla in produzione**

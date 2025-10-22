@@ -422,6 +422,114 @@ async function handleComponent(componentName, options) {
   };
 }
 
+async function handleWorkspaceComponent(workspaceName, options) {
+  const dir = path.join(projectRoot, workspaceName);
+  const pkg = loadPkgJson(dir);
+  if (!pkg) {
+    logger.warning(`package.json non trovato per workspace ${workspaceName}`);
+    return { component: workspaceName, skipped: true };
+  }
+
+  logger.log(`📦 Workspace: ${workspaceName}`, "blue");
+
+  const keepSet = buildWhitelist(dir, pkg);
+  const unused = await runDepcheck(dir);
+  const { unusedDeps, unusedDevDeps, candidatesDeps, candidatesDevDeps } = partitionCandidates(
+    pkg,
+    unused,
+    keepSet
+  );
+
+  // Prefer post-filtered output
+  const candidates = { deps: candidatesDeps, devDeps: candidatesDevDeps };
+
+  if (candidates.deps.length === 0 && candidates.devDeps.length === 0) {
+    logger.success(`✅ ${workspaceName}: nessuna dipendenza non utilizzata`);
+  } else {
+    logger.log(`⚠️  ${workspaceName}: dipendenze non utilizzate trovate`, "yellow");
+    if (candidates.deps.length > 0) {
+      logger.log(`   Dependencies: ${candidates.deps.join(", ")}`, "red");
+    }
+    if (candidates.devDeps.length > 0) {
+      logger.log(`   DevDependencies: ${candidates.devDeps.join(", ")}`, "red");
+    }
+  }
+
+  return {
+    component: workspaceName,
+    keep: Array.from(keepSet),
+    unused,
+    candidates,
+  };
+}
+
+async function removeWorkspaceUnusedDependencies(unusedDeps, options) {
+  const dryRun = !!options.dryRun;
+  
+  if (unusedDeps.length === 0) {
+    logger.success("Nessuna dipendenza da rimuovere");
+    return;
+  }
+
+  logger.warning(`\n⚠️  Rimozione ${unusedDeps.length} dipendenze non utilizzate da root package.json`);
+  logger.log(`Dipendenze da rimuovere: ${unusedDeps.join(", ")}`, "red");
+
+  if (dryRun) {
+    logger.log("DRY-RUN: Le dipendenze verrebbero rimosse dal root package.json", "yellow");
+    return;
+  }
+
+  // Remove from root package.json
+  const rootPackageJsonPath = path.join(projectRoot, "package.json");
+  if (!fs.existsSync(rootPackageJsonPath)) {
+    logger.error("Root package.json non trovato");
+    return;
+  }
+
+  try {
+    const rootPackageJson = JSON.parse(fs.readFileSync(rootPackageJsonPath, "utf8"));
+    let updated = false;
+
+    // Remove from dependencies
+    if (rootPackageJson.dependencies) {
+      unusedDeps.forEach(dep => {
+        if (rootPackageJson.dependencies[dep]) {
+          delete rootPackageJson.dependencies[dep];
+          updated = true;
+          logger.log(`🗑️  Rimosso ${dep} da dependencies`, "green");
+        }
+      });
+    }
+
+    // Remove from devDependencies
+    if (rootPackageJson.devDependencies) {
+      unusedDeps.forEach(dep => {
+        if (rootPackageJson.devDependencies[dep]) {
+          delete rootPackageJson.devDependencies[dep];
+          updated = true;
+          logger.log(`🗑️  Rimosso ${dep} da devDependencies`, "green");
+        }
+      });
+    }
+
+    if (updated) {
+      fs.writeFileSync(rootPackageJsonPath, JSON.stringify(rootPackageJson, null, 2), "utf8");
+      
+      // Remove yarn.lock if exists
+      const yarnLockPath = path.join(projectRoot, "yarn.lock");
+      if (fs.existsSync(yarnLockPath)) {
+        fs.unlinkSync(yarnLockPath);
+        logger.log("🗑️  Rimosso yarn.lock", "green");
+      }
+
+      logger.success("✅ Root package.json aggiornato");
+      logger.info("💡 Esegui 'yarn install' per aggiornare le dipendenze");
+    }
+  } catch (error) {
+    logger.error(`Errore aggiornando root package.json: ${error.message}`);
+  }
+}
+
 function parseArgs(argv) {
   const out = {
     single: null,
@@ -464,7 +572,18 @@ function parseArgs(argv) {
 async function parseAndExecuteCommand(argv, onComplete) {
   const opts = parseArgs(argv || []);
 
-  let components = listComponents();
+  // Check if workspace mode is enabled
+  const isWorkspaceMode = projectConfig.workspace?.enabled && projectConfig.workspace?.initialized;
+  
+  if (isWorkspaceMode) {
+    return await executeWorkspaceDepcheck(opts, onComplete);
+  } else {
+    return await executeStandardDepcheck(opts, onComplete);
+  }
+}
+
+async function executeStandardDepcheck(opts, onComplete) {
+  let components = getComponentDirectories(projectConfig);
 
   if (opts.single) {
     components = components.filter((c) => c === opts.single);
@@ -486,6 +605,92 @@ async function parseAndExecuteCommand(argv, onComplete) {
 
   if (opts.json) {
     const payload = { results };
+    try {
+      process.stdout.write(JSON.stringify(payload, null, 2));
+    } catch (_) {}
+  }
+
+  if (typeof onComplete === "function") onComplete();
+  return true;
+}
+
+async function executeWorkspaceDepcheck(opts, onComplete) {
+  logger.section("🔍 Workspace Depcheck Mode");
+  logger.info("📦 Analisi dipendenze in modalità workspace");
+  
+  const { getComponentDirectories } = require("../utils/common");
+  const components = getComponentDirectories(projectConfig);
+  
+  if (components.length === 0) {
+    logger.warning("Nessun workspace trovato per l'analisi");
+    if (typeof onComplete === "function") onComplete();
+    return true;
+  }
+
+  // Filter components based on options
+  let targetComponents = components;
+  if (opts.single) {
+    targetComponents = components.filter((c) => c === opts.single);
+  } else if (opts.exclude && opts.exclude.length > 0) {
+    targetComponents = components.filter((c) => !opts.exclude.includes(c));
+  }
+
+  if (targetComponents.length === 0) {
+    logger.warning("Nessun workspace da analizzare");
+    if (typeof onComplete === "function") onComplete();
+    return true;
+  }
+
+  logger.log(`📊 Analisi ${targetComponents.length} workspace...`, "cyan");
+  
+  const results = [];
+  const globalUnusedDeps = new Map(); // Track dependencies across all workspaces
+  
+  // First pass: analyze each workspace
+  for (const workspace of targetComponents) {
+    logger.log(`\n🔍 Analisi workspace: ${workspace}`, "blue");
+    const res = await handleWorkspaceComponent(workspace, opts);
+    results.push(res);
+    
+    // Collect unused dependencies for global analysis
+    if (res.candidates && (res.candidates.deps.length > 0 || res.candidates.devDeps.length > 0)) {
+      [...res.candidates.deps, ...res.candidates.devDeps].forEach(dep => {
+        if (!globalUnusedDeps.has(dep)) {
+          globalUnusedDeps.set(dep, []);
+        }
+        globalUnusedDeps.get(dep).push(workspace);
+      });
+    }
+  }
+
+  // Second pass: identify truly unused dependencies (not used in any workspace)
+  const trulyUnusedDeps = [];
+  for (const [dep, workspaces] of globalUnusedDeps) {
+    if (workspaces.length === targetComponents.length) {
+      // This dependency is unused in ALL workspaces
+      trulyUnusedDeps.push(dep);
+    }
+  }
+
+  if (trulyUnusedDeps.length > 0) {
+    logger.log(`\n⚠️  Dipendenze non utilizzate in TUTTI i workspace:`, "yellow");
+    trulyUnusedDeps.forEach(dep => {
+      logger.log(`   - ${dep}`, "red");
+    });
+    
+    if (opts.clean || opts.yes) {
+      await removeWorkspaceUnusedDependencies(trulyUnusedDeps, opts);
+    }
+  } else {
+    logger.success("✅ Nessuna dipendenza completamente non utilizzata trovata");
+  }
+
+  if (opts.json) {
+    const payload = { 
+      results,
+      globalUnusedDeps: Object.fromEntries(globalUnusedDeps),
+      trulyUnusedDeps
+    };
     try {
       process.stdout.write(JSON.stringify(payload, null, 2));
     } catch (_) {}

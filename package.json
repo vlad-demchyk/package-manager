@@ -1,6 +1,6 @@
 {
   "name": "@vlad-demchyk/package-manager",
-  "version": "1.4.0",
+  "version": "2.1.0",
   "description": "Universal package manager for multi-component projects with intelligent dependency management",
   "main": "install.js",
   "bin": {
@@ -36,8 +36,20 @@
   "engines": {
     "node": ">=18.20.8 < 23.0.0"
   },
-  "dependencies": {},
-    "files": [
+  "private": true,
+  "dependencies": {
+    "glob": "^10.3.10"
+  },
+  "workspaces": [
+    "project-6",
+    "level1/project-1",
+    "level1/project-2",
+    "level1/project-b",
+    "level1/level2/project-5",
+    "level1/level2/project-a",
+    "level1/level2/project-c"
+  ],
+  "files": [
     "bin/",
     "scripts/",
     "templates/",
