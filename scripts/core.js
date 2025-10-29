@@ -20,13 +20,13 @@ const {
 } = require("./operations/cleaner");
 
 // Import common utilities
-const { 
-  isWindows, 
-  getNpmCommand, 
+const {
+  isWindows,
+  getNpmCommand,
   getComponentDirectories,
   loadPackageJson,
   fileExists,
-  getProjectRoot
+  getProjectRoot,
 } = require("./utils/common");
 
 // Carica configurazione progetto dinamicamente
@@ -49,8 +49,6 @@ logger.log(`📝 Logging abilitato: ${logger.getLogFilePath()}`, "blue");
 // Variabili globali per readline
 let rl = null;
 let askQuestion = null;
-
-
 
 function removeDirectory(dirPath) {
   if (fs.existsSync(dirPath)) {
@@ -89,49 +87,74 @@ function installPackages(componentPath, mode = "normal") {
   // Reload project config to get latest settings
   let currentProjectConfig = projectConfig;
   try {
-    const configPath = path.join(process.cwd(), "package-manager", "project-config.js");
+    const configPath = path.join(
+      process.cwd(),
+      "package-manager",
+      "project-config.js"
+    );
     delete require.cache[require.resolve(configPath)];
     currentProjectConfig = require(configPath);
   } catch (error) {
     logger.warning("⚠️  Impossibile ricaricare la configurazione");
   }
-  
+
   // Auto-detect workspace configuration from files
-  const { detectWorkspaceConfiguration } = require("./utils/workspace-detector");
+  const {
+    detectWorkspaceConfiguration,
+  } = require("./utils/workspace-detector");
   const workspaceDetection = detectWorkspaceConfiguration(process.cwd());
-  
+
   // Resolve lock file conflicts before proceeding
   const { resolveLockFileConflicts } = require("./operations/cleaner");
   resolveLockFileConflicts(currentProjectConfig);
-  
+
   // Check if workspace mode is enabled in config OR detected from files
-  let isWorkspaceMode = currentProjectConfig.workspace?.enabled && currentProjectConfig.workspace?.initialized;
-  
+  let isWorkspaceMode =
+    currentProjectConfig.workspace?.enabled &&
+    currentProjectConfig.workspace?.initialized;
+
   // If workspace is detected in files but not enabled in config, auto-enable it
-  if (workspaceDetection && workspaceDetection.hasWorkspaceConfig && workspaceDetection.hasYarnLock && !isWorkspaceMode) {
+  if (
+    workspaceDetection &&
+    workspaceDetection.hasWorkspaceConfig &&
+    workspaceDetection.hasYarnLock &&
+    !isWorkspaceMode
+  ) {
     logger.section("🔍 Rilevamento automatico Yarn Workspace");
     logger.info("📦 Trovati workspaces in root package.json");
     logger.info(`📊 Numero workspace: ${workspaceDetection.workspaceCount}`);
     logger.info(`📁 Package manager: ${workspaceDetection.packageManager}`);
-    
+
     // Auto-enable workspace mode
-    const { updateProjectConfigWorkspace, syncRootPackageJson } = require("./operations/workspace");
-    updateProjectConfigWorkspace(currentProjectConfig, true, true, workspaceDetection.workspaces);
-    
+    const {
+      updateProjectConfigWorkspace,
+      syncRootPackageJson,
+    } = require("./operations/workspace");
+    updateProjectConfigWorkspace(
+      currentProjectConfig,
+      true,
+      true,
+      workspaceDetection.workspaces
+    );
+
     // Sync package.json with workspace configuration
     syncRootPackageJson(currentProjectConfig);
-    
+
     logger.success("✅ Modalità Workspace abilitata automaticamente!");
     isWorkspaceMode = true;
   }
-  
+
   if (isWorkspaceMode) {
     // Use workspace installation logic
-    const { installAllComponentsWorkspace } = require("./operations/workspace-install");
+    const {
+      installAllComponentsWorkspace,
+    } = require("./operations/workspace-install");
     return installAllComponentsWorkspace(currentProjectConfig, mode);
   } else {
     // Use standard installation logic
-    const { installPackagesStandard } = require("./operations/standard-install");
+    const {
+      installPackagesStandard,
+    } = require("./operations/standard-install");
     return installPackagesStandard(componentPath, mode, currentProjectConfig);
   }
 }
@@ -142,20 +165,26 @@ async function updateAllConfigs() {
   return await updateScript.updateAllConfigs();
 }
 
+// Importa isDependenciesConfigEmpty per verificare se il config è vuoto
+const { isDependenciesConfigEmpty } = require("./update-configs");
+
 // Funzioni per depcheck
 function showDepcheckMenu() {
   // Check workspace mode
-  const isWorkspaceMode = projectConfig.workspace?.enabled && projectConfig.workspace?.initialized;
-  
+  const isWorkspaceMode =
+    projectConfig.workspace?.enabled && projectConfig.workspace?.initialized;
+
   logger.section("Controllo dipendenze non utilizzate (experimental)");
-  
+
   if (isWorkspaceMode) {
     logger.info("🏢 Modalità: WORKSPACE - Analisi centralizzata dipendenze");
-    logger.info("📦 Verranno analizzati tutti i workspace per dipendenze condivise");
+    logger.info(
+      "📦 Verranno analizzati tutti i workspace per dipendenze condivise"
+    );
   } else {
     logger.info("📦 Modalità: STANDARD - Analisi locale dipendenze");
   }
-  
+
   logger.step("Controlla tutti i componenti", 1);
   logger.step("Controlla un componente", 2);
   logger.step("Controlla tutti eccetto quelli specificati", 3);
@@ -384,25 +413,35 @@ function installAllComponents(mode = "normal") {
   // Reload project config to get latest settings
   let currentProjectConfig = projectConfig;
   try {
-    const configPath = path.join(process.cwd(), "package-manager", "project-config.js");
+    const configPath = path.join(
+      process.cwd(),
+      "package-manager",
+      "project-config.js"
+    );
     delete require.cache[require.resolve(configPath)];
     currentProjectConfig = require(configPath);
   } catch (error) {
     logger.warning("⚠️  Impossibile ricaricare la configurazione");
   }
-  
+
   // Check if workspace mode is enabled - use actual status from files
-  let isWorkspaceMode = currentProjectConfig.workspace?.enabled && currentProjectConfig.workspace?.initialized;
-  
+  let isWorkspaceMode =
+    currentProjectConfig.workspace?.enabled &&
+    currentProjectConfig.workspace?.initialized;
+
   // Use ONLY projectConfig for workspace status - no file checking
-  
+
   if (isWorkspaceMode) {
     // Use workspace installation logic
-    const { installAllComponentsWorkspace } = require("./operations/workspace-install");
+    const {
+      installAllComponentsWorkspace,
+    } = require("./operations/workspace-install");
     return installAllComponentsWorkspace(currentProjectConfig, mode);
   } else {
     // Use standard installation logic
-    const { installAllComponentsStandard } = require("./operations/standard-install");
+    const {
+      installAllComponentsStandard,
+    } = require("./operations/standard-install");
     return installAllComponentsStandard(mode, currentProjectConfig);
   }
 }
@@ -486,7 +525,9 @@ async function parseAndExecuteCommand(args) {
       const hasClean = args.includes("clean") || args.includes("--remove");
       if (hasClean) {
         // Rimuoviamo 'clean' dagli argomenti
-        const cleanArgs = args.filter((arg) => arg !== "clean" && arg !== "--remove");
+        const cleanArgs = args.filter(
+          (arg) => arg !== "clean" && arg !== "--remove"
+        );
         await executeDepcheckCleanCommand(scope, components, cleanArgs);
       } else {
         await executeDepcheckCommand(scope, components, args);
@@ -547,17 +588,21 @@ function executeReinstallCommand(scope, components, mode) {
 function executeCleanCommand(scope, components) {
   // Reload project config to get latest settings
   try {
-    const configPath = path.join(process.cwd(), "package-manager", "project-config.js");
+    const configPath = path.join(
+      process.cwd(),
+      "package-manager",
+      "project-config.js"
+    );
     delete require.cache[require.resolve(configPath)];
     projectConfig = require(configPath);
   } catch (error) {
     logger.warning("⚠️  Impossibile ricaricare la configurazione");
   }
-  
+
   // Check if workspace mode is enabled
-  const isWorkspaceMode = projectConfig.workspace?.enabled && projectConfig.workspace?.initialized;
-  
-  
+  const isWorkspaceMode =
+    projectConfig.workspace?.enabled && projectConfig.workspace?.initialized;
+
   switch (scope) {
     case "all":
       cleanAllComponents();
@@ -566,9 +611,14 @@ function executeCleanCommand(scope, components) {
       if (components.length > 0) {
         if (isWorkspaceMode) {
           // Use workspace-specific cleaning for single component
-          const { cleanSingleWorkspaceComponent } = require("./operations/cleaner");
-          const success = cleanSingleWorkspaceComponent(components[0], projectConfig);
-          
+          const {
+            cleanSingleWorkspaceComponent,
+          } = require("./operations/cleaner");
+          const success = cleanSingleWorkspaceComponent(
+            components[0],
+            projectConfig
+          );
+
           if (!success) {
             logger.error(`Errore pulizia workspace ${components[0]}`);
           }
@@ -734,10 +784,14 @@ function showUsage() {
 function showMenu() {
   // Reload project config to get latest settings
   try {
-    const configPath = path.join(projectRoot, "package-manager", "project-config.js");
+    const configPath = path.join(
+      projectRoot,
+      "package-manager",
+      "project-config.js"
+    );
     // Clear all cached modules
-    Object.keys(require.cache).forEach(key => {
-      if (key.includes('project-config') || key.includes('package-manager')) {
+    Object.keys(require.cache).forEach((key) => {
+      if (key.includes("project-config") || key.includes("package-manager")) {
         delete require.cache[key];
       }
     });
@@ -745,21 +799,23 @@ function showMenu() {
   } catch (error) {
     // Use cached version if reload fails
   }
-  
+
   // Get search mode indicator
   const recursiveEnabled = projectConfig.components.recursiveSearch?.enabled;
-  
+
   // Reload workspace status from actual files
   let workspaceEnabled = projectConfig.workspace?.enabled || false;
   let workspaceInitialized = projectConfig.workspace?.initialized || false;
-  
+
   // Use ONLY projectConfig for workspace status - no file checking
   // This ensures consistency and prevents conflicts
-  
+
   logger.section(`📋 Gestore Pacchetti ${projectConfig.project.name}`);
-  
+
   if (recursiveEnabled) {
-    logger.info("🔍 Modalità ricerca: RICORSIVA - Scansiona progetti in sottocartelle");
+    logger.info(
+      "🔍 Modalità ricerca: RICORSIVA - Scansiona progetti in sottocartelle"
+    );
     const maxDepth = projectConfig.components.recursiveSearch?.maxDepth;
     if (maxDepth) {
       logger.info(`📊 Profondità massima: ${maxDepth} livelli`);
@@ -767,23 +823,31 @@ function showMenu() {
       logger.info("📊 Profondità massima: ILLIMITATA");
     }
   } else {
-    logger.info("📁 Modalità ricerca: STANDARD - Solo cartelle di primo livello");
+    logger.info(
+      "📁 Modalità ricerca: STANDARD - Solo cartelle di primo livello"
+    );
   }
-  
+
   // Workspace mode indicator
   if (workspaceEnabled) {
     if (workspaceInitialized) {
-      logger.info("🏢 Modalità installazione: WORKSPACE (centralizzato) - Yarn Workspaces attivo");
+      logger.info(
+        "🏢 Modalità installazione: WORKSPACE (centralizzato) - Yarn Workspaces attivo"
+      );
     } else {
-      logger.warning("🏢 Modalità installazione: WORKSPACE (non inizializzato) - Richiede inizializzazione");
+      logger.warning(
+        "🏢 Modalità installazione: WORKSPACE (non inizializzato) - Richiede inizializzazione"
+      );
     }
   } else {
     logger.info("📦 Modalità installazione: STANDARD (node_modules locali)");
   }
-  
+
   // Empty line to separate info from menu
   logger.space();
-  logger.success("1. ⚙️ Aggiornamento configurazioni (importante ad impostare dependencies-config.js)");
+  logger.success(
+    "1. ⚙️ Aggiornamento configurazioni (importante ad impostare dependencies-config.js)"
+  );
   logger.info("2. 📦 Installazione pacchetti");
   logger.info("3. 🔄 Reinstallazione pacchetti (clean install)");
   logger.warning("4. 🧹 Pulizia/rimozione pacchetti");
@@ -806,14 +870,14 @@ function showComponentList() {
 
 function showLogsMenu() {
   logger.section("📝 Gestione Log delle Operazioni");
-  
+
   const logsDir = path.join(projectRoot, "package-manager", "logs");
-  
+
   if (!fs.existsSync(logsDir)) {
     logger.warning("📁 Cartella logs non trovata");
     logger.info("I log verranno creati automaticamente durante le operazioni");
     logger.warning("🔙 Premi INVIO per tornare al menu principale...");
-    
+
     if (!rl) return;
     rl.question("", () => {
       logger.info("Tornando al menu principale...");
@@ -823,21 +887,22 @@ function showLogsMenu() {
     });
     return;
   }
-  
-  const logFiles = fs.readdirSync(logsDir)
-    .filter(file => file.startsWith('session-') && file.endsWith('.log'))
-    .map(file => ({
+
+  const logFiles = fs
+    .readdirSync(logsDir)
+    .filter((file) => file.startsWith("session-") && file.endsWith(".log"))
+    .map((file) => ({
       name: file,
       path: path.join(logsDir, file),
-      stats: fs.statSync(path.join(logsDir, file))
+      stats: fs.statSync(path.join(logsDir, file)),
     }))
     .sort((a, b) => b.stats.mtime - a.stats.mtime);
-  
+
   if (logFiles.length === 0) {
     logger.warning("📁 Nessun file di log trovato");
     logger.info("I log verranno creati durante le operazioni");
     logger.warning("🔙 Premi INVIO per tornare al menu principale...");
-    
+
     if (!rl) return;
     rl.question("", () => {
       logger.info("Tornando al menu principale...");
@@ -847,19 +912,19 @@ function showLogsMenu() {
     });
     return;
   }
-  
+
   logger.info(`📁 Trovati ${logFiles.length} file di log:`);
   logFiles.forEach((file, index) => {
     const date = file.stats.mtime.toLocaleString();
     const size = (file.stats.size / 1024).toFixed(1);
     logger.log(`   ${index + 1}. ${file.name} (${date}, ${size} KB)`, "blue");
   });
-  
+
   logger.info("1. Visualizza log più recente");
   logger.info("2. Visualizza log specifico");
   logger.info("3. Pulisci log vecchi (mantiene solo gli ultimi 10)");
   logger.warning("0. 🔙 Torna al menu principale");
-  
+
   if (!rl) return;
   rl.question("\nScegli opzione: ", (answer) => {
     switch (answer.trim()) {
@@ -889,34 +954,33 @@ function showLogsMenu() {
 
 function showLogContent(logPath) {
   logger.section(`📄 Contenuto Log: ${path.basename(logPath)}`);
-  
+
   try {
-    const content = fs.readFileSync(logPath, 'utf8');
-    const lines = content.split('\n');
-    
+    const content = fs.readFileSync(logPath, "utf8");
+    const lines = content.split("\n");
+
     logger.info(`📊 Totale righe: ${lines.length}`);
     logger.info("📄 Ultime 50 righe del log:");
     logger.log("─".repeat(80), "blue");
-    
+
     const lastLines = lines.slice(-50);
-    lastLines.forEach(line => {
+    lastLines.forEach((line) => {
       if (line.trim()) {
         logger.log(line, "white");
       }
     });
-    
+
     logger.log("─".repeat(80), "blue");
     logger.warning("🔙 Premi INVIO per tornare al menu log...");
-    
+
     if (!rl) return;
     rl.question("", () => {
       showLogsMenu();
     });
-    
   } catch (error) {
     logger.error(`Errore leggendo log: ${error.message}`);
     logger.warning("🔙 Premi INVIO per tornare al menu log...");
-    
+
     if (!rl) return;
     rl.question("", () => {
       showLogsMenu();
@@ -926,15 +990,15 @@ function showLogContent(logPath) {
 
 function showLogSelection(logFiles) {
   logger.section("📄 Seleziona Log da Visualizzare");
-  
+
   logFiles.forEach((file, index) => {
     const date = file.stats.mtime.toLocaleString();
     const size = (file.stats.size / 1024).toFixed(1);
     logger.log(`   ${index + 1}. ${file.name} (${date}, ${size} KB)`, "blue");
   });
-  
+
   logger.warning("0. 🔙 Torna al menu log");
-  
+
   if (!rl) return;
   rl.question("\nScegli numero log: ", (answer) => {
     const index = parseInt(answer) - 1;
@@ -953,7 +1017,7 @@ function showLogSelection(logFiles) {
 
 function cleanupLogs() {
   logger.section("🧹 Pulizia Log Vecchi");
-  
+
   try {
     logger.cleanupOldLogs(projectRoot, 10);
     logger.success("✅ Pulizia log completata");
@@ -961,9 +1025,9 @@ function cleanupLogs() {
   } catch (error) {
     logger.error(`Errore durante la pulizia: ${error.message}`);
   }
-  
+
   logger.warning("🔙 Premi INVIO per tornare al menu log...");
-  
+
   if (!rl) return;
   rl.question("", () => {
     showLogsMenu();
@@ -973,10 +1037,14 @@ function cleanupLogs() {
 function showDetailedComponentList() {
   // Reload project config to get latest settings
   try {
-    const configPath = path.join(projectRoot, "package-manager", "project-config.js");
+    const configPath = path.join(
+      projectRoot,
+      "package-manager",
+      "project-config.js"
+    );
     // Clear all cached modules
-    Object.keys(require.cache).forEach(key => {
-      if (key.includes('project-config')) {
+    Object.keys(require.cache).forEach((key) => {
+      if (key.includes("project-config")) {
         delete require.cache[key];
       }
     });
@@ -984,7 +1052,7 @@ function showDetailedComponentList() {
   } catch (error) {
     logger.warning("Could not reload project config, using cached version");
   }
-  
+
   const components = getComponentDirectories(projectConfig);
 
   logger.section("Componenti trovati nel progetto");
@@ -1177,53 +1245,87 @@ function showUpdateExcludeSelection() {
   }
 
   if (rl) {
-    rl.question("\nInserisci i nomi dei componenti da escludere (separati da spazio): ", (answer) => {
-      const excludeList = answer.trim().split(/\s+/).filter(name => name.length > 0);
-      const validExcludes = excludeList.filter(name => components.includes(name));
-      
-      if (validExcludes.length > 0) {
-        showUpdateConfirmation("exclude", validExcludes);
-      } else {
-        logger.error("❌ Nessun componente valido specificato");
-        setTimeout(() => {
-          if (askQuestion) askQuestion();
-        }, 100);
+    rl.question(
+      "\nInserisci i nomi dei componenti da escludere (separati da spazio): ",
+      (answer) => {
+        const excludeList = answer
+          .trim()
+          .split(/\s+/)
+          .filter((name) => name.length > 0);
+        const validExcludes = excludeList.filter((name) =>
+          components.includes(name)
+        );
+
+        if (validExcludes.length > 0) {
+          showUpdateConfirmation("exclude", validExcludes);
+        } else {
+          logger.error("❌ Nessun componente valido specificato");
+          setTimeout(() => {
+            if (askQuestion) askQuestion();
+          }, 100);
+        }
       }
-    });
+    );
   }
 }
 
 async function showUpdateConfirmation(scope, components) {
   // Prima mostra cosa verrà aggiornato
-  await showUpdatePreview(scope, components);
-  
+  const previewResult = await showUpdatePreview(scope, components);
+
+  // Se il config è vuoto (template), non chiedere conferma - vai direttamente alla generazione
+  if (previewResult && previewResult.isEmpty) {
+    logger.log("\n🚀 Avvio generazione configurazione...", "cyan");
+    const success = await updateAllConfigs(scope, components);
+    if (!success) {
+      logger.log("🔄 Ritorno al menu principale...", "cyan");
+    }
+    setTimeout(() => {
+      if (askQuestion) askQuestion();
+    }, 100);
+    return;
+  }
+
   if (rl) {
-    rl.question("\n⚠️  Continuare con l'aggiornamento? (y/N): ", async (confirm) => {
-      if (confirm.toLowerCase() === "y" || confirm.toLowerCase() === "yes") {
-        logger.log("\n🚀 Avvio aggiornamento...", "cyan");
-        const success = await updateAllConfigs(scope, components);
-        if (!success) {
-          logger.log("🔄 Ritorno al menu principale...", "cyan");
+    rl.question(
+      "\n⚠️  Continuare con l'aggiornamento? (y/N): ",
+      async (confirm) => {
+        if (confirm.toLowerCase() === "y" || confirm.toLowerCase() === "yes") {
+          logger.log("\n🚀 Avvio aggiornamento...", "cyan");
+          const success = await updateAllConfigs(scope, components);
+          if (!success) {
+            logger.log("🔄 Ritorno al menu principale...", "cyan");
+          }
+        } else {
+          logger.log("❌ Aggiornamento annullato", "yellow");
         }
-      } else {
-        logger.log("❌ Aggiornamento annullato", "yellow");
+        setTimeout(() => {
+          if (askQuestion) askQuestion();
+        }, 100);
       }
-      setTimeout(() => {
-        if (askQuestion) askQuestion();
-      }, 100);
-    });
+    );
   }
 }
 
 async function showUpdatePreview(scope, components) {
   logger.section("📋 Anteprima aggiornamento");
-  
+
   // Carica la configurazione per mostrare cosa verrà aggiornato
-  const dependenciesConfigPath = path.join(projectRoot, "package-manager", "dependencies-config.js");
-  
+  const dependenciesConfigPath = path.join(
+    projectRoot,
+    "package-manager",
+    "dependencies-config.js"
+  );
+
   if (!fs.existsSync(dependenciesConfigPath)) {
     logger.error("❌ dependencies-config.js non trovato!");
-    return;
+    return { isEmpty: true };
+  }
+
+  // Verifica se il config è vuoto (template)
+  if (isDependenciesConfigEmpty()) {
+    logger.log("⚠️  dependencies-config.js è vuoto (template)!", "yellow");
+    return { isEmpty: true };
   }
 
   try {
@@ -1231,29 +1333,45 @@ async function showUpdatePreview(scope, components) {
     delete require.cache[require.resolve(dependenciesConfigPath)];
     const depsConfig = require(dependenciesConfigPath);
 
-    const baseDeps = depsConfig.getBaseDependencies ? depsConfig.getBaseDependencies() : {};
-    const devDeps = depsConfig.getDevDependencies ? depsConfig.getDevDependencies() : {};
-    const scripts = depsConfig.getStandardScripts ? depsConfig.getStandardScripts() : {};
-    const deprecatedDeps = depsConfig.getDeprecatedDependencies ? depsConfig.getDeprecatedDependencies() : [];
-    const conditionalDeps = depsConfig.getConditionalDependencies ? depsConfig.getConditionalDependencies() : {};
+    const baseDeps = depsConfig.getBaseDependencies
+      ? depsConfig.getBaseDependencies()
+      : {};
+    const devDeps = depsConfig.getDevDependencies
+      ? depsConfig.getDevDependencies()
+      : {};
+    const scripts = depsConfig.getStandardScripts
+      ? depsConfig.getStandardScripts()
+      : {};
+    const deprecatedDeps = depsConfig.getDeprecatedDependencies
+      ? depsConfig.getDeprecatedDependencies()
+      : [];
+    const conditionalDeps = depsConfig.getConditionalDependencies
+      ? depsConfig.getConditionalDependencies()
+      : {};
 
     // Log per debug
     if (Object.keys(conditionalDeps).length > 0) {
-      logger.log(`🔍 Trovate ${Object.keys(conditionalDeps).length} dipendenze condizionali`, "blue");
+      logger.log(
+        `🔍 Trovate ${
+          Object.keys(conditionalDeps).length
+        } dipendenze condizionali`,
+        "blue"
+      );
     }
 
     // Determina i componenti che verranno aggiornati
     const { getComponentDirectories } = require("./dependencies/analyzer");
     let targetComponents = getComponentDirectories(projectConfig);
-    
-    if (scope === "single" && components.length > 0) {
-      targetComponents = targetComponents.filter(comp => components.includes(comp));
-    } else if (scope === "exclude" && components.length > 0) {
-      targetComponents = targetComponents.filter(comp => !components.includes(comp));
-    }
 
-    logger.log(`📁 Componenti da aggiornare: ${targetComponents.length}`, "blue");
-    targetComponents.forEach(comp => logger.log(`   - ${comp}`, "blue"));
+    if (scope === "single" && components.length > 0) {
+      targetComponents = targetComponents.filter((comp) =>
+        components.includes(comp)
+      );
+    } else if (scope === "exclude" && components.length > 0) {
+      targetComponents = targetComponents.filter(
+        (comp) => !components.includes(comp)
+      );
+    }
 
     // Analizza le modifiche per ogni componente
     let totalNewDeps = 0;
@@ -1266,9 +1384,12 @@ async function showUpdatePreview(scope, components) {
     for (const component of targetComponents) {
       const componentPath = path.join(projectRoot, component);
       const packageJsonPath = path.join(componentPath, "package.json");
-      
+
       if (!fs.existsSync(packageJsonPath)) {
-        logger.warning(`⚠️  package.json non trovato per ${component}`, "yellow");
+        logger.warning(
+          `⚠️  package.json non trovato per ${component}`,
+          "yellow"
+        );
         continue;
       }
 
@@ -1279,37 +1400,50 @@ async function showUpdatePreview(scope, components) {
         const currentScripts = currentPkg.scripts || {};
 
         // Analizza dependencies (base + conditional per questo componente)
-        const usedConditionalDeps = analyzeDependencyUsageForComponent(componentPath, conditionalDeps);
+        const usedConditionalDeps = analyzeDependencyUsageForComponent(
+          componentPath,
+          conditionalDeps
+        );
         const targetDeps = { ...baseDeps, ...usedConditionalDeps };
-        
-        
-        const { newDeps, updatedDeps } = analyzeDependencies(currentDeps, targetDeps);
+
+        const { newDeps, updatedDeps } = analyzeDependencies(
+          currentDeps,
+          targetDeps
+        );
+
         totalNewDeps += newDeps.length;
         totalUpdatedDeps += updatedDeps.length;
 
         // Analizza devDependencies
-        const { newDeps: newDevDeps, updatedDeps: updatedDevDeps } = analyzeDependencies(currentDevDeps, devDeps);
+        const { newDeps: newDevDeps, updatedDeps: updatedDevDeps } =
+          analyzeDependencies(currentDevDeps, devDeps);
         totalNewDevDeps += newDevDeps.length;
         totalUpdatedDevDeps += updatedDevDeps.length;
 
         // Analizza deprecated dependencies
-        const deprecatedToRemove = deprecatedDeps.filter(dep => 
-          currentDeps[dep] || currentDevDeps[dep]
+        const deprecatedToRemove = deprecatedDeps.filter(
+          (dep) => currentDeps[dep] || currentDevDeps[dep]
         );
         totalDeprecatedToRemove += deprecatedToRemove.length;
 
         // Analizza scripts
-        const scriptsToUpdate = Object.entries(scripts).filter(([name, script]) => 
-          !currentScripts[name] || currentScripts[name] !== script
+        const scriptsToUpdate = Object.entries(scripts).filter(
+          ([name, script]) =>
+            !currentScripts[name] || currentScripts[name] !== script
         );
         totalScriptsToUpdate += scriptsToUpdate.length;
 
         // Mostra dettagli solo se ci sono modifiche per questo componente
-        if (newDeps.length > 0 || updatedDeps.length > 0 || newDevDeps.length > 0 || 
-            updatedDevDeps.length > 0 || deprecatedToRemove.length > 0 || scriptsToUpdate.length > 0) {
-          
+        if (
+          newDeps.length > 0 ||
+          updatedDeps.length > 0 ||
+          newDevDeps.length > 0 ||
+          updatedDevDeps.length > 0 ||
+          deprecatedToRemove.length > 0 ||
+          scriptsToUpdate.length > 0
+        ) {
           logger.log(`\n📦 ${component}:`, "blue");
-          
+
           if (newDeps.length > 0) {
             logger.log(`   🆕 Nuove dipendenze (${newDeps.length}):`, "green");
             newDeps.forEach(([name, version]) => {
@@ -1318,45 +1452,68 @@ async function showUpdatePreview(scope, components) {
           }
 
           if (updatedDeps.length > 0) {
-            logger.log(`   🔄 Dipendenze da aggiornare (${updatedDeps.length}):`, "yellow");
+            logger.log(
+              `   🔄 Dipendenze da aggiornare (${updatedDeps.length}):`,
+              "yellow"
+            );
             updatedDeps.forEach(([name, currentVersion, newVersion]) => {
-              logger.log(`      ${name}: ${currentVersion} → ${newVersion}`, "yellow");
+              logger.log(
+                `      ${name}: ${currentVersion} → ${newVersion}`,
+                "yellow"
+              );
             });
           }
 
           if (newDevDeps.length > 0) {
-            logger.log(`   🆕 Nuove devDependencies (${newDevDeps.length}):`, "cyan");
+            logger.log(
+              `   🆕 Nuove devDependencies (${newDevDeps.length}):`,
+              "cyan"
+            );
             newDevDeps.forEach(([name, version]) => {
               logger.log(`      + ${name}@${version}`, "cyan");
             });
           }
 
           if (updatedDevDeps.length > 0) {
-            logger.log(`   🔄 DevDependencies da aggiornare (${updatedDevDeps.length}):`, "yellow");
+            logger.log(
+              `   🔄 DevDependencies da aggiornare (${updatedDevDeps.length}):`,
+              "yellow"
+            );
             updatedDevDeps.forEach(([name, currentVersion, newVersion]) => {
-              logger.log(`      ${name}: ${currentVersion} → ${newVersion}`, "yellow");
+              logger.log(
+                `      ${name}: ${currentVersion} → ${newVersion}`,
+                "yellow"
+              );
             });
           }
 
           if (deprecatedToRemove.length > 0) {
-            logger.log(`   🗑️  Deprecated da rimuovere (${deprecatedToRemove.length}):`, "red");
-            deprecatedToRemove.forEach(dep => {
+            logger.log(
+              `   🗑️  Deprecated da rimuovere (${deprecatedToRemove.length}):`,
+              "red"
+            );
+            deprecatedToRemove.forEach((dep) => {
               const currentVersion = currentDeps[dep] || currentDevDeps[dep];
               logger.log(`      - ${dep}@${currentVersion}`, "red");
             });
           }
 
           if (scriptsToUpdate.length > 0) {
-            logger.log(`   📝 Scripts da aggiornare (${scriptsToUpdate.length}):`, "magenta");
+            logger.log(
+              `   📝 Scripts da aggiornare (${scriptsToUpdate.length}):`,
+              "magenta"
+            );
             scriptsToUpdate.forEach(([name, newScript]) => {
               const currentScript = currentScripts[name] || "(non presente)";
-              logger.log(`      ${name}: "${currentScript}" → "${newScript}"`, "magenta");
+              logger.log(
+                `      ${name}: "${currentScript}" → "${newScript}"`,
+                "magenta"
+              );
             });
           }
         } else {
           logger.log(`\n✅ ${component}: nessuna modifica necessaria`, "green");
         }
-
       } catch (error) {
         logger.error(`❌ Errore analizzando ${component}: ${error.message}`);
       }
@@ -1364,21 +1521,46 @@ async function showUpdatePreview(scope, components) {
 
     // Riepilogo finale
     logger.log(`\n📊 Riepilogo modifiche:`, "blue");
-    if (totalNewDeps > 0) logger.log(`   🆕 Nuove dipendenze: ${totalNewDeps}`, "green");
-    if (totalUpdatedDeps > 0) logger.log(`   🔄 Dipendenze aggiornate: ${totalUpdatedDeps}`, "yellow");
-    if (totalNewDevDeps > 0) logger.log(`   🆕 Nuove devDependencies: ${totalNewDevDeps}`, "cyan");
-    if (totalUpdatedDevDeps > 0) logger.log(`   🔄 DevDependencies aggiornate: ${totalUpdatedDevDeps}`, "yellow");
-    if (totalDeprecatedToRemove > 0) logger.log(`   🗑️  Deprecated rimosse: ${totalDeprecatedToRemove}`, "red");
-    if (totalScriptsToUpdate > 0) logger.log(`   📝 Scripts aggiornati: ${totalScriptsToUpdate}`, "magenta");
+    if (totalNewDeps > 0)
+      logger.log(`   🆕 Nuove dipendenze: ${totalNewDeps}`, "green");
+    if (totalUpdatedDeps > 0)
+      logger.log(`   🔄 Dipendenze aggiornate: ${totalUpdatedDeps}`, "yellow");
+    if (totalNewDevDeps > 0)
+      logger.log(`   🆕 Nuove devDependencies: ${totalNewDevDeps}`, "cyan");
+    if (totalUpdatedDevDeps > 0)
+      logger.log(
+        `   🔄 DevDependencies aggiornate: ${totalUpdatedDevDeps}`,
+        "yellow"
+      );
+    if (totalDeprecatedToRemove > 0)
+      logger.log(
+        `   🗑️  Deprecated rimosse: ${totalDeprecatedToRemove}`,
+        "red"
+      );
+    if (totalScriptsToUpdate > 0)
+      logger.log(
+        `   📝 Scripts aggiornati: ${totalScriptsToUpdate}`,
+        "magenta"
+      );
 
-    const totalChanges = totalNewDeps + totalUpdatedDeps + totalNewDevDeps + totalUpdatedDevDeps + totalDeprecatedToRemove + totalScriptsToUpdate;
+    const totalChanges =
+      totalNewDeps +
+      totalUpdatedDeps +
+      totalNewDevDeps +
+      totalUpdatedDevDeps +
+      totalDeprecatedToRemove +
+      totalScriptsToUpdate;
     if (totalChanges === 0) {
       logger.log(`\n✅ Tutti i componenti sono già aggiornati!`, "green");
     }
 
+    return { isEmpty: false, totalChanges };
   } catch (error) {
     logger.error(`❌ Errore caricando configurazione: ${error.message}`);
-    logger.warning("💡 Assicurati che dependencies-config.js contenga tutte le funzioni necessarie");
+    logger.warning(
+      "💡 Assicurati che dependencies-config.js contenga tutte le funzioni necessarie"
+    );
+    return { isEmpty: true };
   }
 }
 
@@ -1402,20 +1584,35 @@ function analyzeDependencies(currentDeps, targetDeps) {
 
 function analyzeDependencyUsageForComponent(componentPath, conditionalDeps) {
   const usedDeps = {};
-  
-  Object.entries(conditionalDeps).forEach(([depName, depConfig]) => {
-    const patterns = depConfig.patterns || [depName];
-    const foundPatterns = scanDirectoryForPatterns(componentPath, patterns);
-    
-    if (foundPatterns.length > 0) {
-      usedDeps[depName] = depConfig.version;
+
+  Object.entries(conditionalDeps).forEach(([depName, version]) => {
+    // Se è un oggetto (vecchio formato), usa la logica originale
+    if (typeof version === "object" && version !== null) {
+      const patterns = version.patterns || [depName];
+      const foundPatterns = scanDirectoryForPatterns(componentPath, patterns);
+
+      if (foundPatterns.length > 0) {
+        usedDeps[depName] = version.version;
+      }
+    } else {
+      // Se è una stringa (nuovo formato), usa solo il nome del pacchetto
+      const patterns = [depName];
+      const foundPatterns = scanDirectoryForPatterns(componentPath, patterns);
+
+      if (foundPatterns.length > 0) {
+        usedDeps[depName] = version;
+      }
     }
   });
-  
+
   return usedDeps;
 }
 
-function scanDirectoryForPatterns(dirPath, patterns, extensions = [".js", ".ts", ".tsx", ".jsx"]) {
+function scanDirectoryForPatterns(
+  dirPath,
+  patterns,
+  extensions = [".js", ".ts", ".tsx", ".jsx"]
+) {
   const results = new Set();
 
   function scanFile(filePath) {
@@ -1456,6 +1653,7 @@ function scanDirectoryForPatterns(dirPath, patterns, extensions = [".js", ".ts",
   }
 
   scanDirectory(dirPath);
+
   return Array.from(results);
 }
 
@@ -1679,10 +1877,11 @@ function showReinstallMenu() {
 
 function showCleanMenu() {
   // Check workspace mode
-  const isWorkspaceMode = projectConfig.workspace?.enabled && projectConfig.workspace?.initialized;
-  
+  const isWorkspaceMode =
+    projectConfig.workspace?.enabled && projectConfig.workspace?.initialized;
+
   logger.log("\n🧹 Modalità pulizia:", "yellow");
-  
+
   if (isWorkspaceMode) {
     logger.info("🏢 Modalità: WORKSPACE - Pulizia workspace");
     logger.info("📦 Verranno puliti lock files e tslint.json dai workspace");
@@ -1690,7 +1889,7 @@ function showCleanMenu() {
   } else {
     logger.info("📦 Modalità: STANDARD - Pulizia locale");
   }
-  
+
   logger.log("1. Pulisci tutti i componenti", "blue");
   logger.log("2. Pulisci un componente", "blue");
   logger.log("3. Pulisci tutti eccetto quelli specificati", "blue");
@@ -1752,15 +1951,22 @@ function showCleanMenu() {
                 `\n🎯 Selezionato per pulizia: ${selectedComponent}`,
                 "green"
               );
-              
+
               // Check if workspace mode is enabled
-              const isWorkspaceMode = projectConfig.workspace?.enabled && projectConfig.workspace?.initialized;
-              
+              const isWorkspaceMode =
+                projectConfig.workspace?.enabled &&
+                projectConfig.workspace?.initialized;
+
               if (isWorkspaceMode) {
                 // Use workspace-specific cleaning
-                const { cleanSingleWorkspaceComponent } = require("./operations/cleaner");
-                const success = cleanSingleWorkspaceComponent(selectedComponent, projectConfig);
-                
+                const {
+                  cleanSingleWorkspaceComponent,
+                } = require("./operations/cleaner");
+                const success = cleanSingleWorkspaceComponent(
+                  selectedComponent,
+                  projectConfig
+                );
+
                 if (!success) {
                   logger.error(`Errore pulizia workspace ${selectedComponent}`);
                 }
@@ -1832,32 +2038,42 @@ function showCleanMenu() {
 function ensureWorkspaceSectionExists(projectConfig) {
   try {
     // Check if workspace section exists
-    
+
     // Check if workspace section exists
     if (!projectConfig.workspace) {
       logger.section("🆕 Aggiornamento configurazione");
       logger.info("📦 Aggiunta nuova funzionalità sperimentale: Workspace");
-      
+
       // Add default workspace configuration
       projectConfig.workspace = {
         enabled: false,
         initialized: false,
         packagesPath: [],
-        useYarn: true
+        useYarn: true,
       };
-      
+
       // Save updated configuration
-      const configPath = path.join(projectRoot, "package-manager", "project-config.js");
-      
+      const configPath = path.join(
+        projectRoot,
+        "package-manager",
+        "project-config.js"
+      );
+
       // Create properly formatted config content
-      const configContent = `module.exports = ${JSON.stringify(projectConfig, null, 2)};`;
-      
+      const configContent = `module.exports = ${JSON.stringify(
+        projectConfig,
+        null,
+        2
+      )};`;
+
       try {
         logger.debug(`📝 Salvando configurazione in: ${configPath}`);
         fs.writeFileSync(configPath, configContent);
         logger.success("✅ Configurazione workspace aggiunta automaticamente");
-        logger.info("💡 Usa 'Funzioni sperimentali > Gestione Monorepo Workspace' per abilitare");
-        
+        logger.info(
+          "💡 Usa 'Funzioni sperimentali > Gestione Monorepo Workspace' per abilitare"
+        );
+
         // Reload the config to reflect changes
         delete require.cache[require.resolve(configPath)];
         const updatedConfig = require(configPath);
@@ -1880,23 +2096,30 @@ function ensureWorkspaceSectionExists(projectConfig) {
 async function main() {
   // Reload project config to get latest settings
   try {
-    const configPath = path.join(projectRoot, "package-manager", "project-config.js");
+    const configPath = path.join(
+      projectRoot,
+      "package-manager",
+      "project-config.js"
+    );
     // Clear all cached modules
-    Object.keys(require.cache).forEach(key => {
-      if (key.includes('project-config')) {
+    Object.keys(require.cache).forEach((key) => {
+      if (key.includes("project-config")) {
         delete require.cache[key];
       }
     });
     projectConfig = require(configPath);
-    
+
     // Validate project config
-    if (!projectConfig || !projectConfig.project || !projectConfig.project.name) {
+    if (
+      !projectConfig ||
+      !projectConfig.project ||
+      !projectConfig.project.name
+    ) {
       throw new Error("Invalid project configuration");
     }
-    
+
     // Check and add workspace section if missing (for new versions)
     ensureWorkspaceSectionExists(projectConfig);
-    
   } catch (error) {
     logger.error("❌ Errore caricando configurazione progetto:");
     logger.warning(`   ${error.message}`);
@@ -1906,7 +2129,9 @@ async function main() {
 
   // Auto-detect workspace configuration for other users
   try {
-    const { autoDetectAndPromptWorkspace } = require("./utils/workspace-detector");
+    const {
+      autoDetectAndPromptWorkspace,
+    } = require("./utils/workspace-detector");
     if (rl) {
       await autoDetectAndPromptWorkspace(projectConfig, (question) => {
         return new Promise((resolve) => {
@@ -1919,7 +2144,7 @@ async function main() {
   } catch (error) {
     logger.warning("⚠️  Errore durante il rilevamento automatico workspace");
   }
-  
+
   logger.log(
     `🚀 ${projectConfig.project.name} - ${projectConfig.project.description}`,
     "bright"
@@ -2024,7 +2249,7 @@ function showExperimentalMenu() {
   logger.info("3. Gestione Monorepo Workspace");
   logger.space();
   logger.warning("0. Torna al menu principale");
-  
+
   if (!rl) return;
   rl.question("\nScegli opzione: ", (answer) => {
     switch (answer.trim()) {
@@ -2050,19 +2275,19 @@ function showExperimentalMenu() {
   });
 }
 
-
 function toggleRecursiveSearch() {
   logger.section("Cambio Modalita Ricerca");
-  
-  const currentState = projectConfig.components.recursiveSearch?.enabled || false;
-  logger.info(`Stato attuale: ${currentState ? 'RICORSIVA' : 'STANDARD'}`);
+
+  const currentState =
+    projectConfig.components.recursiveSearch?.enabled || false;
+  logger.info(`Stato attuale: ${currentState ? "RICORSIVA" : "STANDARD"}`);
   logger.space();
   if (currentState) {
     // Se attualmente abilitata, mostra solo opzioni per disabilitare
     logger.info("1. Disabilita ricerca ricorsiva");
     logger.info("2. Configura profondita massima");
     logger.warning("0. Annulla");
-    
+
     if (!rl) return;
     rl.question("\nScegli opzione: ", async (answer) => {
       switch (answer.trim()) {
@@ -2085,7 +2310,7 @@ function toggleRecursiveSearch() {
     logger.info("1. Abilita ricerca ricorsiva");
     logger.info("2. Configura profondita massima");
     logger.warning("0. Annulla");
-    
+
     if (!rl) return;
     rl.question("\nScegli opzione: ", async (answer) => {
       switch (answer.trim()) {
@@ -2107,18 +2332,22 @@ function toggleRecursiveSearch() {
 }
 
 async function enableRecursiveSearch() {
-  const configPath = path.join(projectRoot, "package-manager", "project-config.js");
-  
+  const configPath = path.join(
+    projectRoot,
+    "package-manager",
+    "project-config.js"
+  );
+
   // Read, modify, and write config
   try {
-    let configContent = fs.readFileSync(configPath, 'utf8');
-    
+    let configContent = fs.readFileSync(configPath, "utf8");
+
     // Check if recursiveSearch section exists
-    if (configContent.includes('recursiveSearch:')) {
+    if (configContent.includes("recursiveSearch:")) {
       // Update existing recursiveSearch.enabled to true
       configContent = configContent.replace(
         /(recursiveSearch:\s*\{[^}]*enabled:\s*)(false)/,
-        '$1true'
+        "$1true"
       );
     } else {
       // Add recursiveSearch section if it doesn't exist
@@ -2129,43 +2358,47 @@ async function enableRecursiveSearch() {
       maxDepth: 3,
       excludeDirs: ["node_modules","dist","build",".git","coverage"]
     }`;
-      
+
       // Insert before the closing brace of components
       configContent = configContent.replace(
         /(\s*)(\},\s*\/\/ Configurazione file)/,
         `$1${recursiveSearchSection}$1$2`
       );
     }
-    
-    fs.writeFileSync(configPath, configContent, 'utf8');
-    
+
+    fs.writeFileSync(configPath, configContent, "utf8");
+
     // Reload config
     delete require.cache[require.resolve(configPath)];
     projectConfig = require(configPath);
-    
+
     logger.success("Ricerca ricorsiva ABILITATA");
     logger.info("Riavvia il package manager per applicare le modifiche");
   } catch (error) {
     logger.error(`Errore: ${error.message}`);
   }
-  
+
   logger.warning("\nPremi INVIO per tornare...");
   if (!rl) return;
   rl.question("", () => showExperimentalMenu());
 }
 
 async function disableRecursiveSearch() {
-  const configPath = path.join(projectRoot, "package-manager", "project-config.js");
-  
+  const configPath = path.join(
+    projectRoot,
+    "package-manager",
+    "project-config.js"
+  );
+
   try {
-    let configContent = fs.readFileSync(configPath, 'utf8');
-    
+    let configContent = fs.readFileSync(configPath, "utf8");
+
     // Check if recursiveSearch section exists
-    if (configContent.includes('recursiveSearch:')) {
+    if (configContent.includes("recursiveSearch:")) {
       // Update existing recursiveSearch.enabled to false
       configContent = configContent.replace(
         /(recursiveSearch:\s*\{[^}]*enabled:\s*)(true)/,
-        '$1false'
+        "$1false"
       );
     } else {
       // Add recursiveSearch section if it doesn't exist (disabled by default)
@@ -2176,26 +2409,26 @@ async function disableRecursiveSearch() {
       maxDepth: 3,
       excludeDirs: ["node_modules","dist","build",".git","coverage"]
     }`;
-      
+
       // Insert before the closing brace of components
       configContent = configContent.replace(
         /(\s*)(\},\s*\/\/ Configurazione file)/,
         `$1${recursiveSearchSection}$1$2`
       );
     }
-    
-    fs.writeFileSync(configPath, configContent, 'utf8');
-    
+
+    fs.writeFileSync(configPath, configContent, "utf8");
+
     // Reload config
     delete require.cache[require.resolve(configPath)];
     projectConfig = require(configPath);
-    
+
     logger.success("Ricerca ricorsiva DISABILITATA");
     logger.info("Riavvia il package manager per applicare le modifiche");
   } catch (error) {
     logger.error(`Errore: ${error.message}`);
   }
-  
+
   logger.warning("\nPremi INVIO per tornare...");
   if (!rl) return;
   rl.question("", () => showExperimentalMenu());
@@ -2207,7 +2440,7 @@ async function configureMaxDepth() {
   logger.info("Imposta components.recursiveSearch.maxDepth a:");
   logger.info("  - Numero (es: 3) per limitare la profondita");
   logger.info("  - null per ricerca illimitata");
-  
+
   logger.warning("\nPremi INVIO per tornare...");
   if (!rl) return;
   rl.question("", () => showExperimentalMenu());
@@ -2217,25 +2450,29 @@ async function configureMaxDepth() {
 function showWorkspaceMenu() {
   logger.section("🏢 Gestione Monorepo Workspace");
   logger.warning("Funzione sperimentale per gestione centralizzata pacchetti");
-  
+
   // Reload project config to get latest settings
   try {
-    const configPath = path.join(process.cwd(), "package-manager", "project-config.js");
+    const configPath = path.join(
+      process.cwd(),
+      "package-manager",
+      "project-config.js"
+    );
     delete require.cache[require.resolve(configPath)];
     projectConfig = require(configPath);
   } catch (error) {
     logger.warning("⚠️  Impossibile ricaricare la configurazione");
   }
-  
+
   // Use ONLY projectConfig for workspace status - no file checking
   // This ensures consistency and prevents conflicts
-  
+
   // Get actual workspace status from files, not just config
   let workspaceEnabled = projectConfig.workspace?.enabled || false;
   let workspaceInitialized = projectConfig.workspace?.initialized || false;
-  
+
   // Use ONLY projectConfig for workspace status - no file checking
-  
+
   if (workspaceEnabled) {
     logger.info("Workspace abilitato");
     if (workspaceInitialized) {
@@ -2246,9 +2483,9 @@ function showWorkspaceMenu() {
   } else {
     logger.info("Workspace disabilitato");
   }
-  
+
   logger.space();
-  
+
   // Show different options based on workspace status
   if (!workspaceEnabled) {
     // Workspace disabled - show only enable and status options
@@ -2269,7 +2506,7 @@ function showWorkspaceMenu() {
     logger.info("4. 🔄 Sincronizza workspace con progetti attuali");
     logger.warning("0. Torna al menu sperimentale");
   }
-  
+
   if (!rl) return;
   rl.question("\nScegli opzione: ", (answer) => {
     if (!workspaceEnabled) {
@@ -2338,36 +2575,45 @@ function showWorkspaceMenu() {
 
 function initializeWorkspaceFromMenu() {
   logger.section("🏢 Inizializzazione Workspace");
-  
-  if (projectConfig.workspace?.enabled && projectConfig.workspace?.initialized) {
+
+  if (
+    projectConfig.workspace?.enabled &&
+    projectConfig.workspace?.initialized
+  ) {
     logger.warning("⚠️  Workspace già inizializzato!");
     logger.info("Usa l'opzione 'Disabilita Workspace' per ripristinare");
     setTimeout(() => showWorkspaceMenu(), 2000);
     return;
   }
-  
+
   logger.warning("⚠️  Questa operazione modificherà la struttura del progetto");
   logger.info("Verrà creato un root package.json con workspaces");
   logger.info("Tutti i pacchetti saranno gestiti centralmente");
-  
+
   if (!rl) return;
   rl.question("Continuare? (y/N): ", (confirm) => {
     if (confirm.toLowerCase() === "y" || confirm.toLowerCase() === "yes") {
       try {
         const { initializeWorkspace } = require("./operations/workspace");
         const success = initializeWorkspace(projectConfig);
-        
+
         if (success) {
           logger.success("Workspace inizializzato con successo!");
           // Reload project config
           try {
-            const configPath = path.join(process.cwd(), "package-manager", "project-config.js");
+            const configPath = path.join(
+              process.cwd(),
+              "package-manager",
+              "project-config.js"
+            );
             delete require.cache[require.resolve(configPath)];
             projectConfig = require(configPath);
             logger.info("Configurazione ricaricata");
           } catch (error) {
             logger.warning("⚠️  Impossibile ricaricare la configurazione");
-            logger.warning("Riavvia il package manager per vedere le modifiche");
+            logger.warning(
+              "Riavvia il package manager per vedere le modifiche"
+            );
           }
         } else {
           logger.error("❌ Errore durante l'inizializzazione del workspace");
@@ -2375,7 +2621,7 @@ function initializeWorkspaceFromMenu() {
       } catch (error) {
         logger.error(`❌ Errore: ${error.message}`);
       }
-      
+
       setTimeout(() => showWorkspaceMenu(), 2000);
     } else {
       logger.info("Operazione annullata");
@@ -2386,30 +2632,36 @@ function initializeWorkspaceFromMenu() {
 
 function disableWorkspaceFromMenu() {
   logger.section("🔙 Disabilitazione Workspace");
-  
+
   if (!projectConfig.workspace?.enabled) {
     logger.warning("⚠️  Workspace non abilitato!");
     setTimeout(() => showWorkspaceMenu(), 2000);
     return;
   }
-  
+
   logger.warning("⚠️  Questa operazione rimuoverà la configurazione workspace");
   logger.info("Verrà rimosso workspaces dal root package.json");
   logger.info("Verrà rimosso yarn.lock");
-  logger.warning("I node_modules locali dovranno essere reinstallati manualmente");
-  
+  logger.warning(
+    "I node_modules locali dovranno essere reinstallati manualmente"
+  );
+
   if (!rl) return;
   rl.question("Continuare? (y/N): ", (confirm) => {
     if (confirm.toLowerCase() === "y" || confirm.toLowerCase() === "yes") {
       try {
         const { disableWorkspace } = require("./operations/workspace");
         const success = disableWorkspace(projectConfig);
-        
+
         if (success) {
           logger.success("Workspace disabilitato con successo!");
           // Reload project config
           try {
-            const configPath = path.join(process.cwd(), "package-manager", "project-config.js");
+            const configPath = path.join(
+              process.cwd(),
+              "package-manager",
+              "project-config.js"
+            );
             delete require.cache[require.resolve(configPath)];
             projectConfig = require(configPath);
           } catch (error) {
@@ -2421,7 +2673,7 @@ function disableWorkspaceFromMenu() {
       } catch (error) {
         logger.error(`❌ Errore: ${error.message}`);
       }
-      
+
       setTimeout(() => showWorkspaceMenu(), 2000);
     } else {
       logger.info("Operazione annullata");
@@ -2432,23 +2684,37 @@ function disableWorkspaceFromMenu() {
 
 function showWorkspaceStatus() {
   logger.section("📊 Stato Workspace");
-  
+
   try {
     const { getWorkspaceStatus } = require("./operations/workspace");
     const status = getWorkspaceStatus(projectConfig);
-    
+
     if (!status) {
       logger.error("❌ Impossibile ottenere lo stato del workspace");
       setTimeout(() => showWorkspaceMenu(), 2000);
       return;
     }
-    
+
     logger.log("📋 Informazioni Workspace:", "cyan");
-    logger.log(`   Abilitato: ${status.enabled ? '✅ Sì' : '❌ No'}`, status.enabled ? "green" : "red");
-    logger.log(`   Inizializzato: ${status.initialized ? '✅ Sì' : '❌ No'}`, status.initialized ? "green" : "red");
-    logger.log(`   Yarn Lock: ${status.hasYarnLock ? '✅ Presente' : '❌ Assente'}`, status.hasYarnLock ? "green" : "red");
-    logger.log(`   Workspaces: ${status.hasWorkspaces ? '✅ Configurati' : '❌ Non configurati'}`, status.hasWorkspaces ? "green" : "red");
-    
+    logger.log(
+      `   Abilitato: ${status.enabled ? "✅ Sì" : "❌ No"}`,
+      status.enabled ? "green" : "red"
+    );
+    logger.log(
+      `   Inizializzato: ${status.initialized ? "✅ Sì" : "❌ No"}`,
+      status.initialized ? "green" : "red"
+    );
+    logger.log(
+      `   Yarn Lock: ${status.hasYarnLock ? "✅ Presente" : "❌ Assente"}`,
+      status.hasYarnLock ? "green" : "red"
+    );
+    logger.log(
+      `   Workspaces: ${
+        status.hasWorkspaces ? "✅ Configurati" : "❌ Non configurati"
+      }`,
+      status.hasWorkspaces ? "green" : "red"
+    );
+
     if (status.workspaces.length > 0) {
       logger.log(`   Numero workspaces: ${status.workspaces.length}`, "blue");
       logger.log("   Workspaces:", "blue");
@@ -2456,18 +2722,23 @@ function showWorkspaceStatus() {
         logger.log(`     ${index + 1}. ${workspace}`, "blue");
       });
     }
-    
+
     if (status.rootNodeModulesSize > 0) {
       const { formatBytes } = require("./operations/workspace");
-      logger.log(`   Root node_modules: ${formatBytes(status.rootNodeModulesSize)}`, "cyan");
+      logger.log(
+        `   Root node_modules: ${formatBytes(status.rootNodeModulesSize)}`,
+        "cyan"
+      );
     }
-    
-    logger.log(`   Node_modules locali: ${status.localNodeModulesCount}`, "yellow");
-    
+
+    logger.log(
+      `   Node_modules locali: ${status.localNodeModulesCount}`,
+      "yellow"
+    );
   } catch (error) {
     logger.error(`❌ Errore ottenendo stato workspace: ${error.message}`);
   }
-  
+
   logger.warning("\nPremi INVIO per tornare...");
   if (!rl) return;
   rl.question("", () => showWorkspaceMenu());
@@ -2475,35 +2746,39 @@ function showWorkspaceStatus() {
 
 function cleanLocalNodeModulesFromMenu() {
   logger.section("🧹 Pulizia Node_modules Locali");
-  
+
   // Reload project config to get latest settings
   let currentProjectConfig = projectConfig;
   try {
-    const configPath = path.join(process.cwd(), "package-manager", "project-config.js");
+    const configPath = path.join(
+      process.cwd(),
+      "package-manager",
+      "project-config.js"
+    );
     delete require.cache[require.resolve(configPath)];
     currentProjectConfig = require(configPath);
   } catch (error) {
     logger.warning("⚠️  Impossibile ricaricare la configurazione");
   }
-  
+
   if (!currentProjectConfig.workspace?.enabled) {
     logger.error("❌ Workspace non abilitato!");
     logger.info("Abilita prima il workspace per utilizzare questa funzione");
     setTimeout(() => showWorkspaceMenu(), 2000);
     return;
   }
-  
+
   logger.warning("⚠️  Questa operazione rimuoverà tutti i node_modules locali");
   logger.info("I pacchetti saranno disponibili solo tramite root node_modules");
   logger.info("Utile per risparmiare spazio su disco");
-  
+
   if (!rl) return;
   rl.question("Continuare? (y/N): ", (confirm) => {
     if (confirm.toLowerCase() === "y" || confirm.toLowerCase() === "yes") {
       try {
         const { cleanLocalNodeModules } = require("./operations/workspace");
         const success = cleanLocalNodeModules(currentProjectConfig);
-        
+
         if (success) {
           logger.success("✅ Node_modules locali puliti con successo!");
         } else {
@@ -2512,7 +2787,7 @@ function cleanLocalNodeModulesFromMenu() {
       } catch (error) {
         logger.error(`❌ Errore: ${error.message}`);
       }
-      
+
       setTimeout(() => showWorkspaceMenu(), 2000);
     } else {
       logger.info("Operazione annullata");
@@ -2523,35 +2798,39 @@ function cleanLocalNodeModulesFromMenu() {
 
 function syncWorkspaceFromMenu() {
   logger.section("🔄 Sincronizzazione Workspace");
-  
+
   // Reload project config to get latest settings
   let currentProjectConfig = projectConfig;
   try {
-    const configPath = path.join(process.cwd(), "package-manager", "project-config.js");
+    const configPath = path.join(
+      process.cwd(),
+      "package-manager",
+      "project-config.js"
+    );
     delete require.cache[require.resolve(configPath)];
     currentProjectConfig = require(configPath);
   } catch (error) {
     logger.warning("⚠️  Impossibile ricaricare la configurazione");
   }
-  
+
   if (!currentProjectConfig.workspace?.enabled) {
     logger.error("❌ Workspace non abilitato!");
     logger.info("Abilita prima il workspace per utilizzare questa funzione");
     setTimeout(() => showWorkspaceMenu(), 2000);
     return;
   }
-  
+
   logger.info("🔄 Questa operazione sincronizzerà la configurazione workspace");
   logger.info("con la struttura attuale dei progetti nel repository");
   logger.info("Utile quando si aggiungono o rimuovono progetti");
-  
+
   if (!rl) return;
   rl.question("Continuare? (y/N): ", (confirm) => {
     if (confirm.toLowerCase() === "y" || confirm.toLowerCase() === "yes") {
       try {
         const { syncWorkspaceWithProjects } = require("./operations/workspace");
         const success = syncWorkspaceWithProjects(currentProjectConfig);
-        
+
         if (success) {
           logger.success("✅ Workspace sincronizzato con successo!");
         } else {
@@ -2560,7 +2839,7 @@ function syncWorkspaceFromMenu() {
       } catch (error) {
         logger.error(`❌ Errore: ${error.message}`);
       }
-      
+
       setTimeout(() => showWorkspaceMenu(), 2000);
     } else {
       logger.info("Operazione annullata");

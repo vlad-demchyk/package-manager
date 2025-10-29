@@ -10,7 +10,6 @@ const path = require("path");
 const logger = require("../utils/logger");
 const { getComponentDirectories } = require("../utils/common");
 
-
 function scanDirectoryForPatterns(
   dirPath,
   patterns,
@@ -64,17 +63,33 @@ function scanDirectoryForPatterns(
 function analyzeDependencyUsage(componentPath, conditionalDeps, projectConfig) {
   const usedDeps = [];
 
-  Object.entries(conditionalDeps).forEach(([depName, depConfig]) => {
-    const patterns = depConfig.patterns || [depName];
-    const foundPatterns = scanDirectoryForPatterns(componentPath, patterns);
+  Object.entries(conditionalDeps).forEach(([depName, version]) => {
+    // Se è un oggetto (vecchio formato), usa la logica originale
+    if (typeof version === "object" && version !== null) {
+      const patterns = version.patterns || [depName];
+      const foundPatterns = scanDirectoryForPatterns(componentPath, patterns);
 
-    if (foundPatterns.length > 0) {
-      usedDeps.push({
-        name: depName,
-        version: depConfig.version,
-        patterns: foundPatterns,
-        description: depConfig.description,
-      });
+      if (foundPatterns.length > 0) {
+        usedDeps.push({
+          name: depName,
+          version: version.version,
+          patterns: foundPatterns,
+          description: version.description,
+        });
+      }
+    } else {
+      // Se è una stringa (nuovo formato), usa solo il nome del pacchetto
+      const patterns = [depName];
+      const foundPatterns = scanDirectoryForPatterns(componentPath, patterns);
+
+      if (foundPatterns.length > 0) {
+        usedDeps.push({
+          name: depName,
+          version: version,
+          patterns: foundPatterns,
+          description: `Used in project`,
+        });
+      }
     }
   });
 

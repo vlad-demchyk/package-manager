@@ -17,7 +17,8 @@ function updatePackageJson(
   deprecatedDeps,
   standardScripts,
   nodeEngines,
-  conditionalDeps = {}
+  conditionalDeps = {},
+  conditionalDevDeps = {}
 ) {
   const packageJsonPath = path.join(
     componentPath,
@@ -30,12 +31,28 @@ function updatePackageJson(
       "red",
       projectConfig
     );
-    return false;
+    return { success: false, changes: null };
   }
 
   try {
     const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, "utf8"));
     let updated = false;
+
+    // Struttura per raccogliere le modifiche
+    const changes = {
+      component: path.basename(componentPath),
+      dependencies: {
+        added: [], // Aggiunte da BASE_DEPENDENCIES (nuove)
+        updated: [], // Versioni aggiornate
+        conditional: [], // Aggiunte da CONDITIONAL_DEPENDENCIES
+      },
+      devDependencies: {
+        added: [], // Aggiunte da DEV_DEPENDENCIES (nuove)
+        updated: [], // Versioni aggiornate
+        conditional: [], // Aggiunte da CONDITIONAL_DEV_DEPENDENCIES
+      },
+      removed: [], // Rimosse deprecate
+    };
 
     // Aggiorna dependencies
     if (!packageJson.dependencies) {
@@ -44,30 +61,55 @@ function updatePackageJson(
 
     // Aggiungi dipendenze base
     Object.entries(baseDeps).forEach(([name, version]) => {
-      if (packageJson.dependencies[name] !== version) {
+      const currentVersion = packageJson.dependencies[name];
+      if (currentVersion === undefined) {
+        // Nuova dipendenza - aggiunta da BASE
         packageJson.dependencies[name] = version;
         updated = true;
+        changes.dependencies.added.push({ name, version, type: "base" });
+      } else if (currentVersion !== version) {
+        // Aggiornamento versione
+        packageJson.dependencies[name] = version;
+        updated = true;
+        changes.dependencies.updated.push({
+          name,
+          from: currentVersion,
+          to: version,
+        });
       }
     });
 
     // Aggiungi dipendenze condizionali utilizzate
     Object.entries(conditionalDeps).forEach(([name, version]) => {
-      if (packageJson.dependencies[name] !== version) {
+      const currentVersion = packageJson.dependencies[name];
+      if (currentVersion === undefined) {
+        // Nuova dipendenza condizionale
         packageJson.dependencies[name] = version;
         updated = true;
-        logger.log(`✅ Aggiunta dipendenza condizionale: ${name}@${version}`, "green", projectConfig);
+        changes.dependencies.conditional.push({ name, version });
+      } else if (currentVersion !== version) {
+        // Aggiornamento versione dipendenza condizionale
+        packageJson.dependencies[name] = version;
+        updated = true;
+        changes.dependencies.updated.push({
+          name,
+          from: currentVersion,
+          to: version,
+        });
       }
     });
-
-    // Dipendenze condizionali sono già incluse in baseDeps
-    // (vengono processate in update-configs.js prima di chiamare questa funzione)
 
     // Rimuovi dipendenze deprecate da dependencies
     deprecatedDeps.forEach((depName) => {
       if (packageJson.dependencies && packageJson.dependencies[depName]) {
+        const removedVersion = packageJson.dependencies[depName];
         delete packageJson.dependencies[depName];
         updated = true;
-        logger.log(`🗑️  Rimosso deprecato: ${depName} (dependencies)`, "yellow", projectConfig);
+        changes.removed.push({
+          name: depName,
+          version: removedVersion,
+          type: "dependency",
+        });
       }
     });
 
@@ -76,19 +118,64 @@ function updatePackageJson(
       packageJson.devDependencies = {};
     }
 
+    // Aggiungi dipendenze dev base
     Object.entries(devDeps).forEach(([name, version]) => {
-      if (packageJson.devDependencies[name] !== version) {
+      const currentVersion = packageJson.devDependencies[name];
+      if (currentVersion === undefined) {
+        // Nuova dipendenza dev - aggiunta da DEV_DEPENDENCIES
         packageJson.devDependencies[name] = version;
         updated = true;
+        changes.devDependencies.added.push({ name, version, type: "base" });
+      } else if (currentVersion !== version) {
+        // Aggiornamento versione dipendenza dev
+        packageJson.devDependencies[name] = version;
+        updated = true;
+        changes.devDependencies.updated.push({
+          name,
+          from: currentVersion,
+          to: version,
+        });
+      }
+    });
+
+    // Aggiungi dipendenze dev condizionali utilizzate (solo in devDependencies!)
+    Object.entries(conditionalDevDeps).forEach(([name, version]) => {
+      // Verifichiamo se non è già in dependencies (non deve essere lì!)
+      if (packageJson.dependencies && packageJson.dependencies[name]) {
+        // Se dipendenza dev condizionale trovata in dependencies - rimuoviamo da lì
+        delete packageJson.dependencies[name];
+        updated = true;
+      }
+
+      const currentVersion = packageJson.devDependencies[name];
+      if (currentVersion === undefined) {
+        // Nuova dipendenza dev condizionale
+        packageJson.devDependencies[name] = version;
+        updated = true;
+        changes.devDependencies.conditional.push({ name, version });
+      } else if (currentVersion !== version) {
+        // Aggiornamento versione dipendenza dev condizionale
+        packageJson.devDependencies[name] = version;
+        updated = true;
+        changes.devDependencies.updated.push({
+          name,
+          from: currentVersion,
+          to: version,
+        });
       }
     });
 
     // Rimuovi dipendenze deprecate da devDependencies
     deprecatedDeps.forEach((depName) => {
       if (packageJson.devDependencies && packageJson.devDependencies[depName]) {
+        const removedVersion = packageJson.devDependencies[depName];
         delete packageJson.devDependencies[depName];
         updated = true;
-        logger.log(`🗑️  Rimosso deprecato: ${depName} (devDependencies)`, "yellow", projectConfig);
+        changes.removed.push({
+          name: depName,
+          version: removedVersion,
+          type: "devDependency",
+        });
       }
     });
 
@@ -124,11 +211,9 @@ function updatePackageJson(
         JSON.stringify(packageJson, null, 2),
         "utf8"
       );
-      logger.log(`✅ package.json aggiornato`, "green", projectConfig);
-      return true;
+      return { success: true, changes };
     } else {
-      logger.log(`ℹ️  package.json già aggiornato`, "blue", projectConfig);
-      return true;
+      return { success: true, changes: null }; // Nessuna modifica
     }
   } catch (error) {
     logger.log(
@@ -136,7 +221,7 @@ function updatePackageJson(
       "red",
       projectConfig
     );
-    return false;
+    return { success: false, changes: null };
   }
 }
 
@@ -169,7 +254,7 @@ function updateTsConfig(componentPath, projectConfig, standardTsConfig) {
       logger.log(`✅ tsconfig.json aggiornato`, "green", projectConfig);
       return true;
     } else {
-      logger.log(`ℹ️  tsconfig.json già aggiornato`, "blue", projectConfig);
+      // Non mostrare messaggio se non ci sono modifiche da applicare
       return true;
     }
   } catch (error) {
@@ -199,7 +284,7 @@ function removeTslintJson(componentPath, projectConfig) {
       return false;
     }
   } else {
-    logger.log(`ℹ️  tslint.json non trovato`, "blue", projectConfig);
+    // Non mostrare messaggio se tslint.json non esiste
     return true;
   }
 }

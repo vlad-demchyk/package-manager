@@ -37,7 +37,7 @@ async function configureProject() {
   logger.process("Configurazione del progetto...");
   logger.log("");
 
-    const config = {
+  const config = {
     project: {
       name: "",
       version: "1.0.0",
@@ -55,7 +55,7 @@ async function configureProject() {
       recursiveSearch: {
         enabled: false,
         maxDepth: 3,
-        excludeDirs: ['node_modules', 'dist', 'build', '.git', 'coverage']
+        excludeDirs: ["node_modules", "dist", "build", ".git", "coverage"],
       },
     },
   };
@@ -97,12 +97,12 @@ async function configureProject() {
           enabled: true,
           prefix: prefix || "c106-",
         };
-        
+
         // Aggiungi recursiveSearch alla configurazione
         config.components.recursiveSearch = {
           enabled: false,
           maxDepth: 3,
-          excludeDirs: ['node_modules', 'dist', 'build', '.git', 'coverage']
+          excludeDirs: ["node_modules", "dist", "build", ".git", "coverage"],
         };
         break;
 
@@ -149,12 +149,12 @@ async function configureProject() {
             .split(",")
             .map((f) => f.trim());
         }
-        
+
         // Aggiungi recursiveSearch alla configurazione
         config.components.recursiveSearch = {
           enabled: false,
           maxDepth: 3,
-          excludeDirs: ['node_modules', 'dist', 'build', '.git', 'coverage']
+          excludeDirs: ["node_modules", "dist", "build", ".git", "coverage"],
         };
         break;
 
@@ -169,12 +169,12 @@ async function configureProject() {
             folders: folders.split(",").map((f) => f.trim()),
           };
         }
-        
+
         // Aggiungi recursiveSearch alla configurazione
         config.components.recursiveSearch = {
           enabled: false,
           maxDepth: 3,
-          excludeDirs: ['node_modules', 'dist', 'build', '.git', 'coverage']
+          excludeDirs: ["node_modules", "dist", "build", ".git", "coverage"],
         };
         break;
 
@@ -189,12 +189,12 @@ async function configureProject() {
             pattern: regex,
           };
         }
-        
+
         // Aggiungi recursiveSearch alla configurazione
         config.components.recursiveSearch = {
           enabled: false,
           maxDepth: 3,
-          excludeDirs: ['node_modules', 'dist', 'build', '.git', 'coverage']
+          excludeDirs: ["node_modules", "dist", "build", ".git", "coverage"],
         };
         break;
 
@@ -241,12 +241,12 @@ async function configureProject() {
           requiredFiles: defaultFiles,
           requiredFolders: [],
         };
-        
+
         // Aggiungi recursiveSearch alla configurazione predefinita
         config.components.recursiveSearch = {
           enabled: false,
           maxDepth: 3,
-          excludeDirs: ['node_modules', 'dist', 'build', '.git', 'coverage']
+          excludeDirs: ["node_modules", "dist", "build", ".git", "coverage"],
         };
         break;
     }
@@ -254,40 +254,48 @@ async function configureProject() {
     // Chiedi se abilitare la ricerca ricorsiva (EXPERIMENTAL)
     logger.log("");
     logger.warning("🔬 FUNZIONE SPERIMENTALE - Ricerca ricorsiva progetti");
-    logger.info("Questa funzione permette di trovare progetti in sottocartelle");
+    logger.info(
+      "Questa funzione permette di trovare progetti in sottocartelle"
+    );
     logger.warning("Attenzione: questa funzione è in fase di test");
-    
+
     const recursiveAnswer = await askQuestion(
       rl,
       "Abilita ricerca ricorsiva progetti? (s/n, default: n): "
     );
-    
-    if (recursiveAnswer.toLowerCase() === "s" || recursiveAnswer.toLowerCase() === "si") {
+
+    if (
+      recursiveAnswer.toLowerCase() === "s" ||
+      recursiveAnswer.toLowerCase() === "si"
+    ) {
       const depthAnswer = await askQuestion(
         rl,
         "Profondità massima ricerca (numero o 'illimitata', default: 3): "
       );
-      
+
       let maxDepth = 3;
-      if (depthAnswer.toLowerCase() === "illimitata" || depthAnswer.toLowerCase() === "unlimited") {
+      if (
+        depthAnswer.toLowerCase() === "illimitata" ||
+        depthAnswer.toLowerCase() === "unlimited"
+      ) {
         maxDepth = null;
       } else if (depthAnswer && !isNaN(parseInt(depthAnswer))) {
         maxDepth = parseInt(depthAnswer);
       }
-      
+
       config.components.recursiveSearch = {
         enabled: true,
         maxDepth: maxDepth,
-        excludeDirs: ['node_modules', 'dist', 'build', '.git', 'coverage']
+        excludeDirs: ["node_modules", "dist", "build", ".git", "coverage"],
       };
-      
+
       logger.success("✅ Ricerca ricorsiva abilitata");
-      logger.info(`   Profondità massima: ${maxDepth || 'ILLIMITATA'}`);
+      logger.info(`   Profondità massima: ${maxDepth || "ILLIMITATA"}`);
     } else {
       config.components.recursiveSearch = {
         enabled: false,
         maxDepth: 3,
-        excludeDirs: ['node_modules', 'dist', 'build', '.git', 'coverage']
+        excludeDirs: ["node_modules", "dist", "build", ".git", "coverage"],
       };
       logger.info("Ricerca ricorsiva disabilitata");
     }
@@ -298,20 +306,23 @@ async function configureProject() {
     logger.info("Questa funzione permette di gestire centralmente i pacchetti");
     logger.warning("Attenzione: questa funzione è in fase di test");
     logger.info("Richiede Yarn per funzionare correttamente");
-    
+
     const workspaceAnswer = await askQuestion(
       rl,
       "Vuoi configurare Yarn Workspace per gestione centralizzata? (s/n, default: n): "
     );
-    
-    if (workspaceAnswer.toLowerCase() === "s" || workspaceAnswer.toLowerCase() === "si") {
+
+    if (
+      workspaceAnswer.toLowerCase() === "s" ||
+      workspaceAnswer.toLowerCase() === "si"
+    ) {
       config.workspace = {
         enabled: true,
         initialized: false,
         packagesPath: [],
-        useYarn: true
+        useYarn: true,
       };
-      
+
       logger.success("✅ Yarn Workspace abilitato");
       logger.info("   Sarà configurato al primo utilizzo");
     } else {
@@ -319,7 +330,7 @@ async function configureProject() {
         enabled: false,
         initialized: false,
         packagesPath: [],
-        useYarn: true
+        useYarn: true,
       };
       logger.info("Yarn Workspace disabilitato");
     }
@@ -362,8 +373,11 @@ function copyModuleFiles(targetDir) {
 
   // Copia i file di configurazione nella cartella package-manager (solo se non esistono)
   const configFiles = [
-    { source: "dependencies-config.js", target: "dependencies-config.js" },
-    { source: "project-config.js", target: "project-config.js" }
+    { source: "project-config.js", target: "project-config.js" },
+    {
+      source: "templates/dependencies-config.js",
+      target: "dependencies-config.js",
+    },
   ];
 
   configFiles.forEach(({ source, target }) => {
@@ -373,13 +387,10 @@ function copyModuleFiles(targetDir) {
     if (fs.existsSync(configPath)) {
       if (fs.existsSync(targetConfigPath)) {
         // File esiste già, non sovrascrivere
-        logger.log(
-          `ℹ️  ${target} esistente, non sovrascritto`,
-          "blue"
-        );
-        
+        logger.log(`ℹ️  ${target} esistente, non sovrascritto`, "blue");
+
         // Crea backup con timestamp
-        const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+        const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
         const backupPath = `${targetConfigPath}.backup-${timestamp}`;
         try {
           fs.copyFileSync(targetConfigPath, backupPath);
@@ -391,15 +402,9 @@ function copyModuleFiles(targetDir) {
         // File non esiste, copia template
         try {
           fs.copyFileSync(configPath, targetConfigPath);
-          logger.log(
-            `✅ ${target} copiato in package-manager/`,
-            "green"
-          );
+          logger.log(`✅ ${target} copiato in package-manager/`, "green");
         } catch (error) {
-          logger.log(
-            `❌ Errore copiando ${target}: ${error.message}`,
-            "red"
-          );
+          logger.log(`❌ Errore copiando ${target}: ${error.message}`, "red");
         }
       }
     } else {
@@ -407,30 +412,7 @@ function copyModuleFiles(targetDir) {
     }
   });
 
-  // Copia anche il template nella root del progetto per facilità d'uso
-  const templatePath = path.join(
-    sourceDir,
-    "templates",
-    "dependencies-config.js"
-  );
-  const rootTemplatePath = path.join(process.cwd(), "dependencies-config.js");
-
-  if (fs.existsSync(templatePath)) {
-    try {
-      fs.copyFileSync(templatePath, rootTemplatePath);
-      logger.log(
-        `✅ Template dependencies-config.js copiato nella root del progetto`,
-        "green"
-      );
-    } catch (error) {
-      logger.log(
-        `❌ Errore copiando template nella root: ${error.message}`,
-        "red"
-      );
-    }
-  } else {
-    logger.log(`❌ Template non trovato in ${templatePath}`, "red");
-  }
+  // dependencies-config.js viene creato automaticamente da update-configs.js quando necessario
 }
 
 // Funzione per copiare ricorsivamente una cartella
@@ -504,8 +486,14 @@ function saveProjectConfig(config, targetDir = null) {
     // Configurazione ricerca ricorsiva
     recursiveSearch: {
       enabled: ${config.components.recursiveSearch.enabled},
-      maxDepth: ${config.components.recursiveSearch.maxDepth === null ? 'null' : config.components.recursiveSearch.maxDepth},
-      excludeDirs: ${JSON.stringify(config.components.recursiveSearch.excludeDirs)}
+      maxDepth: ${
+        config.components.recursiveSearch.maxDepth === null
+          ? "null"
+          : config.components.recursiveSearch.maxDepth
+      },
+      excludeDirs: ${JSON.stringify(
+        config.components.recursiveSearch.excludeDirs
+      )}
     }
   },
   
@@ -672,6 +660,14 @@ async function installPackageManager() {
     "   npx packman           - Modalità interattiva (prima configurazione)"
   );
   logger.log("   npx packman install   - Installa pacchetti");
+  logger.log("");
+  logger.section("File di configurazione");
+  logger.log(
+    "   📁 package-manager/dependencies-config.js - Template per gestione dipendenze"
+  );
+  logger.log(
+    "   💡 Puoi modificare questo file manualmente per personalizzare le dipendenze"
+  );
   logger.log("   npx packman update    - Aggiorna configurazioni");
   logger.log("   npx packman clean     - Pulisci componenti");
   logger.log("   npx packman depcheck  - Controlla dipendenze non utilizzate");
@@ -680,7 +676,7 @@ async function installPackageManager() {
   logger.section("Prossimi passi");
   logger.step("Esegui 'npx packman' per configurare il progetto", 1);
   logger.step(
-    "Modifica dependencies-config.js nella root del progetto se necessario",
+    "Modifica package-manager/dependencies-config.js se necessario",
     2
   );
   logger.step("Usa 'npx packman update' per aggiornare le configurazioni", 3);
@@ -731,7 +727,12 @@ async function startPackageManager() {
   }
 
   // Avviamo lo script principale da node_modules
-  const nodeModulesPath = path.join(projectRoot, "node_modules", "@vlad-demchyk", "package-manager");
+  const nodeModulesPath = path.join(
+    projectRoot,
+    "node_modules",
+    "@vlad-demchyk",
+    "package-manager"
+  );
   const mainScript = path.join(nodeModulesPath, "scripts", "core.js");
   if (!fs.existsSync(mainScript)) {
     logger.error("Script principale core.js non trovato in node_modules!");
