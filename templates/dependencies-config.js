@@ -6,23 +6,22 @@
 // ============================================================================
 // DIPENDENZE BASE (sempre aggiunte)
 // ============================================================================
-const BASE_DEPENDENCIES = {
-  // Esempio: "react": "^18.2.0"
-};
+const BASE_DEPENDENCIES = {};
 
 // ============================================================================
 // DIPENDENZE CONDIZIONALI (aggiunte solo se utilizzate)
 // ============================================================================
-const CONDITIONAL_DEPENDENCIES = {
-  // Esempio: "axios": { version: "^1.3.0", patterns: ["axios"], description: "Client HTTP" }
-};
+const CONDITIONAL_DEPENDENCIES = {};
 
 // ============================================================================
 // DIPENDENZE DEV (sempre aggiunte come devDependencies)
 // ============================================================================
-const DEV_DEPENDENCIES = {
-  // Esempio: "@types/react": "^18.0.0"
-};
+const DEV_DEPENDENCIES = {};
+
+// ============================================================================
+// DIPENDENZE DEV CONDIZIONALI (aggiunte solo se utilizzate come devDependencies)
+// ============================================================================
+const CONDITIONAL_DEV_DEPENDENCIES = {};
 
 // ============================================================================
 // DIPENDENZE DEPRECATE (rimosse da package.json)
@@ -58,8 +57,8 @@ const NODE_ENGINES = {
 
 function getAllDependencies() {
   const allDeps = { ...BASE_DEPENDENCIES };
-  Object.entries(CONDITIONAL_DEPENDENCIES).forEach(([name, config]) => {
-    allDeps[name] = config.version;
+  Object.entries(CONDITIONAL_DEPENDENCIES).forEach(([name, version]) => {
+    allDeps[name] = version;
   });
   return allDeps;
 }
@@ -74,6 +73,18 @@ function getConditionalDependencies() {
 
 function getDevDependencies() {
   return { ...DEV_DEPENDENCIES };
+}
+
+function getConditionalDevDependencies() {
+  return { ...CONDITIONAL_DEV_DEPENDENCIES };
+}
+
+function getAllDevDependencies() {
+  const allDevDeps = { ...DEV_DEPENDENCIES };
+  Object.entries(CONDITIONAL_DEV_DEPENDENCIES).forEach(([name, version]) => {
+    allDevDeps[name] = version;
+  });
+  return allDevDeps;
 }
 
 function getDeprecatedDependencies() {
@@ -96,6 +107,7 @@ module.exports = {
   BASE_DEPENDENCIES,
   CONDITIONAL_DEPENDENCIES,
   DEV_DEPENDENCIES,
+  CONDITIONAL_DEV_DEPENDENCIES,
   DEPRECATED_DEPENDENCIES,
   STANDARD_SCRIPTS,
   STANDARD_TSCONFIG,
@@ -104,6 +116,8 @@ module.exports = {
   getBaseDependencies,
   getConditionalDependencies,
   getDevDependencies,
+  getConditionalDevDependencies,
+  getAllDevDependencies,
   getDeprecatedDependencies,
   getStandardScripts,
   getStandardTsConfig,

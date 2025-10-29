@@ -1,6 +1,6 @@
 {
   "name": "@vlad-demchyk/package-manager",
-  "version": "2.1.0",
+  "version": "2.1.1",
   "description": "Universal package manager for multi-component projects with intelligent dependency management",
   "main": "install.js",
   "bin": {
