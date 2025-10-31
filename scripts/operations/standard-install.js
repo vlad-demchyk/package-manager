@@ -7,6 +7,7 @@ const fs = require("fs");
 const path = require("path");
 const { execSync } = require("child_process");
 const logger = require("../utils/logger");
+const { removeDirectory, removeFile } = require("../utils/common");
 
 /**
  * Install packages for a single component using standard npm approach
@@ -165,44 +166,6 @@ function installAllComponentsStandard(mode = "normal", projectConfig) {
   }
 }
 
-/**
- * Remove directory if it exists
- * @param {string} dirPath - Directory path
- * @returns {boolean} Success status
- */
-function removeDirectory(dirPath) {
-  if (fs.existsSync(dirPath)) {
-    try {
-      const { isWindows } = require("../utils/common");
-      if (isWindows()) {
-        execSync(`rmdir /s /q "${dirPath}"`, { stdio: "ignore" });
-      } else {
-        execSync(`rm -rf "${dirPath}"`, { stdio: "ignore" });
-      }
-      return true;
-    } catch (error) {
-      return false;
-    }
-  }
-  return true;
-}
-
-/**
- * Remove file if it exists
- * @param {string} filePath - File path
- * @returns {boolean} Success status
- */
-function removeFile(filePath) {
-  if (fs.existsSync(filePath)) {
-    try {
-      fs.unlinkSync(filePath);
-      return true;
-    } catch (error) {
-      return false;
-    }
-  }
-  return true;
-}
 
 module.exports = {
   installPackagesStandard,

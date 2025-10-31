@@ -15,38 +15,13 @@ const {
   getComponentDirectories,
   loadPackageJson,
   fileExists,
-  getProjectRoot
+  getProjectRoot,
+  removeDirectory,
+  removeFile,
+  removeDirectoryRecursive,
+  formatBytes,
+  getDirectorySize
 } = require("../utils/common");
-
-
-
-function removeDirectory(dirPath) {
-  if (fs.existsSync(dirPath)) {
-    try {
-      if (isWindows()) {
-        execSync(`rmdir /s /q "${dirPath}"`, { stdio: "ignore" });
-      } else {
-        execSync(`rm -rf "${dirPath}"`, { stdio: "ignore" });
-      }
-      return true; // Successfully removed
-    } catch (error) {
-      return false; // Failed to remove
-    }
-  }
-  return false; // File didn't exist, so nothing to remove
-}
-
-function removeFile(filePath) {
-  if (fs.existsSync(filePath)) {
-    try {
-      fs.unlinkSync(filePath);
-      return true; // Successfully removed
-    } catch (error) {
-      return false; // Failed to remove
-    }
-  }
-  return false; // File didn't exist, so nothing to remove
-}
 
 function cleanComponent(componentPath, projectConfig) {
   const componentName = path.basename(componentPath);
@@ -349,69 +324,6 @@ function cleanWorkspaceComponents(excludeList = [], projectConfig) {
   logger.info("I pacchetti sono disponibili tramite root node_modules");
 }
 
-/**
- * Get directory size in bytes
- * @param {string} dirPath - Directory path
- * @returns {number} Size in bytes
- */
-function getDirectorySize(dirPath) {
-  let size = 0;
-  
-  try {
-    const items = fs.readdirSync(dirPath);
-    items.forEach(item => {
-      const fullPath = path.join(dirPath, item);
-      const stat = fs.statSync(fullPath);
-      
-      if (stat.isDirectory()) {
-        size += getDirectorySize(fullPath);
-      } else {
-        size += stat.size;
-      }
-    });
-  } catch (error) {
-    // Ignore errors
-  }
-  
-  return size;
-}
-
-/**
- * Format bytes to human readable format
- * @param {number} bytes - Size in bytes
- * @returns {string} Formatted size string
- */
-function formatBytes(bytes) {
-  if (bytes === 0) return "0 B";
-  
-  const k = 1024;
-  const sizes = ["B", "KB", "MB", "GB"];
-  const i = Math.floor(Math.log(bytes) / Math.log(k));
-  
-  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
-}
-
-/**
- * Remove directory recursively
- * @param {string} dirPath - Directory path to remove
- */
-function removeDirectoryRecursive(dirPath) {
-  if (!fs.existsSync(dirPath)) return;
-  
-  const items = fs.readdirSync(dirPath);
-  items.forEach(item => {
-    const fullPath = path.join(dirPath, item);
-    const stat = fs.statSync(fullPath);
-    
-    if (stat.isDirectory()) {
-      removeDirectoryRecursive(fullPath);
-    } else {
-      fs.unlinkSync(fullPath);
-    }
-  });
-  
-  fs.rmdirSync(dirPath);
-}
 
 /**
  * Analyze shared dependencies across all workspaces
@@ -666,15 +578,11 @@ function cleanSingleWorkspaceComponent(componentName, projectConfig) {
 
 module.exports = {
   cleanComponent,
-  getComponentDirectories,
   cleanAllComponents,
   cleanWorkspaceComponents,
   cleanStandardComponents,
   cleanSingleWorkspaceComponent,
   analyzeSharedDependencies,
   cleanWorkspaceComponent,
-  getDirectorySize,
-  formatBytes,
-  removeDirectoryRecursive,
   resolveLockFileConflicts
 };

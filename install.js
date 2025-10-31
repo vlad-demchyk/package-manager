@@ -110,7 +110,7 @@ async function configureProject() {
         // Chiedi se il progetto usa TypeScript
         const useTypeScript = await askQuestion(
           rl,
-          "🔧 Il progetto usa TypeScript? (s/n, default: s): "
+          "🔧 Il progetto usa TypeScript? (y/N, default: y): "
         );
         const hasTypeScript =
           useTypeScript.toLowerCase() !== "n" &&
@@ -224,11 +224,25 @@ async function configureProject() {
 
         let defaultFiles = ["package.json"];
         if (hasTsConfig) {
-          defaultFiles.push("tsconfig.json");
-          logger.log(
-            "🔧 Rilevato TypeScript nel progetto - incluso tsconfig.json nei filtri",
-            "cyan"
+          // Chiedi conferma prima di includere tsconfig.json nei filtri
+          const includeTs = await askQuestion(
+            rl,
+            "🔎 Trovato tsconfig.json in almeno un componente. Includerlo nel filtro struttura? (y/N): "
           );
+          const yesTs =
+            includeTs.toLowerCase() === "y" || includeTs.toLowerCase() === "yes";
+          if (yesTs) {
+            defaultFiles.push("tsconfig.json");
+            logger.log(
+              "🔧 Includo tsconfig.json nei filtri (richiesto)",
+              "cyan"
+            );
+          } else {
+            logger.log(
+              "🔧 tsconfig.json NON incluso nei filtri su tua scelta",
+              "yellow"
+            );
+          }
         } else {
           logger.log(
             "🔧 TypeScript non rilevato - solo package.json nei filtri",
@@ -261,12 +275,12 @@ async function configureProject() {
 
     const recursiveAnswer = await askQuestion(
       rl,
-      "Abilita ricerca ricorsiva progetti? (s/n, default: n): "
+      "Abilita ricerca ricorsiva progetti? (y/N, default: n): "
     );
 
     if (
-      recursiveAnswer.toLowerCase() === "s" ||
-      recursiveAnswer.toLowerCase() === "si"
+      recursiveAnswer.toLowerCase() === "y" ||
+      recursiveAnswer.toLowerCase() === "yes"
     ) {
       const depthAnswer = await askQuestion(
         rl,
@@ -309,12 +323,12 @@ async function configureProject() {
 
     const workspaceAnswer = await askQuestion(
       rl,
-      "Vuoi configurare Yarn Workspace per gestione centralizzata? (s/n, default: n): "
+      "Vuoi configurare Yarn Workspace per gestione centralizzata? (y/N, default: n): "
     );
 
     if (
-      workspaceAnswer.toLowerCase() === "s" ||
-      workspaceAnswer.toLowerCase() === "si"
+      workspaceAnswer.toLowerCase() === "y" ||
+      workspaceAnswer.toLowerCase() === "yes"
     ) {
       config.workspace = {
         enabled: true,

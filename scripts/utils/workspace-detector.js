@@ -6,6 +6,7 @@
 const fs = require("fs");
 const path = require("path");
 const logger = require("./logger");
+const { getDirectorySize } = require("./common");
 
 /**
  * Detect if workspace configuration exists in the project
@@ -302,32 +303,6 @@ function getWorkspaceStatistics(projectRoot) {
   }
 }
 
-/**
- * Get directory size in bytes
- * @param {string} dirPath - Directory path
- * @returns {number} Size in bytes
- */
-function getDirectorySize(dirPath) {
-  let size = 0;
-  
-  try {
-    const items = fs.readdirSync(dirPath);
-    items.forEach(item => {
-      const fullPath = path.join(dirPath, item);
-      const stat = fs.statSync(fullPath);
-      
-      if (stat.isDirectory()) {
-        size += getDirectorySize(fullPath);
-      } else {
-        size += stat.size;
-      }
-    });
-  } catch (error) {
-    // Ignore errors
-  }
-  
-  return size;
-}
 
 module.exports = {
   detectWorkspaceConfiguration,

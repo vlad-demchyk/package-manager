@@ -17,7 +17,8 @@ const {
   getComponentDirectories,
   loadPackageJson,
   fileExists,
-  getProjectRoot
+  getProjectRoot,
+  removeDirectory
 } = require("../utils/common");
 
 /**
@@ -124,17 +125,8 @@ function reinstallWorkspace(projectConfig, mode = "normal") {
     
     // Remove root node_modules
     const rootNodeModules = path.join(projectRoot, "node_modules");
-    if (fs.existsSync(rootNodeModules)) {
-      try {
-        if (isWindows()) {
-          execSync(`rmdir /s /q "${rootNodeModules}"`, { stdio: "ignore" });
-        } else {
-          execSync(`rm -rf "${rootNodeModules}"`, { stdio: "ignore" });
-        }
-        logger.log("🗑️  Rimosso root node_modules", "yellow");
-      } catch (error) {
-        logger.warning("⚠️  Impossibile rimuovere root node_modules");
-      }
+    if (removeDirectory(rootNodeModules)) {
+      logger.log("🗑️  Rimosso root node_modules", "yellow");
     }
     
     // Reinstall with yarn

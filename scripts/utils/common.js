@@ -4,6 +4,7 @@
 
 const fs = require("fs");
 const path = require("path");
+const { execSync } = require("child_process");
 
 /**
  * Check if the current platform is Windows
@@ -94,9 +95,11 @@ function getComponentDirectoriesRecursive(projectConfig, maxDepth = null, curren
         }
       }
 
-      // Controllo per regex
+      // Controllo per regex (supporta sia RegExp, sia stringa)
       if (projectConfig.components.filterByRegex.enabled) {
-        if (!projectConfig.components.filterByRegex.pattern.test(item)) {
+        const pat = projectConfig.components.filterByRegex.pattern;
+        const re = pat instanceof RegExp ? pat : (typeof pat === "string" ? new RegExp(pat) : null);
+        if (re && !re.test(item)) {
           return false;
         }
       }
@@ -113,12 +116,15 @@ function getComponentDirectoriesRecursive(projectConfig, maxDepth = null, curren
     
     // If recursive search enabled, scan subdirectories
     if (recursiveConfig && recursiveConfig.enabled) {
+      const excludeDirs = Array.isArray(recursiveConfig.excludeDirs)
+        ? recursiveConfig.excludeDirs
+        : ["node_modules", "dist", "build", ".git", "coverage"];
       items.forEach(item => {
         const fullPath = path.join(currentDir, item);
         
         // Skip excluded directories
         if (!fs.statSync(fullPath).isDirectory()) return;
-        if (recursiveConfig.excludeDirs.includes(item)) return;
+        if (excludeDirs.includes(item)) return;
         if (currentLevelComponents.includes(item)) return; // Already found as component
         
         // Recursively search subdirectory
@@ -273,9 +279,11 @@ function getComponentDirectories(projectConfig) {
       }
     }
 
-    // Controllo per regex
+    // Controllo per regex (supporta sia RegExp, sia stringa)
     if (projectConfig.components.filterByRegex.enabled) {
-      if (!projectConfig.components.filterByRegex.pattern.test(item)) {
+      const pat = projectConfig.components.filterByRegex.pattern;
+      const re = pat instanceof RegExp ? pat : (typeof pat === "string" ? new RegExp(pat) : null);
+      if (re && !re.test(item)) {
         return false;
       }
     }
@@ -321,6 +329,135 @@ function getProjectRoot() {
   return process.cwd();
 }
 
+/**
+ * Remove a directory recursively
+ * @param {string} dirPath - Directory path to remove
+ * @returns {boolean} Success status
+ */
+function removeDirectory(dirPath) {
+  if (!fs.existsSync(dirPath)) {
+    return false;
+  }
+  
+  try {
+    if (isWindows()) {
+      execSync(`rmdir /s /q "${dirPath}"`, { stdio: "ignore" });
+    } else {
+      execSync(`rm -rf "${dirPath}"`, { stdio: "ignore" });
+    }
+    return true;
+  } catch (error) {
+    return false;
+  }
+}
+
+/**
+ * Remove a file
+ * @param {string} filePath - File path to remove
+ * @returns {boolean} Success status
+ */
+function removeFile(filePath) {
+  if (!fs.existsSync(filePath)) {
+    return false;
+  }
+  
+  try {
+    fs.unlinkSync(filePath);
+    return true;
+  } catch (error) {
+    return false;
+  }
+}
+
+/**
+ * Remove directory recursively (alternative implementation)
+ * @param {string} dirPath - Directory path to remove
+ */
+function removeDirectoryRecursive(dirPath) {
+  if (!fs.existsSync(dirPath)) {
+    return;
+  }
+  
+  try {
+    const items = fs.readdirSync(dirPath);
+    items.forEach(item => {
+      const fullPath = path.join(dirPath, item);
+      const stat = fs.statSync(fullPath);
+      
+      if (stat.isDirectory()) {
+        removeDirectoryRecursive(fullPath);
+      } else {
+        fs.unlinkSync(fullPath);
+      }
+    });
+    
+    fs.rmdirSync(dirPath);
+  } catch (error) {
+    // Ignore errors (permissions, etc.)
+  }
+}
+
+/**
+ * Filter out package-manager from component list
+ * Package-manager should not be part of workspace or standard operations
+ * @param {string[]} components - Array of component paths
+ * @returns {string[]} Filtered component paths
+ */
+function filterOutPackageManager(components) {
+  return components.filter(comp => {
+    const normalized = comp.replace(/\\/g, "/").toLowerCase();
+    return !normalized.includes("package-manager") && 
+           !normalized.includes("node_modules") &&
+           !normalized.includes("@vlad-demchyk/package-manager");
+  });
+}
+
+/**
+ * Get directory size in bytes recursively
+ * @param {string} dirPath - Directory path
+ * @returns {number} Size in bytes
+ */
+function getDirectorySize(dirPath) {
+  let size = 0;
+  
+  try {
+    if (!fs.existsSync(dirPath)) {
+      return 0;
+    }
+    
+    const items = fs.readdirSync(dirPath);
+    items.forEach(item => {
+      const fullPath = path.join(dirPath, item);
+      const stat = fs.statSync(fullPath);
+      
+      if (stat.isDirectory()) {
+        size += getDirectorySize(fullPath);
+      } else {
+        size += stat.size;
+      }
+    });
+  } catch (error) {
+    // Ignore errors (permissions, etc.)
+  }
+  
+  return size;
+}
+
+/**
+ * Format bytes to human readable format
+ * @param {number} bytes - Size in bytes
+ * @returns {string} Formatted size string
+ */
+function formatBytes(bytes) {
+  if (bytes === 0) return "0 B";
+  
+  const k = 1024;
+  const sizes = ["B", "KB", "MB", "GB", "TB"];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
+}
+
 module.exports = {
   isWindows,
   getNpmCommand,
@@ -329,5 +466,11 @@ module.exports = {
   getComponentDirectoriesWorkspace,
   loadPackageJson,
   fileExists,
-  getProjectRoot
+  getProjectRoot,
+  removeDirectory,
+  removeFile,
+  removeDirectoryRecursive,
+  filterOutPackageManager,
+  getDirectorySize,
+  formatBytes
 };

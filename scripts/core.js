@@ -27,6 +27,8 @@ const {
   loadPackageJson,
   fileExists,
   getProjectRoot,
+  removeDirectory,
+  removeFile,
 } = require("./utils/common");
 
 // Carica configurazione progetto dinamicamente
@@ -50,33 +52,6 @@ logger.log(`📝 Logging abilitato: ${logger.getLogFilePath()}`, "blue");
 let rl = null;
 let askQuestion = null;
 
-function removeDirectory(dirPath) {
-  if (fs.existsSync(dirPath)) {
-    try {
-      if (isWindows()) {
-        execSync(`rmdir /s /q "${dirPath}"`, { stdio: "ignore" });
-      } else {
-        execSync(`rm -rf "${dirPath}"`, { stdio: "ignore" });
-      }
-      return false;
-    } catch (error) {
-      return false;
-    }
-  }
-  return true;
-}
-
-function removeFile(filePath) {
-  if (fs.existsSync(filePath)) {
-    try {
-      fs.unlinkSync(filePath);
-      return false;
-    } catch (error) {
-      return false;
-    }
-  }
-  return true;
-}
 
 // cleanComponent ora importato da operations/cleaner
 function cleanComponent(componentPath) {
@@ -1286,6 +1261,17 @@ async function showUpdateConfirmation(scope, components) {
     return;
   }
 
+  // Se non ci sono modifiche da applicare, non chiedere conferма e torna al menu
+  if (previewResult && previewResult.totalChanges === 0) {
+    logger.log("\n✅ Nessuna modifica da applicare.", "green");
+    logger.warning("🔙 Premi INVIO per tornare al menu principale...");
+    if (!rl) return;
+    rl.question("", () => {
+      if (askQuestion) askQuestion();
+    });
+    return;
+  }
+
   if (rl) {
     rl.question(
       "\n⚠️  Continuare con l'aggiornamento? (y/N): ",
@@ -1348,6 +1334,9 @@ async function showUpdatePreview(scope, components) {
     const conditionalDeps = depsConfig.getConditionalDependencies
       ? depsConfig.getConditionalDependencies()
       : {};
+    const conditionalDevDeps = depsConfig.getConditionalDevDependencies
+      ? depsConfig.getConditionalDevDependencies()
+      : {};
 
     // Log per debug
     if (Object.keys(conditionalDeps).length > 0) {
@@ -1355,6 +1344,14 @@ async function showUpdatePreview(scope, components) {
         `🔍 Trovate ${
           Object.keys(conditionalDeps).length
         } dipendenze condizionali`,
+        "blue"
+      );
+    }
+    if (Object.keys(conditionalDevDeps).length > 0) {
+      logger.log(
+        `🔍 Trovate ${
+          Object.keys(conditionalDevDeps).length
+        } dev dipendenze condizionali`,
         "blue"
       );
     }
@@ -1404,6 +1401,16 @@ async function showUpdatePreview(scope, components) {
           componentPath,
           conditionalDeps
         );
+        // Додати conditional deps, які вже є в package.json з іншою версією
+        Object.entries(conditionalDeps).forEach(([name, configVersion]) => {
+          const currentVersion = currentDeps[name];
+          if (currentVersion && currentVersion !== configVersion) {
+            // Вже є в package.json з іншою версією - треба оновити
+            if (!usedConditionalDeps[name]) {
+              usedConditionalDeps[name] = configVersion;
+            }
+          }
+        });
         const targetDeps = { ...baseDeps, ...usedConditionalDeps };
 
         const { newDeps, updatedDeps } = analyzeDependencies(
@@ -1414,9 +1421,24 @@ async function showUpdatePreview(scope, components) {
         totalNewDeps += newDeps.length;
         totalUpdatedDeps += updatedDeps.length;
 
-        // Analizza devDependencies
+        // Analizza devDependencies (base + conditional per questo componente)
+        const usedConditionalDevDeps = analyzeDependencyUsageForComponent(
+          componentPath,
+          conditionalDevDeps
+        );
+        // Додати conditional devDeps, які вже є в package.json з іншою версією
+        Object.entries(conditionalDevDeps).forEach(([name, configVersion]) => {
+          const currentVersion = currentDevDeps[name];
+          if (currentVersion && currentVersion !== configVersion) {
+            // Вже є в package.json з іншою версією - треба оновити
+            if (!usedConditionalDevDeps[name]) {
+              usedConditionalDevDeps[name] = configVersion;
+            }
+          }
+        });
+        const targetDevDeps = { ...devDeps, ...usedConditionalDevDeps };
         const { newDeps: newDevDeps, updatedDeps: updatedDevDeps } =
-          analyzeDependencies(currentDevDeps, devDeps);
+          analyzeDependencies(currentDevDeps, targetDevDeps);
         totalNewDevDeps += newDevDeps.length;
         totalUpdatedDevDeps += updatedDevDeps.length;
 
@@ -2471,14 +2493,24 @@ function showWorkspaceMenu() {
   let workspaceEnabled = projectConfig.workspace?.enabled || false;
   let workspaceInitialized = projectConfig.workspace?.initialized || false;
 
-  // Use ONLY projectConfig for workspace status - no file checking
+  // Check actual workspace status from files for accurate display
+  try {
+    const { getWorkspaceStatus } = require("./operations/workspace");
+    const actualStatus = getWorkspaceStatus(projectConfig);
+    if (actualStatus) {
+      workspaceEnabled = actualStatus.enabled;
+      workspaceInitialized = actualStatus.initialized;
+    }
+  } catch (error) {
+    // Use config values if status check fails
+  }
 
   if (workspaceEnabled) {
     logger.info("Workspace abilitato");
     if (workspaceInitialized) {
       logger.info("Workspace inizializzato");
     } else {
-      logger.warning(" Workspace non inizializzato");
+      logger.warning("⚠️  Workspace non inizializzato");
     }
   } else {
     logger.info("Workspace disabilitato");
@@ -2495,15 +2527,17 @@ function showWorkspaceMenu() {
   } else if (workspaceEnabled && !workspaceInitialized) {
     // Workspace enabled but not initialized - show initialize and status
     logger.info("1. Inizializza Workspace");
-    logger.info("2. Disabilita Workspace");
-    logger.info("3. Mostra stato Workspace");
+    logger.info("2. 🔄 Reinizializza Workspace (forza)");
+    logger.info("3. Disabilita Workspace");
+    logger.info("4. Mostra stato Workspace");
     logger.warning("0. Torna al menu sperimentale");
   } else {
     // Workspace enabled and initialized - show all options
     logger.info("1. Mostra stato Workspace");
-    logger.info("2. Disabilita Workspace");
-    logger.info("3. 🧹 Pulisci node_modules locali (risparmio memoria)");
-    logger.info("4. 🔄 Sincronizza workspace con progetti attuali");
+    logger.info("2. 🔄 Reinizializza Workspace (forza)");
+    logger.info("3. Disabilita Workspace");
+    logger.info("4. 🧹 Pulisci node_modules locali (risparmio memoria)");
+    logger.info("5. 🔄 Sincronizza workspace con progetti attuali");
     logger.warning("0. Torna al menu sperimentale");
   }
 
@@ -2533,9 +2567,12 @@ function showWorkspaceMenu() {
           initializeWorkspaceFromMenu();
           break;
         case "2":
-          disableWorkspaceFromMenu();
+          reinitializeWorkspaceFromMenu();
           break;
         case "3":
+          disableWorkspaceFromMenu();
+          break;
+        case "4":
           showWorkspaceStatus();
           break;
         case "0":
@@ -2553,12 +2590,15 @@ function showWorkspaceMenu() {
           showWorkspaceStatus();
           break;
         case "2":
-          disableWorkspaceFromMenu();
+          reinitializeWorkspaceFromMenu();
           break;
         case "3":
-          cleanLocalNodeModulesFromMenu();
+          disableWorkspaceFromMenu();
           break;
         case "4":
+          cleanLocalNodeModulesFromMenu();
+          break;
+        case "5":
           syncWorkspaceFromMenu();
           break;
         case "0":
@@ -2573,6 +2613,87 @@ function showWorkspaceMenu() {
   });
 }
 
+function reinitializeWorkspaceFromMenu() {
+  logger.section("🔄 Reinizializzazione Workspace");
+
+  logger.warning("⚠️  Questa operazione rimuoverà la configurazione workspace esistente");
+  logger.info("Verrà rimosso yarn.lock e root node_modules");
+  logger.info("Verrà ricreata la configurazione workspace");
+  logger.info("");
+
+  if (!rl) return;
+  rl.question("Continuare con la reinizializzazione? (y/N): ", (confirm) => {
+    if (confirm.toLowerCase() === "y" || confirm.toLowerCase() === "yes") {
+      // Ask about force mode
+      logger.info("");
+      logger.info("💡 Opzioni di reinizializzazione:");
+      logger.info("   - Normale: verifica se workspace è già inizializzato");
+      logger.info("   - Forza: ignora controlli e reinizializza comunque");
+      logger.info("");
+      
+      rl.question("Usare modalità FORZA? (y/N): ", (forceConfirm) => {
+        const useForce = forceConfirm.toLowerCase() === "y" || forceConfirm.toLowerCase() === "yes";
+        
+        if (useForce) {
+          logger.log("🔧 Modalità FORZA attivata", "yellow");
+        } else {
+          logger.log("🔧 Modalità normale", "blue");
+        }
+        
+        try {
+          // First disable workspace to clean up
+          const { disableWorkspace } = require("./operations/workspace");
+          disableWorkspace(projectConfig);
+          
+          // Reload project config after disabling
+          try {
+            const configPath = path.join(
+              process.cwd(),
+              "package-manager",
+              "project-config.js"
+            );
+            delete require.cache[require.resolve(configPath)];
+            projectConfig = require(configPath);
+            logger.info("Configurazione ricaricata dopo disabilitazione");
+          } catch (error) {
+            logger.warning("⚠️  Impossibile ricaricare la configurazione");
+          }
+          
+          // Then reinitialize with fresh config (with or without force)
+          const { initializeWorkspace } = require("./operations/workspace");
+          const success = initializeWorkspace(projectConfig, useForce);
+
+          if (success) {
+            logger.success("Workspace reinizializzato con successo!");
+            // Reload project config again after initialization
+            try {
+              const configPath = path.join(
+                process.cwd(),
+                "package-manager",
+                "project-config.js"
+              );
+              delete require.cache[require.resolve(configPath)];
+              projectConfig = require(configPath);
+              logger.info("Configurazione ricaricata dopo inizializzazione");
+            } catch (error) {
+              logger.warning("⚠️  Impossibile ricaricare la configurazione");
+            }
+          } else {
+            logger.error("❌ Errore durante la reinizializzazione del workspace");
+          }
+        } catch (error) {
+          logger.error(`❌ Errore: ${error.message}`);
+        }
+
+        setTimeout(() => showWorkspaceMenu(), 2000);
+      });
+    } else {
+      logger.info("Operazione annullata");
+      setTimeout(() => showWorkspaceMenu(), 1000);
+    }
+  });
+}
+
 function initializeWorkspaceFromMenu() {
   logger.section("🏢 Inizializzazione Workspace");
 
@@ -2581,7 +2702,7 @@ function initializeWorkspaceFromMenu() {
     projectConfig.workspace?.initialized
   ) {
     logger.warning("⚠️  Workspace già inizializzato!");
-    logger.info("Usa l'opzione 'Disabilita Workspace' per ripristinare");
+    logger.info("Usa l'opzione 'Reinizializza Workspace' per ripristinare");
     setTimeout(() => showWorkspaceMenu(), 2000);
     return;
   }
@@ -2595,7 +2716,7 @@ function initializeWorkspaceFromMenu() {
     if (confirm.toLowerCase() === "y" || confirm.toLowerCase() === "yes") {
       try {
         const { initializeWorkspace } = require("./operations/workspace");
-        const success = initializeWorkspace(projectConfig);
+        const success = initializeWorkspace(projectConfig, false);
 
         if (success) {
           logger.success("Workspace inizializzato con successo!");
@@ -2724,7 +2845,7 @@ function showWorkspaceStatus() {
     }
 
     if (status.rootNodeModulesSize > 0) {
-      const { formatBytes } = require("./operations/workspace");
+      const { formatBytes } = require("./utils/common");
       logger.log(
         `   Root node_modules: ${formatBytes(status.rootNodeModulesSize)}`,
         "cyan"
