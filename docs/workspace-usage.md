@@ -70,8 +70,10 @@ Il menu Workspace offre diverse opzioni in base allo stato attuale:
 ℹ️  ✅ Workspace inizializzato
 
 ℹ️  1. Mostra stato Workspace
-ℹ️  2. Disabilita Workspace
-ℹ️  3. 🧹 Pulisci node_modules locali (risparmio memoria)
+ℹ️  2. 🔄 Reinizializza Workspace (forza) ← NUOVO
+ℹ️  3. Disabilita Workspace
+ℹ️  4. 🧹 Pulisci node_modules locali (risparmio memoria)
+ℹ️  5. 🔄 Sincronizza workspace con progetti attuali
 ⚠️  0. Torna al menu sperimentale
 ```
 
@@ -79,13 +81,35 @@ Il menu Workspace offre diverse opzioni in base allo stato attuale:
 
 ### 1. Inizializzazione Workspace
 
-L'inizializzazione del Workspace:
+L'inizializzazione del Workspace esegue automaticamente:
 
-1. **Rileva automaticamente** tutti i componenti del progetto
-2. **Crea/aggiorna** il `package.json` root con la configurazione `workspaces`
-3. **Installa Yarn** automaticamente se non presente
-4. **Esegue** `yarn install` per installare tutti i pacchetti centralmente
-5. **Aggiorna** la configurazione del package manager
+1. **Rileva automaticamente** tutti i componenti del progetto (escludendo package-manager)
+2. **Rimuove** tutti i `package-lock.json` dai componenti e root (per evitare conflitti)
+3. **Aggiunge resolutions** in root `package.json` per compatibilità Node.js (se necessario)
+4. **Crea/aggiorna** il `package.json` root con la configurazione `workspaces`
+5. **Crea** `.yarnrc.yml` e `.yarnignore` per escludere package-manager
+6. **Installa Yarn** automaticamente se non presente
+7. **Esegue** `yarn install` per installare tutti i pacchetti centralmente
+8. **Verifica** le versioni installate e corregge eventuali conflitti
+9. **Aggiorna** la configurazione del package manager
+
+#### ⚠️ Importante: Pulizia Automatica
+
+Durante l'inizializzazione, il sistema **rimuove automaticamente** tutti i `package-lock.json`:
+- ✅ Dai componenti workspace
+- ✅ Dal root (se presente)
+
+**Nota**: I `node_modules` locali **NON vengono rimossi** - vengono semplicemente ignorati dal workspace. Puoi pulirli manualmente usando la funzione di pulizia workspace.
+
+#### 🔧 Risoluzione Automatica Compatibilità
+
+Il sistema **automaticamente**:
+- ✅ Rileva la versione Node.js
+- ✅ Aggiunge `resolutions` in root `package.json` per versioni compatibili
+- ✅ Verifica le versioni installate dopo `yarn install`
+- ✅ Corregge automaticamente eventuali conflitti
+
+Questo previene problemi di compatibilità quando Yarn workspace seleziona versioni più recenti che richiedono Node.js 20+, anche se i progetti individuali funzionano con Node.js 18.
 
 ```
 📋 🏢 Inizializzazione Workspace
@@ -130,14 +154,42 @@ Rimuove tutti i `node_modules` locali per risparmiare spazio:
 💡 Tutti i pacchetti ora disponibili tramite root node_modules
 ```
 
-### 4. Disabilitazione Workspace
+### 4. Reinizializzazione Workspace (Nuovo)
+
+Permette di reinstallare completamente il workspace:
+
+```
+🔄 Reinizializzazione Workspace
+
+⚠️  Questa operazione rimuoverà la configurazione workspace esistente
+ℹ️  Verrà rimosso yarn.lock e root node_modules
+ℹ️  Verrà ricreata la configurazione workspace
+
+Continuare con la reinizializzazione? (y/N):
+```
+
+Dopo la conferma, ti verrà chiesto:
+```
+💡 Opzioni di reinizializzazione:
+   - Normale: verifica se workspace è già inizializzato
+   - Forza: ignora controlli e reinizializza comunque
+
+Usare modalità FORZA? (y/N):
+```
+
+**Modalità Normale**: Verifica se workspace è già inizializzato prima di procedere  
+**Modalità Force**: Ignora tutti i controlli e reinizializza comunque
+
+### 5. Disabilitazione Workspace
 
 Ripristina la modalità standard con `node_modules` locali:
 
 1. **Rimuove** la configurazione `workspaces` dal `package.json`
-2. **Elimina** il file `yarn.lock`
-3. **Aggiorna** la configurazione del package manager
-4. **Ripristina** la modalità standard
+2. **Rimuove** i file `.yarnrc.yml` e `.yarnignore`
+3. **Elimina** il file `yarn.lock`
+4. **Rimuove** root `node_modules` (preservando package-manager se presente)
+5. **Aggiorna** la configurazione del package manager
+6. **Ripristina** la modalità standard
 
 ## 📁 Struttura del Progetto
 
@@ -186,6 +238,9 @@ progetto/
     "level1/project-b/*",
     "level1/level2/project-c/*"
   ],
+  "resolutions": {
+    "@azure/logger": "^1.0.0"
+  },
   "scripts": {
     "install:workspace": "yarn install",
     "install:all": "yarn workspaces run install",
@@ -193,6 +248,8 @@ progetto/
   }
 }
 ```
+
+**Nota sulle resolutions**: Il campo `resolutions` viene aggiunto automaticamente dal sistema per garantire compatibilità con Node.js 18. Queste resolutions forzano versioni specifiche dei pacchetti per evitare conflitti quando Yarn workspace seleziona versioni più recenti.
 
 ### Project Config
 ```javascript
@@ -214,10 +271,14 @@ workspace: {
 4. **Verifica** lo stato del Workspace
 
 ### Sviluppo Quotidiano
-1. **Aggiorna** le dipendenze nei singoli `package.json`
-2. **Esegui** `yarn install` per sincronizzare
-3. **Pulisci** i `node_modules` locali se necessario
-4. **Verifica** lo stato del Workspace
+1. **Aggiorna** le dipendenze nei singoli `package.json` (modalità standard)
+2. **⚠️ IMPORTANTE**: Prima di inizializzare workspace dopo aggiornamenti:
+   - Il sistema **rimuove automaticamente** tutti i `package-lock.json` durante l'inizializzazione
+   - Questo previene conflitti tra npm lock files e yarn workspace
+3. **Inizializza/Reinizializza** il workspace se necessario
+4. **Esegui** `yarn install` per sincronizzare (o usa il menu workspace)
+5. **Pulisci** i `node_modules` locali se necessario (opzionale, per risparmio spazio)
+6. **Verifica** lo stato del Workspace
 
 ### Risoluzione Problemi
 1. **Controlla** lo stato del Workspace
@@ -272,16 +333,36 @@ npm install -g yarn
 
 # Reinstalla il Workspace
 # Dal menu: Gestione Monorepo Workspace > Inizializza Workspace
+
+# Se workspace già inizializzato, usa Reinizializza con modalità Force
+# Dal menu: Gestione Monorepo Workspace > Reinizializza Workspace (forza)
 ```
 
-### Errori di Dipendenze
-```bash
-# Pulisci tutto e reinstalla
-yarn install --force
+### Errori di Dipendenze / Conflitti Versione Node.js
 
-# O disabilita e riabilita il Workspace
-# Dal menu: Gestione Monorepo Workspace > Disabilita Workspace
-# Poi: Gestione Monorepo Workspace > Abilita Workspace
+**Problema**: Yarn workspace installa versioni incompatibili con Node.js 18
+
+**Soluzione automatica**: Il sistema:
+1. ✅ Rileva automaticamente la versione Node.js
+2. ✅ Aggiunge `resolutions` in root `package.json`
+3. ✅ Usa `--ignore-engines` se necessario
+4. ✅ Verifica e corregge versioni dopo installazione
+
+**Soluzione manuale**:
+```bash
+# Il sistema prova automaticamente con --ignore-engines
+# Se necessario, puoi aggiungere manualmente resolutions in root package.json:
+{
+  "resolutions": {
+    "@azure/logger": "^1.0.0"
+  }
+}
+
+# Poi reinstallare
+yarn install --ignore-engines
+
+# O reinizializza il workspace
+# Dal menu: Gestione Monorepo Workspace > Reinizializza Workspace
 ```
 
 ### Problemi di Performance

@@ -273,7 +273,9 @@ function showVersionChanges(
   componentDirs,
   finalBaseDeps,
   finalDevDeps,
-  projectConfig
+  projectConfig,
+  conditionalDeps = {},
+  conditionalDevDeps = {}
 ) {
   logger.log("\n📊 Riepilogo modifiche versioni:", "cyan");
 
@@ -282,7 +284,10 @@ function showVersionChanges(
     devDependencies: {},
   };
 
-  // Raccoglie le versioni attuali dal primo componente per il confronto
+  // Raccoglie le versioni attuali da tutti i componenti per il confronto
+  // IMPORTANTE: Per ogni componente controlliamo se le conditional deps/devDeps 
+  // sono presenti in package.json, anche se non vengono rilevate come "usate" nel codice
+  // perché updatePackageJson le aggiornerà comunque se sono presenti
   componentDirs.forEach((componentDir) => {
     const packageJsonPath = path.join(
       process.cwd(),
@@ -292,7 +297,7 @@ function showVersionChanges(
     if (fs.existsSync(packageJsonPath)) {
       const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, "utf8"));
 
-      // Controlla dependencies
+      // Controlla BASE dependencies (stesso meccanismo di prima)
       Object.entries(finalBaseDeps).forEach(([name, newVersion]) => {
         const oldVersion = packageJson.dependencies?.[name];
         if (oldVersion && oldVersion !== newVersion) {
@@ -306,7 +311,32 @@ function showVersionChanges(
         }
       });
 
-      // Controlla devDependencies
+      // Controlla CONDITIONAL dependencies - IMPORTANTE:
+      // updatePackageJson aggiorna conditional deps che sono già in package.json
+      // anche se non vengono rilevate come "usate" nel codice
+      // Quindi controlliamo TUTTE le conditional deps dal config
+      // se sono presenti in package.json del componente corrente
+      Object.entries(conditionalDeps).forEach(([name, newVersion]) => {
+        // Gestire sia stringhe che oggetti (per compatibilità)
+        const configVersion = typeof newVersion === 'string' ? newVersion : (newVersion?.version || newVersion);
+        if (!configVersion) return;
+        
+        const oldVersion = packageJson.dependencies?.[name];
+        // Se il pacchetto è già presente in package.json di questo componente, 
+        // verrà aggiornato da updatePackageJson indipendentemente dall'uso nel codice
+        if (oldVersion && oldVersion !== configVersion) {
+          // Pacchetto presente ma con versione diversa - da aggiornare
+          // Se già presente in changes, aggiorna solo se la nuova versione è diversa
+          if (!changes.dependencies[name]) {
+            changes.dependencies[name] = { old: oldVersion, new: configVersion };
+          } else if (changes.dependencies[name].new !== configVersion) {
+            // Se la versione target è diversa da quella già registrata, aggiorna
+            changes.dependencies[name].new = configVersion;
+          }
+        }
+      });
+
+      // Controlla BASE devDependencies (stesso meccanismo di prima)
       Object.entries(finalDevDeps).forEach(([name, newVersion]) => {
         const oldVersion = packageJson.devDependencies?.[name];
         if (oldVersion && oldVersion !== newVersion) {
@@ -319,6 +349,34 @@ function showVersionChanges(
         } else if (!oldVersion) {
           if (!changes.devDependencies[name]) {
             changes.devDependencies[name] = { old: null, new: newVersion };
+          }
+        }
+      });
+
+      // Controlla CONDITIONAL devDependencies - IMPORTANTE:
+      // updatePackageJson aggiorna conditional devDeps che sono già in package.json
+      // anche se non vengono rilevate come "usate" nel codice
+      // Quindi controlliamo TUTTE le conditional devDeps dal config
+      // se sono presenti in package.json del componente corrente
+      Object.entries(conditionalDevDeps).forEach(([name, newVersion]) => {
+        // Gestire sia stringhe che oggetti (per compatibilità)
+        const configVersion = typeof newVersion === 'string' ? newVersion : (newVersion?.version || newVersion);
+        if (!configVersion) return;
+        
+        const oldVersion = packageJson.devDependencies?.[name];
+        // Se il pacchetto è già presente in package.json di questo componente, 
+        // verrà aggiornato da updatePackageJson indipendentemente dall'uso nel codice
+        if (oldVersion && oldVersion !== configVersion) {
+          // Pacchetto presente ma con versione diversa - da aggiornare
+          // Se già presente in changes, aggiorna solo se la nuova versione è diversa
+          if (!changes.devDependencies[name]) {
+            changes.devDependencies[name] = {
+              old: oldVersion,
+              new: configVersion,
+            };
+          } else if (changes.devDependencies[name].new !== configVersion) {
+            // Se la versione target è diversa da quella già registrata, aggiorna
+            changes.devDependencies[name].new = configVersion;
           }
         }
       });
@@ -780,11 +838,14 @@ async function updateAllConfigs(scope = "all", components = []) {
   }
 
   // Mostra il riepilogo delle modifiche delle versioni solo se ci sono modifiche
+  // Passa anche conditional deps per controllare le versioni se presenti in package.json
   const hasChanges = showVersionChanges(
     componentDirs,
     finalBaseDeps,
     finalDevDeps,
-    projectConfig
+    projectConfig,
+    conditionalDeps,
+    conditionalDevDeps
   );
 
   if (!hasChanges) {
@@ -796,8 +857,10 @@ async function updateAllConfigs(scope = "all", components = []) {
     return true;
   }
 
-  let successCount = 0;
-  let totalCount = componentDirs.length;
+  let updatedCount = 0;
+  let skippedCount = 0;
+  let errorCount = 0;
+  const totalCount = componentDirs.length;
 
   componentDirs.forEach((componentDir) => {
     const fullPath = path.join(process.cwd(), componentDir);
@@ -811,12 +874,14 @@ async function updateAllConfigs(scope = "all", components = []) {
     // Verifica se il componente esiste
     if (!fs.existsSync(fullPath)) {
       logger.error(`❌ Directory non trovata: ${fullPath}`, "red");
+      errorCount++;
       return;
     }
 
     // Verifica se package.json esiste
     if (!fs.existsSync(packageJsonPath)) {
       logger.error(`❌ package.json non trovato in ${componentDir}`, "red");
+      errorCount++;
       return;
     }
 
@@ -841,6 +906,43 @@ async function updateAllConfigs(scope = "all", components = []) {
     const componentConditionalDevDeps = {};
     usedConditionalDevDeps.forEach((dep) => {
       componentConditionalDevDeps[dep.name] = dep.version;
+    });
+
+    // Додати conditional deps/devDeps, які вже є в package.json з іншою версією
+    const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, "utf8"));
+
+    // Для conditional deps
+    Object.entries(conditionalDeps).forEach(([name, configVersionValue]) => {
+      // Gestire sia stringhe che oggetti (per compatibilità)
+      const configVersion = typeof configVersionValue === 'string' 
+        ? configVersionValue 
+        : (configVersionValue?.version || configVersionValue);
+      if (!configVersion) return;
+      
+      const currentVersion = packageJson.dependencies?.[name];
+      if (currentVersion && currentVersion !== configVersion) {
+        // Вже є в package.json з іншою версією - додати для оновлення
+        if (!componentConditionalDeps[name]) {
+          componentConditionalDeps[name] = configVersion;
+        }
+      }
+    });
+
+    // Для conditional devDeps
+    Object.entries(conditionalDevDeps).forEach(([name, configVersionValue]) => {
+      // Gestire sia stringhe che oggetti (per compatibilità)
+      const configVersion = typeof configVersionValue === 'string' 
+        ? configVersionValue 
+        : (configVersionValue?.version || configVersionValue);
+      if (!configVersion) return;
+      
+      const currentVersion = packageJson.devDependencies?.[name];
+      if (currentVersion && currentVersion !== configVersion) {
+        // Вже є в package.json з іншою версією - додати для оновлення
+        if (!componentConditionalDevDeps[name]) {
+          componentConditionalDevDeps[name] = configVersion;
+        }
+      }
     });
 
     const packageResult = updatePackageJson(
@@ -874,29 +976,31 @@ async function updateAllConfigs(scope = "all", components = []) {
     const tslintSuccess = removeTslintJson(fullPath, projectConfig);
 
     if (packageResult.success && tsConfigSuccess && tslintSuccess) {
-      successCount++;
-    } else if (!packageResult.success) {
+      if (packageResult.changes) {
+        updatedCount++;
+      } else {
+        skippedCount++;
+      }
+    } else {
+      errorCount++;
       logger.log(`   ❌ Errore aggiornamento ${componentDir}`, "red");
     }
   });
 
   logger.log(`\n📊 Risultato:`, "cyan");
+  logger.log(`   ✅ Aggiornati: ${updatedCount}/${totalCount}`, "green");
+  logger.log(`   ⏭️  Senza modifiche: ${skippedCount}/${totalCount}`, "blue");
   logger.log(
-    `   ✅ Aggiornati con successo: ${successCount}/${totalCount}`,
-    "green"
-  );
-  logger.log(
-    `   ❌ Errori: ${totalCount - successCount}/${totalCount}`,
-    totalCount - successCount > 0 ? "red" : "green"
+    `   ❌ Errori: ${errorCount}/${totalCount}`,
+    errorCount > 0 ? "red" : "green"
   );
 
-  if (successCount === totalCount) {
+  if (errorCount === 0) {
     logger.log(
       "\n🎉 Tutte le configurazioni aggiornate con successo!",
       "green"
     );
-
-    // Check if workspace mode is enabled and install packages
+    // Chiedi se installare i pacchetti ora
     try {
       const projectConfigPath = path.join(
         process.cwd(),
@@ -906,67 +1010,71 @@ async function updateAllConfigs(scope = "all", components = []) {
       if (fs.existsSync(projectConfigPath)) {
         const projectConfig = require(projectConfigPath);
 
-        if (
-          projectConfig.workspace?.enabled &&
-          projectConfig.workspace?.initialized
-        ) {
-          logger.log(
-            "\n🔄 Workspace rilevato - installazione pacchetti centralizzata...",
-            "cyan"
-          );
+        const rl = createReadlineInterface();
+        const answer = await askQuestion(
+          rl,
+          "\nVuoi installare i pacchetti adesso? (y/N): "
+        );
+        rl.close();
 
-          // Use workspace installation
-          const {
-            installAllComponentsWorkspace,
-          } = require("./operations/workspace-install");
-          const workspaceSuccess = installAllComponentsWorkspace(
-            projectConfig,
-            "normal"
-          );
-
-          if (workspaceSuccess) {
-            logger.success("✅ Pacchetti installati tramite workspace!");
+        if (answer === "y" || answer === "yes") {
+          if (
+            projectConfig.workspace?.enabled &&
+            projectConfig.workspace?.initialized
+          ) {
+            logger.log(
+              "\n🔄 Workspace rilevato - installazione pacchetti centralizzata...",
+              "cyan"
+            );
+            const {
+              installAllComponentsWorkspace,
+            } = require("./operations/workspace-install");
+            const workspaceSuccess = installAllComponentsWorkspace(
+              projectConfig,
+              "normal"
+            );
+            if (workspaceSuccess) {
+              logger.success("✅ Pacchetti installati tramite workspace!");
+            } else {
+              logger.warning("⚠️  Errore durante l'installazione workspace");
+            }
           } else {
-            logger.warning("⚠️  Errore durante l'installazione workspace");
-          }
-        } else {
-          logger.log("\n🔄 Installazione pacchetti standard...", "cyan");
-
-          // Use standard installation for each component
-          const { getComponentDirectories } = require("./utils/common");
-          const components = getComponentDirectories(projectConfig);
-
-          let installSuccess = 0;
-          for (const component of components) {
-            try {
-              const componentPath = path.join(process.cwd(), component);
-              const {
-                installPackagesStandard,
-              } = require("./operations/standard-install");
-              const success = installPackagesStandard(
-                componentPath,
-                "normal",
-                projectConfig
-              );
-              if (success) installSuccess++;
-            } catch (error) {
+            logger.log("\n🔄 Installazione pacchetti standard...", "cyan");
+            const { getComponentDirectories } = require("./utils/common");
+            const components = getComponentDirectories(projectConfig);
+            let installSuccess = 0;
+            for (const component of components) {
+              try {
+                const componentPath = path.join(process.cwd(), component);
+                const {
+                  installPackagesStandard,
+                } = require("./operations/standard-install");
+                const success = installPackagesStandard(
+                  componentPath,
+                  "normal",
+                  projectConfig
+                );
+                if (success) installSuccess++;
+              } catch (error) {
+                logger.warning(
+                  `⚠️  Errore installazione ${component}: ${error.message}`
+                );
+              }
+            }
+            if (installSuccess === components.length) {
+              logger.success("✅ Tutti i pacchetti installati con successo!");
+            } else {
               logger.warning(
-                `⚠️  Errore installazione ${component}: ${error.message}`
+                `⚠️  Installati ${installSuccess}/${components.length} componenti`
               );
             }
           }
-
-          if (installSuccess === components.length) {
-            logger.success("✅ Tutti i pacchetti installati con successo!");
-          } else {
-            logger.warning(
-              `⚠️  Installati ${installSuccess}/${components.length} componenti`
-            );
-          }
+        } else {
+          logger.info("⏭️  Installazione pacchetti saltata su richiesta");
         }
       }
     } catch (error) {
-      logger.warning("⚠️  Errore durante l'installazione automatica pacchetti");
+      logger.warning("⚠️  Errore durante l'installazione pacchetti");
       logger.warning(`   ${error.message}`);
     }
   } else {
@@ -982,7 +1090,7 @@ async function updateAllConfigs(scope = "all", components = []) {
   await askQuestion(pauseRl, "");
   pauseRl.close();
 
-  return successCount === totalCount;
+  return errorCount === 0;
 }
 
 // Avvio script
