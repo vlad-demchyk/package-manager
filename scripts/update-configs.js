@@ -666,7 +666,7 @@ async function updateAllConfigs(scope = "all", components = []) {
         );
 
         if (confirmTs !== "y" && confirmTs !== "yes") {
-          delete generated.standardTsConfig;
+          generated.standardTsConfig = {};
           logger.log("Configurazione TypeScript non sarà salvata", "yellow");
         }
       }
@@ -769,10 +769,8 @@ async function updateAllConfigs(scope = "all", components = []) {
 
     if (confirmTsUpdate !== "y" && confirmTsUpdate !== "yes") {
       logger.log("Aggiornamento tsconfig.json saltato", "yellow");
-      // Salta l'aggiornamento tsconfig
-      Object.keys(standardTsConfig).forEach(
-        (key) => delete standardTsConfig[key]
-      );
+      // Salta l'aggiornamento tsconfig - imposta come oggetto vuoto
+      standardTsConfig = {};
     }
   }
 
@@ -962,15 +960,21 @@ async function updateAllConfigs(scope = "all", components = []) {
       logComponentChanges(packageResult.changes, componentDir);
     }
 
-    const tsConfigSuccess = updateTsConfig(
-      fullPath,
-      projectConfig,
-      standardTsConfig
-    );
-
-    // Aggiungiamo log per tsconfig.json se è stato aggiornato
-    if (tsConfigSuccess && Object.keys(standardTsConfig).length > 0) {
-      // Il logging è già in updateTsConfig, ma possiamo aggiungere qui se necessario
+    // Aggiorna tsconfig.json solo se standardTsConfig non è vuoto
+    let tsConfigSuccess = true;
+    if (standardTsConfig && Object.keys(standardTsConfig).length > 0) {
+      tsConfigSuccess = updateTsConfig(
+        fullPath,
+        projectConfig,
+        standardTsConfig
+      );
+    } else {
+      // Se standardTsConfig è vuoto o undefined, non aggiornare tsconfig.json
+      logger.log(
+        `ℹ️  tsconfig.json non verrà aggiornato (configurazione non specificata)`,
+        "blue",
+        projectConfig
+      );
     }
 
     const tslintSuccess = removeTslintJson(fullPath, projectConfig);
