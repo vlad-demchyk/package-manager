@@ -226,6 +226,11 @@ function updatePackageJson(
 }
 
 function updateTsConfig(componentPath, projectConfig, standardTsConfig) {
+  // Verifica che standardTsConfig esista e non sia vuoto
+  if (!standardTsConfig || Object.keys(standardTsConfig).length === 0) {
+    return true; // Non è un errore se non c'è configurazione da applicare
+  }
+
   const tsConfigPath = path.join(componentPath, projectConfig.files.tsConfig);
 
   if (!fs.existsSync(tsConfigPath)) {

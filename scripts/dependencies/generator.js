@@ -340,36 +340,44 @@ function saveDependenciesConfig(generated, projectConfig) {
 // DIPENDENZE BASE (sempre aggiunte)
 // ============================================================================
 const BASE_DEPENDENCIES = {
-${Object.entries(generated.baseDeps)
-  .map(([name, version]) => `  "${name}": "${version}"`)
-  .join(",\n")}
+${generated.baseDeps && Object.entries(generated.baseDeps).length > 0
+  ? Object.entries(generated.baseDeps)
+      .map(([name, version]) => `  "${name}": "${version}"`)
+      .join(",\n")
+  : "  // Nessuna dipendenza base"}
 };
 
 // ============================================================================
 // DIPENDENZE CONDIZIONALI (aggiunte solo se utilizzate)
 // ============================================================================
 const CONDITIONAL_DEPENDENCIES = {
-${Object.entries(generated.conditionalDeps)
-  .map(([name, version]) => `  "${name}": "${version}"`)
-  .join(",\n")}
+${generated.conditionalDeps && Object.entries(generated.conditionalDeps).length > 0
+  ? Object.entries(generated.conditionalDeps)
+      .map(([name, version]) => `  "${name}": "${version}"`)
+      .join(",\n")
+  : "  // Nessuna dipendenza condizionale"}
 };
 
 // ============================================================================
 // DIPENDENZE DEV BASE (sempre aggiunte come devDependencies)
 // ============================================================================
 const DEV_DEPENDENCIES = {
-${Object.entries(generated.devDeps)
-  .map(([name, version]) => `  "${name}": "${version}"`)
-  .join(",\n")}
+${generated.devDeps && Object.entries(generated.devDeps).length > 0
+  ? Object.entries(generated.devDeps)
+      .map(([name, version]) => `  "${name}": "${version}"`)
+      .join(",\n")
+  : "  // Nessuna dipendenza dev base"}
 };
 
 // ============================================================================
 // DIPENDENZE DEV CONDIZIONALI (aggiunte solo se utilizzate come devDependencies)
 // ============================================================================
 const CONDITIONAL_DEV_DEPENDENCIES = {
-${Object.entries(generated.conditionalDevDeps)
-  .map(([name, version]) => `  "${name}": "${version}"`)
-  .join(",\n")}
+${generated.conditionalDevDeps && Object.entries(generated.conditionalDevDeps).length > 0
+  ? Object.entries(generated.conditionalDevDeps)
+      .map(([name, version]) => `  "${name}": "${version}"`)
+      .join(",\n")
+  : "  // Nessuna dipendenza dev condizionale"}
 };
 
 // ============================================================================
@@ -390,6 +398,7 @@ const STANDARD_SCRIPTS = {
 // TSCONFIG.JSON STANDARD
 // ============================================================================
 const STANDARD_TSCONFIG = ${
+    generated.standardTsConfig && 
     Object.keys(generated.standardTsConfig).length > 0
       ? JSON.stringify(generated.standardTsConfig, null, 2)
       : '{\n  // Esempio: "compilerOptions": { "target": "es2016" }\n}'
