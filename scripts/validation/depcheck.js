@@ -409,8 +409,14 @@ async function handleComponent(componentName, options) {
     if (candidates.deps.length === 0 && candidates.devDeps.length === 0) {
       logger.success("Nessun candidato alla rimozione");
     } else {
-      logger.warning("Rimozione pacchetti non utilizzati (post-filtri)");
-      uninstallPackages(dir, candidates.deps, candidates.devDeps, dryRun);
+      if (options.quickRemove) {
+        logger.warning("⚡ Rimozione rapida: solo da package.json (post-filtri)");
+        logger.warning("⚠️  I pacchetti rimarranno in node_modules!", "yellow");
+        removeFromPackageJson(dir, candidates.deps, candidates.devDeps, dryRun);
+      } else {
+        logger.warning("🗑️  Rimozione profonda: da node_modules e package.json (post-filtri)");
+        uninstallPackages(dir, candidates.deps, candidates.devDeps, dryRun);
+      }
     }
   }
 
@@ -539,6 +545,7 @@ function parseArgs(argv) {
     dryRun: false,
     json: false,
     includeDev: true,
+    quickRemove: false,
   };
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
@@ -560,6 +567,8 @@ function parseArgs(argv) {
       out.dryRun = true;
     } else if (a === "--json") {
       out.json = true;
+    } else if (a === "--quick-remove") {
+      out.quickRemove = true;
     } else if (a === "--include-dev") {
       out.includeDev = true;
     } else if (a === "--no-dev") {
