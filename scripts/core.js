@@ -143,6 +143,61 @@ async function updateAllConfigs() {
 // Importa isDependenciesConfigEmpty per verificare se il config è vuoto
 const { isDependenciesConfigEmpty } = require("./update-configs");
 
+// Funzione per chiedere il modo di rimozione dipendenze
+function askDepcheckRemovalMode(scope, components, callback) {
+  logger.section("Modalità rimozione dipendenze");
+  logger.log("1. 🗑️  Rimozione profonda (rimuove da node_modules)", "yellow");
+  logger.log("2. ⚡ Rimozione rapida (solo da package.json)", "blue");
+  logger.warning("⚠️  La rimozione rapida può causare comportamenti inattesi o errori!");
+  logger.warning("0. 🔙 Annulla");
+
+  if (!rl) return;
+
+  rl.question("\nScegli modalità rimozione (0-2): ", (answer) => {
+    switch (answer.trim()) {
+      case "0":
+        logger.info("Operazione annullata");
+        setTimeout(() => {
+          if (askQuestion) askQuestion();
+        }, 100);
+        break;
+      case "1":
+        callback(scope, components, "deep");
+        break;
+      case "2":
+        logger.warning(
+          "\n⚠️  ATTENZIONE: Rimozione rapida selezionata!",
+          "red"
+        );
+        logger.warning(
+          "⚠️  Le dipendenze verranno rimosse solo da package.json",
+          "yellow"
+        );
+        logger.warning(
+          "⚠️  I pacchetti rimarranno in node_modules e potrebbero causare:",
+          "yellow"
+        );
+        logger.warning("   - Comportamenti inattesi", "yellow");
+        logger.warning("   - Errori di runtime", "yellow");
+        logger.warning("   - Problemi di compatibilità", "yellow");
+        rl.question("\nSei sicuro di voler continuare? (y/N): ", (confirm) => {
+          if (confirm.toLowerCase() === "y" || confirm.toLowerCase() === "yes") {
+            callback(scope, components, "quick");
+          } else {
+            logger.info("Operazione annullata");
+            setTimeout(() => {
+              if (askQuestion) askQuestion();
+            }, 100);
+          }
+        });
+        break;
+      default:
+        logger.log("❌ Scelta non valida", "red");
+        setTimeout(() => askDepcheckRemovalMode(scope, components, callback), 1000);
+    }
+  });
+}
+
 // Funzioni per depcheck
 function showDepcheckMenu() {
   // Check workspace mode
@@ -190,14 +245,17 @@ function showDepcheckMenu() {
                 confirm.toLowerCase() === "y" ||
                 confirm.toLowerCase() === "yes"
               ) {
-                logger.log(
-                  "\n🔍 Rimozione dipendenze per tutti i componenti...",
-                  "cyan"
-                );
-                executeDepcheckCommand("all", [], ["clean"], () => {
-                  setTimeout(() => {
-                    if (askQuestion) askQuestion();
-                  }, 100);
+                askDepcheckRemovalMode("all", [], (scope, components, mode) => {
+                  logger.log(
+                    `\n🔍 Rimozione dipendenze per tutti i componenti (modalità: ${mode === "deep" ? "profonda" : "rapida"})...`,
+                    "cyan"
+                  );
+                  const args = mode === "quick" ? ["clean", "--quick-remove"] : ["clean"];
+                  executeDepcheckCommand(scope, components, args, () => {
+                    setTimeout(() => {
+                      if (askQuestion) askQuestion();
+                    }, 100);
+                  });
                 });
               } else {
                 logger.warning("Operazione annullata");
@@ -279,20 +337,18 @@ function showDepcheckComponentSelection() {
                 confirm.toLowerCase() === "y" ||
                 confirm.toLowerCase() === "yes"
               ) {
-                logger.log(
-                  `\n🔍 Rimozione dipendenze per: ${selectedComponent}`,
-                  "cyan"
-                );
-                executeDepcheckCommand(
-                  "single",
-                  [selectedComponent],
-                  ["clean"],
-                  () => {
+                askDepcheckRemovalMode("single", [selectedComponent], (scope, components, mode) => {
+                  logger.log(
+                    `\n🔍 Rimozione dipendenze per: ${selectedComponent} (modalità: ${mode === "deep" ? "profonda" : "rapida"})...`,
+                    "cyan"
+                  );
+                  const args = mode === "quick" ? ["clean", "--quick-remove"] : ["clean"];
+                  executeDepcheckCommand(scope, components, args, () => {
                     setTimeout(() => {
                       if (askQuestion) askQuestion();
                     }, 100);
-                  }
-                );
+                  });
+                });
               } else {
                 logger.warning("Operazione annullata");
                 setTimeout(() => {
@@ -344,22 +400,18 @@ function showDepcheckExcludeSelection() {
                 confirm.toLowerCase() === "y" ||
                 confirm.toLowerCase() === "yes"
               ) {
-                logger.log(
-                  `\n🔍 Rimozione dipendenze per tutti i componenti eccetto: ${excludeList.join(
-                    ", "
-                  )}`,
-                  "cyan"
-                );
-                executeDepcheckCommand(
-                  "exclude",
-                  excludeList,
-                  ["clean"],
-                  () => {
+                askDepcheckRemovalMode("exclude", excludeList, (scope, components, mode) => {
+                  logger.log(
+                    `\n🔍 Rimozione dipendenze per tutti i componenti eccetto: ${excludeList.join(", ")} (modalità: ${mode === "deep" ? "profonda" : "rapida"})...`,
+                    "cyan"
+                  );
+                  const args = mode === "quick" ? ["clean", "--quick-remove"] : ["clean"];
+                  executeDepcheckCommand(scope, components, args, () => {
                     setTimeout(() => {
                       if (askQuestion) askQuestion();
                     }, 100);
-                  }
-                );
+                  });
+                });
               } else {
                 logger.warning("Operazione annullata");
                 setTimeout(() => {
