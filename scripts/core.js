@@ -553,14 +553,14 @@ function executeInstallCommand(scope, components, mode) {
   }, 100);
 }
 
-function executeReinstallCommand(scope, components, mode) {
+function executeReinstallCommand(scope, components, mode, cleanMode = "lock-and-modules") {
   // Prima pulizia, poi installazione
-  executeCleanCommand(scope, components);
+  executeCleanCommand(scope, components, cleanMode);
   executeInstallCommand(scope, components, mode);
   // executeInstallCommand already handles the setTimeout for returning to menu
 }
 
-function executeCleanCommand(scope, components) {
+function executeCleanCommand(scope, components, cleanMode = "lock-and-modules") {
   // Reload project config to get latest settings
   try {
     const configPath = path.join(
@@ -580,7 +580,7 @@ function executeCleanCommand(scope, components) {
 
   switch (scope) {
     case "all":
-      cleanAllComponents();
+      cleanAllComponents(null, cleanMode);
       break;
     case "single":
       if (components.length > 0) {
@@ -591,7 +591,8 @@ function executeCleanCommand(scope, components) {
           } = require("./operations/cleaner");
           const success = cleanSingleWorkspaceComponent(
             components[0],
-            projectConfig
+            projectConfig,
+            cleanMode
           );
 
           if (!success) {
@@ -599,7 +600,7 @@ function executeCleanCommand(scope, components) {
           }
         } else {
           // Use standard cleaning
-          cleanComponent(path.join(process.cwd(), components[0]));
+          cleanComponent(path.join(process.cwd(), components[0]), projectConfig, cleanMode);
         }
       } else {
         logger.error("Nessun componente specificato per --single");
@@ -609,10 +610,10 @@ function executeCleanCommand(scope, components) {
       if (isWorkspaceMode) {
         // Use workspace-specific cleaning with exclude list
         const { cleanWorkspaceComponents } = require("./operations/cleaner");
-        cleanWorkspaceComponents(components, projectConfig);
+        cleanWorkspaceComponents(components, projectConfig, cleanMode);
       } else {
         // Use standard cleaning with exclude list
-        cleanAllComponents(components);
+        cleanAllComponents(components, cleanMode);
       }
       break;
   }
@@ -1714,7 +1715,7 @@ function showInstallMenu() {
   });
 }
 
-function showInstallModeMenu(scope, components) {
+function showInstallModeMenu(scope, components, cleanMode = null) {
   logger.section("Modalità installazione");
   logger.info("1. Normale");
   logger.warning("2. --legacy-peer-deps");
@@ -1756,19 +1757,27 @@ function showInstallModeMenu(scope, components) {
       );
       rl.question("Continua? (y/N): ", (confirm) => {
         if (confirm.toLowerCase() === "y" || confirm.toLowerCase() === "yes") {
-          executeInstallCommand(scope, components, mode);
+          if (cleanMode) {
+            executeReinstallCommand(scope, components, mode, cleanMode);
+          } else {
+            executeInstallCommand(scope, components, mode);
+          }
         }
         setTimeout(() => {
           if (askQuestion) askQuestion();
         }, 100);
       });
     } else {
-      executeInstallCommand(scope, components, mode);
+      if (cleanMode) {
+        executeReinstallCommand(scope, components, mode, cleanMode);
+      } else {
+        executeInstallCommand(scope, components, mode);
+      }
     }
   });
 }
 
-function showComponentSelectionMenu(scope) {
+function showComponentSelectionMenu(scope, callback = null) {
   const components = showComponentList();
 
   if (components.length === 0) {
@@ -1797,7 +1806,11 @@ function showComponentSelectionMenu(scope) {
       if (index >= 0 && index < components.length) {
         const selectedComponent = components[index];
         logger.log(`\n🎯 Selezionato: ${selectedComponent}`, "green");
-        showInstallModeMenu(scope, [selectedComponent]);
+        if (callback) {
+          callback(scope, [selectedComponent]);
+        } else {
+          showInstallModeMenu(scope, [selectedComponent]);
+        }
       } else {
         logger.error("Numero componente non valido");
         setTimeout(() => {
@@ -1808,7 +1821,7 @@ function showComponentSelectionMenu(scope) {
   );
 }
 
-function showExcludeSelectionMenu() {
+function showExcludeSelectionMenu(callback = null) {
   if (!rl) return;
 
   rl.question(
@@ -1830,7 +1843,11 @@ function showExcludeSelectionMenu() {
             confirm.toLowerCase() === "y" ||
             confirm.toLowerCase() === "yes"
           ) {
-            showInstallModeMenu("exclude", excludeList);
+            if (callback) {
+              callback("exclude", excludeList);
+            } else {
+              showInstallModeMenu("exclude", excludeList);
+            }
           } else {
             setTimeout(() => {
               if (askQuestion) askQuestion();
@@ -1845,6 +1862,36 @@ function showExcludeSelectionMenu() {
       }
     }
   );
+}
+
+// Funzione per chiedere il modo di pulizia durante la reinstallazione
+function askCleanupMode(scope, components, callback) {
+  logger.section("Modalità pulizia");
+  logger.log("1. Rimuovi solo package-lock.json (mantieni node_modules)", "blue");
+  logger.log("2. Rimuovi package-lock.json + node_modules (pulizia completa)", "yellow");
+  logger.warning("0. 🔙 Annulla");
+
+  if (!rl) return;
+
+  rl.question("\nScegli modalità pulizia (0-2): ", (answer) => {
+    switch (answer.trim()) {
+      case "0":
+        logger.info("Operazione annullata");
+        setTimeout(() => {
+          if (askQuestion) askQuestion();
+        }, 100);
+        break;
+      case "1":
+        callback(scope, components, "lock-only");
+        break;
+      case "2":
+        callback(scope, components, "lock-and-modules");
+        break;
+      default:
+        logger.log("❌ Scelta non valida", "red");
+        setTimeout(() => askCleanupMode(scope, components, callback), 1000);
+    }
+  });
 }
 
 function showReinstallMenu() {
@@ -1866,7 +1913,7 @@ function showReinstallMenu() {
         break;
       case "1":
         logger.log(
-          "\n⚠️  Questo rimuoverà tutti i file node_modules e package-lock.json!",
+          "\n⚠️  Questo rimuoverà i file selezionati!",
           "yellow"
         );
         rl.question("Continua? (y/N): ", (confirm) => {
@@ -1874,7 +1921,9 @@ function showReinstallMenu() {
             confirm.toLowerCase() === "y" ||
             confirm.toLowerCase() === "yes"
           ) {
-            showInstallModeMenu("all", []);
+            askCleanupMode("all", [], (scope, components, cleanMode) => {
+              showInstallModeMenu(scope, components, cleanMode);
+            });
           } else {
             setTimeout(() => {
               if (askQuestion) askQuestion();
@@ -1883,10 +1932,18 @@ function showReinstallMenu() {
         });
         break;
       case "2":
-        showComponentSelectionMenu("single");
+        showComponentSelectionMenu("single", (selectedScope, selectedComponents) => {
+          askCleanupMode(selectedScope, selectedComponents, (scope, components, cleanMode) => {
+            showInstallModeMenu(scope, components, cleanMode);
+          });
+        });
         break;
       case "3":
-        showExcludeSelectionMenu();
+        showExcludeSelectionMenu((selectedScope, selectedComponents) => {
+          askCleanupMode(selectedScope, selectedComponents, (scope, components, cleanMode) => {
+            showInstallModeMenu(scope, components, cleanMode);
+          });
+        });
         break;
       default:
         logger.log("❌ Scelta non valida per reinstallazione", "red");
@@ -2269,6 +2326,7 @@ function showExperimentalMenu() {
   logger.info("1. Cambia modalita di ricerca progetti (ricorsiva on/off)");
   logger.info("2. Controllo dipendenze non utilizzate");
   logger.info("3. Gestione Monorepo Workspace");
+  logger.info("4. Rimuovi package-lock.json per progetti");
   logger.space();
   logger.warning("0. Torna al menu principale");
 
@@ -2283,6 +2341,9 @@ function showExperimentalMenu() {
         break;
       case "3":
         showWorkspaceMenu();
+        break;
+      case "4":
+        showRemoveLockFilesMenu();
         break;
       case "0":
         logger.info("Tornando al menu principale...");
@@ -2915,6 +2976,115 @@ function cleanLocalNodeModulesFromMenu() {
       setTimeout(() => showWorkspaceMenu(), 1000);
     }
   });
+}
+
+// Funzione per mostrare il menu di rimozione lock files
+function showRemoveLockFilesMenu() {
+  logger.section("🗑️  Rimozione package-lock.json");
+  logger.warning("Questa operazione rimuoverà solo i file package-lock.json");
+  logger.info("I node_modules non verranno rimossi");
+  logger.space();
+  logger.log("1. Rimuovi per tutti i componenti", "blue");
+  logger.log("2. Rimuovi per un componente", "blue");
+  logger.log("3. Rimuovi per tutti eccetto quelli specificati", "blue");
+  logger.warning("0. 🔙 Torna al menu sperimentale");
+
+  if (!rl) return;
+
+  rl.question("\nScegli opzione (0-3): ", (answer) => {
+    switch (answer.trim()) {
+      case "0":
+        logger.info("Tornando al menu sperimentale...");
+        setTimeout(() => showExperimentalMenu(), 500);
+        break;
+      case "1":
+        logger.log(
+          "\n⚠️  Questo rimuoverà package-lock.json da TUTTI i componenti!",
+          "yellow"
+        );
+        rl.question("Continua? (y/N): ", (confirm) => {
+          if (
+            confirm.toLowerCase() === "y" ||
+            confirm.toLowerCase() === "yes"
+          ) {
+            removeLockFiles("all", []);
+          } else {
+            setTimeout(() => showExperimentalMenu(), 100);
+          }
+        });
+        break;
+      case "2":
+        showComponentSelectionMenu("single", (scope, components) => {
+          removeLockFiles(scope, components);
+        });
+        break;
+      case "3":
+        showExcludeSelectionMenu((scope, components) => {
+          removeLockFiles(scope, components);
+        });
+        break;
+      default:
+        logger.log("❌ Scelta non valida", "red");
+        setTimeout(() => showRemoveLockFilesMenu(), 1000);
+    }
+  });
+}
+
+// Funzione per rimuovere package-lock.json dai componenti
+function removeLockFiles(scope, components) {
+  // Reload project config to get latest settings
+  try {
+    const configPath = path.join(
+      process.cwd(),
+      "package-manager",
+      "project-config.js"
+    );
+    delete require.cache[require.resolve(configPath)];
+    projectConfig = require(configPath);
+  } catch (error) {
+    logger.warning("⚠️  Impossibile ricaricare la configurazione");
+  }
+
+  const { getComponentDirectories } = require("./dependencies/analyzer");
+  const { removeFile } = require("./utils/common");
+  let targetComponents = getComponentDirectories(projectConfig);
+
+  // Filter components based on scope
+  if (scope === "single" && components.length > 0) {
+    targetComponents = targetComponents.filter((comp) =>
+      components.includes(comp)
+    );
+  } else if (scope === "exclude" && components.length > 0) {
+    targetComponents = targetComponents.filter(
+      (comp) => !components.includes(comp)
+    );
+  }
+
+  if (targetComponents.length === 0) {
+    logger.error("❌ Nessun componente trovato");
+    setTimeout(() => showExperimentalMenu(), 1000);
+    return;
+  }
+
+  logger.section(`🗑️  Rimozione package-lock.json da ${targetComponents.length} componenti`);
+  
+  let removedCount = 0;
+  targetComponents.forEach((component) => {
+    const componentPath = path.join(process.cwd(), component);
+    const packageLockPath = path.join(componentPath, "package-lock.json");
+    
+    if (removeFile(packageLockPath)) {
+      removedCount++;
+      logger.log(`✅ Rimosso package-lock.json da ${component}`, "green");
+    } else {
+      logger.log(`ℹ️  package-lock.json non trovato in ${component}`, "blue");
+    }
+  });
+
+  logger.success(`\n✅ Rimossi ${removedCount}/${targetComponents.length} file package-lock.json`);
+  logger.info("💡 I node_modules non sono stati rimossi");
+  
+  setTimeout(() => showExperimentalMenu(), 2000);
 }
 
 function syncWorkspaceFromMenu() {

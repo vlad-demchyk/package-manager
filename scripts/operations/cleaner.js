@@ -23,7 +23,7 @@ const {
   getDirectorySize
 } = require("../utils/common");
 
-function cleanComponent(componentPath, projectConfig) {
+function cleanComponent(componentPath, projectConfig, cleanMode = "lock-and-modules") {
   const componentName = path.basename(componentPath);
   let cleanedItems = [];
 
@@ -45,16 +45,18 @@ function cleanComponent(componentPath, projectConfig) {
     }
   }
 
-  // Rimuoviamo node_modules
-  const nodeModulesPath = path.join(
-    componentPath,
-    projectConfig.files.nodeModules
-  );
-  if (removeDirectory(nodeModulesPath)) {
-    cleanedItems.push(projectConfig.files.nodeModules);
+  // Rimuoviamo node_modules solo se cleanMode è "lock-and-modules"
+  if (cleanMode === "lock-and-modules") {
+    const nodeModulesPath = path.join(
+      componentPath,
+      projectConfig.files.nodeModules
+    );
+    if (removeDirectory(nodeModulesPath)) {
+      cleanedItems.push(projectConfig.files.nodeModules);
+    }
   }
 
-  // Rimuoviamo package-lock.json
+  // Rimuoviamo package-lock.json (sempre, in entrambi i modi)
   const packageLockPath = path.join(
     componentPath,
     projectConfig.files.packageLock
@@ -63,10 +65,12 @@ function cleanComponent(componentPath, projectConfig) {
     cleanedItems.push(projectConfig.files.packageLock);
   }
 
-  // Rimuoviamo tslint.json
-  const tslintPath = path.join(componentPath, projectConfig.files.tslint);
-  if (removeFile(tslintPath)) {
-    cleanedItems.push(projectConfig.files.tslint);
+  // Rimuoviamo tslint.json solo se cleanMode è "lock-and-modules"
+  if (cleanMode === "lock-and-modules") {
+    const tslintPath = path.join(componentPath, projectConfig.files.tslint);
+    if (removeFile(tslintPath)) {
+      cleanedItems.push(projectConfig.files.tslint);
+    }
   }
 
   if (cleanedItems.length > 0) {
@@ -82,18 +86,18 @@ function cleanComponent(componentPath, projectConfig) {
   }
 }
 
-function cleanAllComponents(excludeList = [], projectConfig) {
+function cleanAllComponents(excludeList = [], projectConfig, cleanMode = "lock-and-modules") {
   // Check if workspace mode is enabled
   const isWorkspaceMode = projectConfig.workspace?.enabled && projectConfig.workspace?.initialized;
   
   if (isWorkspaceMode) {
-    return cleanWorkspaceComponents(excludeList, projectConfig);
+    return cleanWorkspaceComponents(excludeList, projectConfig, cleanMode);
   } else {
-    return cleanStandardComponents(excludeList, projectConfig);
+    return cleanStandardComponents(excludeList, projectConfig, cleanMode);
   }
 }
 
-function cleanStandardComponents(excludeList = [], projectConfig) {
+function cleanStandardComponents(excludeList = [], projectConfig, cleanMode = "lock-and-modules") {
   const components = getComponentDirectories(projectConfig);
 
   if (components.length === 0) {
@@ -139,7 +143,8 @@ function cleanStandardComponents(excludeList = [], projectConfig) {
     );
     const success = cleanComponent(
       path.join(process.cwd(), component),
-      projectConfig
+      projectConfig,
+      cleanMode
     );
     if (success) successCount++;
   });
@@ -224,7 +229,7 @@ function resolveLockFileConflicts(projectConfig) {
   }
 }
 
-function cleanWorkspaceComponents(excludeList = [], projectConfig) {
+function cleanWorkspaceComponents(excludeList = [], projectConfig, cleanMode = "lock-and-modules") {
   logger.section("🧹 Workspace Clean Mode");
   logger.info("📦 Pulizia in modalità workspace");
   logger.info("🔍 Rimuove solo lock files e tslint.json dai workspace, mantiene root node_modules");
@@ -299,7 +304,7 @@ function cleanWorkspaceComponents(excludeList = [], projectConfig) {
     );
     
     const workspacePath = path.join(projectRoot, workspace);
-    const success = cleanWorkspaceComponent(workspacePath, workspace, sharedAnalysis, projectConfig);
+    const success = cleanWorkspaceComponent(workspacePath, workspace, sharedAnalysis, projectConfig, cleanMode);
     
     if (success) {
       successCount++;
@@ -421,7 +426,7 @@ function analyzeSharedDependencies(components, projectRoot) {
  * @param {Object} projectConfig - Project configuration
  * @returns {boolean} Success status
  */
-function cleanWorkspaceComponent(componentPath, componentName, sharedAnalysis, projectConfig) {
+function cleanWorkspaceComponent(componentPath, componentName, sharedAnalysis, projectConfig, cleanMode = "lock-and-modules") {
   const packageJsonPath = path.join(componentPath, "package.json");
   
   if (!fs.existsSync(packageJsonPath)) {
@@ -483,31 +488,35 @@ function cleanWorkspaceComponent(componentPath, componentName, sharedAnalysis, p
       }
     }
     
-    // Remove tslint.json from workspace
-    const tslintPath = path.join(componentPath, "tslint.json");
-    if (fs.existsSync(tslintPath)) {
-      try {
-        const stats = fs.statSync(tslintPath);
-        totalSize += stats.size;
-        fs.unlinkSync(tslintPath);
-        cleanedItems.push("tslint.json");
-        logger.log(`✅ Rimosso tslint.json da ${componentName}`, "green");
-      } catch (error) {
-        logger.warning(`⚠️  ${componentName}: impossibile rimuovere tslint.json`);
+    // Remove tslint.json from workspace (solo se cleanMode è "lock-and-modules")
+    if (cleanMode === "lock-and-modules") {
+      const tslintPath = path.join(componentPath, "tslint.json");
+      if (fs.existsSync(tslintPath)) {
+        try {
+          const stats = fs.statSync(tslintPath);
+          totalSize += stats.size;
+          fs.unlinkSync(tslintPath);
+          cleanedItems.push("tslint.json");
+          logger.log(`✅ Rimosso tslint.json da ${componentName}`, "green");
+        } catch (error) {
+          logger.warning(`⚠️  ${componentName}: impossibile rimuovere tslint.json`);
+        }
       }
     }
     
-    // Remove local node_modules from workspace (if exists)
-    const localNodeModulesPath = path.join(componentPath, "node_modules");
-    if (fs.existsSync(localNodeModulesPath)) {
-      try {
-        const size = getDirectorySize(localNodeModulesPath);
-        totalSize += size;
-        removeDirectoryRecursive(localNodeModulesPath);
-        cleanedItems.push("node_modules/");
-        logger.log(`✅ Rimosso node_modules locale da ${componentName} (${formatBytes(size)})`, "green");
-      } catch (error) {
-        logger.warning(`⚠️  ${componentName}: impossibile rimuovere node_modules locale`);
+    // Remove local node_modules from workspace (solo se cleanMode è "lock-and-modules")
+    if (cleanMode === "lock-and-modules") {
+      const localNodeModulesPath = path.join(componentPath, "node_modules");
+      if (fs.existsSync(localNodeModulesPath)) {
+        try {
+          const size = getDirectorySize(localNodeModulesPath);
+          totalSize += size;
+          removeDirectoryRecursive(localNodeModulesPath);
+          cleanedItems.push("node_modules/");
+          logger.log(`✅ Rimosso node_modules locale da ${componentName} (${formatBytes(size)})`, "green");
+        } catch (error) {
+          logger.warning(`⚠️  ${componentName}: impossibile rimuovere node_modules locale`);
+        }
       }
     }
     
@@ -535,7 +544,7 @@ function cleanWorkspaceComponent(componentPath, componentName, sharedAnalysis, p
  * @param {Object} projectConfig - Project configuration
  * @returns {boolean} Success status
  */
-function cleanSingleWorkspaceComponent(componentName, projectConfig) {
+function cleanSingleWorkspaceComponent(componentName, projectConfig, cleanMode = "lock-and-modules") {
   const projectRoot = process.cwd();
   const { getComponentDirectories } = require("../utils/common");
   const components = getComponentDirectories(projectConfig);
@@ -565,7 +574,7 @@ function cleanSingleWorkspaceComponent(componentName, projectConfig) {
   }
   
   const workspacePath = path.join(projectRoot, componentName);
-  const success = cleanWorkspaceComponent(workspacePath, componentName, sharedAnalysis, projectConfig);
+  const success = cleanWorkspaceComponent(workspacePath, componentName, sharedAnalysis, projectConfig, cleanMode);
   
   if (success) {
     logger.success(`Workspace ${componentName} pulito con successo`);
