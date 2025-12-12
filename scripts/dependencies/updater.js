@@ -18,7 +18,8 @@ function updatePackageJson(
   standardScripts,
   nodeEngines,
   conditionalDeps = {},
-  conditionalDevDeps = {}
+  conditionalDevDeps = {},
+  overrides = {}
 ) {
   const packageJsonPath = path.join(
     componentPath,
@@ -205,6 +206,20 @@ function updatePackageJson(
       });
     }
 
+    // Aggiungi overrides se definiti (solo per standard mode, workspace gestito separatamente)
+    if (overrides && Object.keys(overrides).length > 0) {
+      if (!packageJson.overrides) {
+        packageJson.overrides = {};
+        updated = true;
+      }
+      Object.entries(overrides).forEach(([name, version]) => {
+        if (packageJson.overrides[name] !== version) {
+          packageJson.overrides[name] = version;
+          updated = true;
+        }
+      });
+    }
+
     if (updated) {
       fs.writeFileSync(
         packageJsonPath,
@@ -294,8 +309,48 @@ function removeTslintJson(componentPath, projectConfig) {
   }
 }
 
+function updateTsConfigSkipLibCheck(componentPath, projectConfig) {
+  const tsConfigPath = path.join(componentPath, projectConfig.files.tsConfig);
+
+  if (!fs.existsSync(tsConfigPath)) {
+    return null; // tsconfig.json non trovato
+  }
+
+  try {
+    const tsConfig = JSON.parse(fs.readFileSync(tsConfigPath, "utf8"));
+    let updated = false;
+
+    // Assicurati che compilerOptions esista
+    if (!tsConfig.compilerOptions) {
+      tsConfig.compilerOptions = {};
+      updated = true;
+    }
+
+    // Attiva skipLibCheck se non è già true
+    if (tsConfig.compilerOptions.skipLibCheck !== true) {
+      tsConfig.compilerOptions.skipLibCheck = true;
+      updated = true;
+    }
+
+    if (updated) {
+      fs.writeFileSync(tsConfigPath, JSON.stringify(tsConfig, null, 2), "utf8");
+      return true;
+    } else {
+      return null; // Già configurato
+    }
+  } catch (error) {
+    logger.log(
+      `❌ Errore aggiornando tsconfig.json: ${error.message}`,
+      "red",
+      projectConfig
+    );
+    return false;
+  }
+}
+
 module.exports = {
   updatePackageJson,
   updateTsConfig,
+  updateTsConfigSkipLibCheck,
   removeTslintJson,
 };

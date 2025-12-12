@@ -2378,7 +2378,8 @@ function showExperimentalMenu() {
   logger.info("1. Cambia modalita di ricerca progetti (ricorsiva on/off)");
   logger.info("2. Controllo dipendenze non utilizzate");
   logger.info("3. Gestione Monorepo Workspace");
-  logger.info("4. Rimuovi package-lock.json per progetti");
+  logger.info("4. Strumenti npm/package");
+  logger.info("5. Aggiorna tsconfig (skipLibCheck)");
   logger.space();
   logger.warning("0. Torna al menu principale");
 
@@ -2395,7 +2396,10 @@ function showExperimentalMenu() {
         showWorkspaceMenu();
         break;
       case "4":
-        showRemoveLockFilesMenu();
+        showNpmToolsMenu();
+        break;
+      case "5":
+        showUpdateTsConfigSkipLibCheckMenu();
         break;
       case "0":
         logger.info("Tornando al menu principale...");
@@ -2406,6 +2410,43 @@ function showExperimentalMenu() {
       default:
         logger.log("Scelta non valida. Riprova.", "red");
         setTimeout(() => showExperimentalMenu(), 1000);
+    }
+  });
+}
+
+// Funzione per mostrare il menu strumenti npm/package
+function showNpmToolsMenu() {
+  logger.section("📦 Strumenti npm/package");
+  logger.space();
+  logger.info("1. Rimuovi package-lock.json per progetti");
+  logger.info("2. npm install --package-lock-only (verifica rapida)");
+  logger.info("3. npm outdated (verifica versioni obsolete)");
+  logger.info("4. npm audit (verifica vulnerabilità)");
+  logger.space();
+  logger.warning("0. 🔙 Torna al menu sperimentale");
+
+  if (!rl) return;
+  rl.question("\nScegli opzione: ", (answer) => {
+    switch (answer.trim()) {
+      case "1":
+        showRemoveLockFilesMenu();
+        break;
+      case "2":
+        showPackageLockOnlyMenu();
+        break;
+      case "3":
+        showNpmOutdatedMenu();
+        break;
+      case "4":
+        showNpmAuditMenu();
+        break;
+      case "0":
+        logger.info("Tornando al menu sperimentale...");
+        setTimeout(() => showExperimentalMenu(), 500);
+        break;
+      default:
+        logger.log("Scelta non valida. Riprova.", "red");
+        setTimeout(() => showNpmToolsMenu(), 1000);
     }
   });
 }
@@ -3061,7 +3102,7 @@ function showRemoveLockFilesMenu() {
           ) {
             removeLockFiles("all", []);
           } else {
-            setTimeout(() => showExperimentalMenu(), 100);
+            setTimeout(() => showNpmToolsMenu(), 100);
           }
         });
         break;
@@ -3114,7 +3155,7 @@ function removeLockFiles(scope, components) {
 
   if (targetComponents.length === 0) {
     logger.error("❌ Nessun componente trovato");
-    setTimeout(() => showExperimentalMenu(), 1000);
+    setTimeout(() => showNpmToolsMenu(), 1000);
     return;
   }
 
@@ -3136,7 +3177,460 @@ function removeLockFiles(scope, components) {
   logger.success(`\n✅ Rimossi ${removedCount}/${targetComponents.length} file package-lock.json`);
   logger.info("💡 I node_modules non sono stati rimossi");
   
+  setTimeout(() => showNpmToolsMenu(), 2000);
+}
+
+// Funzione per mostrare il menu npm install --package-lock-only
+function showPackageLockOnlyMenu() {
+  logger.section("📦 npm install --package-lock-only");
+  logger.info("Aggiorna solo package-lock.json senza installare node_modules");
+  logger.space();
+  logger.log("1. Esegui per tutti i componenti", "blue");
+  logger.log("2. Esegui per un componente", "blue");
+  logger.log("3. Esegui per tutti eccetto quelli specificati", "blue");
+  logger.warning("0. 🔙 Torna al menu sperimentale");
+
+  if (!rl) return;
+
+  rl.question("\nScegli opzione (0-3): ", (answer) => {
+    switch (answer.trim()) {
+      case "0":
+        logger.info("Tornando al menu strumenti npm/package...");
+        setTimeout(() => showNpmToolsMenu(), 500);
+        break;
+      case "1":
+        executePackageLockOnlyCommand("all", []);
+        break;
+      case "2":
+        showComponentSelectionMenu("single", (scope, components) => {
+          executePackageLockOnlyCommand(scope, components);
+        });
+        break;
+      case "3":
+        showExcludeSelectionMenu((scope, components) => {
+          executePackageLockOnlyCommand(scope, components);
+        });
+        break;
+      default:
+        logger.log("❌ Scelta non valida", "red");
+        setTimeout(() => showNpmToolsMenu(), 1000);
+    }
+  });
+}
+
+// Funzione per mostrare il menu npm outdated
+function showNpmOutdatedMenu() {
+  logger.section("📊 npm outdated");
+  logger.info("Verifica versioni obsolete dei pacchetti");
+  logger.space();
+  logger.log("1. Verifica per tutti i componenti", "blue");
+  logger.log("2. Verifica per un componente", "blue");
+  logger.log("3. Verifica per tutti eccetto quelli specificati", "blue");
+  logger.warning("0. 🔙 Torna al menu sperimentale");
+
+  if (!rl) return;
+
+  rl.question("\nScegli opzione (0-3): ", (answer) => {
+    switch (answer.trim()) {
+      case "0":
+        logger.info("Tornando al menu strumenti npm/package...");
+        setTimeout(() => showNpmToolsMenu(), 500);
+        break;
+      case "1":
+        executeNpmOutdatedCommand("all", []);
+        break;
+      case "2":
+        showComponentSelectionMenu("single", (scope, components) => {
+          executeNpmOutdatedCommand(scope, components);
+        });
+        break;
+      case "3":
+        showExcludeSelectionMenu((scope, components) => {
+          executeNpmOutdatedCommand(scope, components);
+        });
+        break;
+      default:
+        logger.log("❌ Scelta non valida", "red");
+        setTimeout(() => showNpmToolsMenu(), 1000);
+    }
+  });
+}
+
+// Funzione per mostrare il menu npm audit
+function showNpmAuditMenu() {
+  logger.section("🔒 npm audit");
+  logger.info("Verifica vulnerabilità di sicurezza nei pacchetti");
+  logger.space();
+  logger.log("1. Verifica per tutti i componenti", "blue");
+  logger.log("2. Verifica per un componente", "blue");
+  logger.log("3. Verifica per tutti eccetto quelli specificati", "blue");
+  logger.warning("0. 🔙 Torna al menu sperimentale");
+
+  if (!rl) return;
+
+  rl.question("\nScegli opzione (0-3): ", (answer) => {
+    switch (answer.trim()) {
+      case "0":
+        logger.info("Tornando al menu strumenti npm/package...");
+        setTimeout(() => showNpmToolsMenu(), 500);
+        break;
+      case "1":
+        executeNpmAuditCommand("all", []);
+        break;
+      case "2":
+        showComponentSelectionMenu("single", (scope, components) => {
+          executeNpmAuditCommand(scope, components);
+        });
+        break;
+      case "3":
+        showExcludeSelectionMenu((scope, components) => {
+          executeNpmAuditCommand(scope, components);
+        });
+        break;
+      default:
+        logger.log("❌ Scelta non valida", "red");
+        setTimeout(() => showNpmToolsMenu(), 1000);
+    }
+  });
+}
+
+// Funzione per eseguire npm install --package-lock-only
+function executePackageLockOnlyCommand(scope, components) {
+  // Reload project config
+  try {
+    const configPath = path.join(
+      process.cwd(),
+      "package-manager",
+      "project-config.js"
+    );
+    delete require.cache[require.resolve(configPath)];
+    projectConfig = require(configPath);
+  } catch (error) {
+    logger.warning("⚠️  Impossibile ricaricare la configurazione");
+  }
+
+  const isWorkspaceMode =
+    projectConfig.workspace?.enabled && projectConfig.workspace?.initialized;
+
+  if (isWorkspaceMode) {
+    // Workspace mode: esegui yarn install in root
+    logger.section("📦 Aggiornamento lock file (Workspace)");
+    logger.info("🔄 Esecuzione: yarn install");
+    const { execSync } = require("child_process");
+    try {
+      execSync("yarn install", {
+        stdio: "inherit",
+        cwd: process.cwd(),
+      });
+      logger.success("✅ Lock file aggiornato");
+    } catch (error) {
+      logger.error(`❌ Errore: ${error.message}`);
+    }
+  } else {
+    // Standard mode: esegui npm install --package-lock-only per ogni componente
+    const { getComponentDirectories } = require("./dependencies/analyzer");
+    const { getNpmCommand } = require("./utils/common");
+    let targetComponents = getComponentDirectories(projectConfig);
+
+    if (scope === "single" && components.length > 0) {
+      targetComponents = targetComponents.filter((comp) =>
+        components.includes(comp)
+      );
+    } else if (scope === "exclude" && components.length > 0) {
+      targetComponents = targetComponents.filter(
+        (comp) => !components.includes(comp)
+      );
+    }
+
+    if (targetComponents.length === 0) {
+      logger.error("❌ Nessun componente trovato");
+      setTimeout(() => showNpmToolsMenu(), 1000);
+      return;
+    }
+
+    logger.section(`📦 Aggiornamento lock file (${targetComponents.length} componenti)`);
+    const { execSync } = require("child_process");
+
+    targetComponents.forEach((component) => {
+      const componentPath = path.join(process.cwd(), component);
+      logger.log(`\n🔄 ${component}...`, "cyan");
+      try {
+        execSync(
+          `${getNpmCommand(projectConfig)} install --package-lock-only`,
+          {
+            stdio: "inherit",
+            cwd: componentPath,
+          }
+        );
+        logger.log(`✅ ${component} - lock file aggiornato`, "green");
+      } catch (error) {
+        logger.error(`❌ ${component} - Errore: ${error.message}`);
+      }
+    });
+  }
+
+  setTimeout(() => showNpmToolsMenu(), 2000);
+}
+
+// Funzione per eseguire npm outdated
+function executeNpmOutdatedCommand(scope, components) {
+  // Reload project config
+  try {
+    const configPath = path.join(
+      process.cwd(),
+      "package-manager",
+      "project-config.js"
+    );
+    delete require.cache[require.resolve(configPath)];
+    projectConfig = require(configPath);
+  } catch (error) {
+    logger.warning("⚠️  Impossibile ricaricare la configurazione");
+  }
+
+  const isWorkspaceMode =
+    projectConfig.workspace?.enabled && projectConfig.workspace?.initialized;
+
+  if (isWorkspaceMode) {
+    // Workspace mode: esegui yarn outdated in root
+    logger.section("📊 Verifica versioni obsolete (Workspace)");
+    logger.info("🔄 Esecuzione: yarn outdated");
+    const { execSync } = require("child_process");
+    try {
+      execSync("yarn outdated", {
+        stdio: "inherit",
+        cwd: process.cwd(),
+      });
+      logger.success("✅ Verifica completata");
+    } catch (error) {
+      // yarn outdated può uscire con codice non-zero se ci sono pacchetti obsoleti
+      logger.info("ℹ️  Verifica completata (alcuni pacchetti potrebbero essere obsoleti)");
+    }
+  } else {
+    // Standard mode: esegui npm outdated per ogni componente
+    const { getComponentDirectories } = require("./dependencies/analyzer");
+    const { getNpmCommand } = require("./utils/common");
+    let targetComponents = getComponentDirectories(projectConfig);
+
+    if (scope === "single" && components.length > 0) {
+      targetComponents = targetComponents.filter((comp) =>
+        components.includes(comp)
+      );
+    } else if (scope === "exclude" && components.length > 0) {
+      targetComponents = targetComponents.filter(
+        (comp) => !components.includes(comp)
+      );
+    }
+
+    if (targetComponents.length === 0) {
+      logger.error("❌ Nessun componente trovato");
+      setTimeout(() => showNpmToolsMenu(), 1000);
+      return;
+    }
+
+    logger.section(`📊 Verifica versioni obsolete (${targetComponents.length} componenti)`);
+    const { execSync } = require("child_process");
+
+    targetComponents.forEach((component) => {
+      const componentPath = path.join(process.cwd(), component);
+      logger.log(`\n📦 ${component}:`, "cyan");
+      try {
+        execSync(`${getNpmCommand(projectConfig)} outdated`, {
+          stdio: "inherit",
+          cwd: componentPath,
+        });
+      } catch (error) {
+        // npm outdated può uscire con codice non-zero se ci sono pacchetti obsoleti
+        logger.info(`ℹ️  ${component} - Verifica completata`);
+      }
+    });
+  }
+
   setTimeout(() => showExperimentalMenu(), 2000);
+}
+
+// Funzione per eseguire npm audit
+function executeNpmAuditCommand(scope, components) {
+  // Reload project config
+  try {
+    const configPath = path.join(
+      process.cwd(),
+      "package-manager",
+      "project-config.js"
+    );
+    delete require.cache[require.resolve(configPath)];
+    projectConfig = require(configPath);
+  } catch (error) {
+    logger.warning("⚠️  Impossibile ricaricare la configurazione");
+  }
+
+  const isWorkspaceMode =
+    projectConfig.workspace?.enabled && projectConfig.workspace?.initialized;
+
+  if (isWorkspaceMode) {
+    // Workspace mode: esegui yarn audit in root
+    logger.section("🔒 Verifica vulnerabilità (Workspace)");
+    logger.info("🔄 Esecuzione: yarn audit");
+    const { execSync } = require("child_process");
+    try {
+      execSync("yarn audit", {
+        stdio: "inherit",
+        cwd: process.cwd(),
+      });
+      logger.success("✅ Verifica completata");
+    } catch (error) {
+      // yarn audit può uscire con codice non-zero se ci sono vulnerabilità
+      logger.warning("⚠️  Verifica completata (potrebbero esserci vulnerabilità)");
+    }
+  } else {
+    // Standard mode: esegui npm audit per ogni componente
+    const { getComponentDirectories } = require("./dependencies/analyzer");
+    const { getNpmCommand } = require("./utils/common");
+    let targetComponents = getComponentDirectories(projectConfig);
+
+    if (scope === "single" && components.length > 0) {
+      targetComponents = targetComponents.filter((comp) =>
+        components.includes(comp)
+      );
+    } else if (scope === "exclude" && components.length > 0) {
+      targetComponents = targetComponents.filter(
+        (comp) => !components.includes(comp)
+      );
+    }
+
+    if (targetComponents.length === 0) {
+      logger.error("❌ Nessun componente trovato");
+      setTimeout(() => showNpmToolsMenu(), 1000);
+      return;
+    }
+
+    logger.section(`🔒 Verifica vulnerabilità (${targetComponents.length} componenti)`);
+    const { execSync } = require("child_process");
+
+    targetComponents.forEach((component) => {
+      const componentPath = path.join(process.cwd(), component);
+      logger.log(`\n🔍 ${component}:`, "cyan");
+      try {
+        execSync(`${getNpmCommand(projectConfig)} audit`, {
+          stdio: "inherit",
+          cwd: componentPath,
+        });
+        logger.log(`✅ ${component} - Nessuna vulnerabilità trovata`, "green");
+      } catch (error) {
+        // npm audit può uscire con codice non-zero se ci sono vulnerabilità
+        logger.warning(`⚠️  ${component} - Verifica completata (potrebbero esserci vulnerabilità)`);
+      }
+    });
+  }
+
+  setTimeout(() => showNpmToolsMenu(), 2000);
+}
+
+// Funzione per mostrare il menu aggiornamento tsconfig (skipLibCheck)
+function showUpdateTsConfigSkipLibCheckMenu() {
+  logger.section("⚙️  Aggiorna tsconfig (skipLibCheck)");
+  logger.info("Attiva skipLibCheck in tutti i tsconfig.json");
+  logger.warning("⚠️  Questa operazione modificherà i file tsconfig.json!");
+  logger.space();
+  logger.log("1. Aggiorna per tutti i componenti", "blue");
+  logger.log("2. Aggiorna per un componente", "blue");
+  logger.log("3. Aggiorna per tutti eccetto quelli specificati", "blue");
+  logger.warning("0. 🔙 Torna al menu sperimentale");
+
+  if (!rl) return;
+
+  rl.question("\nScegli opzione (0-3): ", (answer) => {
+    switch (answer.trim()) {
+      case "0":
+        logger.info("Tornando al menu sperimentale...");
+        setTimeout(() => showExperimentalMenu(), 500);
+        break;
+      case "1":
+        executeUpdateTsConfigSkipLibCheck("all", []);
+        break;
+      case "2":
+        showComponentSelectionMenu("single", (scope, components) => {
+          executeUpdateTsConfigSkipLibCheck(scope, components);
+        });
+        break;
+      case "3":
+        showExcludeSelectionMenu((scope, components) => {
+          executeUpdateTsConfigSkipLibCheck(scope, components);
+        });
+        break;
+      default:
+        logger.log("❌ Scelta non valida", "red");
+        setTimeout(() => showUpdateTsConfigSkipLibCheckMenu(), 1000);
+    }
+  });
+}
+
+// Funzione per eseguire aggiornamento tsconfig con skipLibCheck
+function executeUpdateTsConfigSkipLibCheck(scope, components) {
+  // Reload project config
+  try {
+    const configPath = path.join(
+      process.cwd(),
+      "package-manager",
+      "project-config.js"
+    );
+    delete require.cache[require.resolve(configPath)];
+    projectConfig = require(configPath);
+  } catch (error) {
+    logger.warning("⚠️  Impossibile ricaricare la configurazione");
+  }
+
+  const { getComponentDirectories } = require("./dependencies/analyzer");
+  const { updateTsConfigSkipLibCheck } = require("./dependencies/updater");
+  let targetComponents = getComponentDirectories(projectConfig);
+
+  if (scope === "single" && components.length > 0) {
+    targetComponents = targetComponents.filter((comp) =>
+      components.includes(comp)
+    );
+  } else if (scope === "exclude" && components.length > 0) {
+    targetComponents = targetComponents.filter(
+      (comp) => !components.includes(comp)
+    );
+  }
+
+  if (targetComponents.length === 0) {
+    logger.error("❌ Nessun componente trovato");
+    setTimeout(() => showExperimentalMenu(), 1000);
+    return;
+  }
+
+  logger.section(`⚙️  Aggiornamento tsconfig (skipLibCheck) - ${targetComponents.length} componenti`);
+  
+  let updatedCount = 0;
+  let skippedCount = 0;
+  let errorCount = 0;
+
+  targetComponents.forEach((component) => {
+    const componentPath = path.join(process.cwd(), component);
+    logger.log(`\n📝 ${component}...`, "cyan");
+    
+    const success = updateTsConfigSkipLibCheck(componentPath, projectConfig);
+    
+    if (success === true) {
+      updatedCount++;
+      logger.log(`✅ ${component} - skipLibCheck attivato`, "green");
+    } else if (success === null) {
+      skippedCount++;
+      logger.log(`ℹ️  ${component} - tsconfig.json non trovato o già configurato`, "blue");
+    } else {
+      errorCount++;
+      logger.error(`❌ ${component} - Errore durante l'aggiornamento`);
+    }
+  });
+
+  logger.log(`\n📊 Risultato:`, "cyan");
+  logger.log(`   ✅ Aggiornati: ${updatedCount}/${targetComponents.length}`, "green");
+  logger.log(`   ⏭️  Saltati: ${skippedCount}/${targetComponents.length}`, "blue");
+  if (errorCount > 0) {
+    logger.log(`   ❌ Errori: ${errorCount}/${targetComponents.length}`, "red");
+  }
+
+  setTimeout(() => showNpmToolsMenu(), 2000);
 }
 
 function syncWorkspaceFromMenu() {

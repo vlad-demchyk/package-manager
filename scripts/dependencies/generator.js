@@ -412,6 +412,16 @@ const NODE_ENGINES = {
 };
 
 // ============================================================================
+// OVERRIDES (forzatura versioni dipendenze)
+// ============================================================================
+const OVERRIDES = ${
+    generated.overrides && 
+    Object.keys(generated.overrides).length > 0
+      ? JSON.stringify(generated.overrides, null, 2)
+      : '{\n  // Esempio: "package-name": "1.2.3"\n}'
+  };
+
+// ============================================================================
 // FUNZIONI PER ESPORTAZIONE (NON MODIFICARE)
 // ============================================================================
 
@@ -463,6 +473,10 @@ function getNodeEngines() {
   return { ...NODE_ENGINES };
 }
 
+function getOverrides() {
+  return { ...OVERRIDES };
+}
+
 module.exports = {
   BASE_DEPENDENCIES,
   CONDITIONAL_DEPENDENCIES,
@@ -472,6 +486,7 @@ module.exports = {
   STANDARD_SCRIPTS,
   STANDARD_TSCONFIG,
   NODE_ENGINES,
+  OVERRIDES,
   getAllDependencies,
   getBaseDependencies,
   getConditionalDependencies,
@@ -481,7 +496,8 @@ module.exports = {
   getDeprecatedDependencies,
   getStandardScripts,
   getStandardTsConfig,
-  getNodeEngines
+  getNodeEngines,
+  getOverrides
 };
 `;
 
