@@ -713,7 +713,7 @@ function showVersionChanges(
     Object.keys(changes.devDependencies).length > 0 ||
     Object.keys(getStandardTsConfig()).length > 0;
 
-  return hasChanges;
+  return { hasChanges, componentChanges };
 }
 
 // Funzione per formattare i log delle modifiche per componente
@@ -785,6 +785,24 @@ function logComponentChanges(changes, componentDir) {
         type === "dependency" ? "dependencies" : "devDependencies";
       logger.log(`      - ${name}@${version} (${typeLabel})`, "red");
     });
+  }
+
+  // Overrides aggiunti/aggiornati
+  if (changes.overrides) {
+    if (changes.overrides.added && changes.overrides.added.length > 0) {
+      hasAnyChanges = true;
+      logger.log(`   🔒 Overrides aggiunti:`, "yellow");
+      changes.overrides.added.forEach(({ name, version }) => {
+        logger.log(`      + ${name}@${version}`, "cyan");
+      });
+    }
+    if (changes.overrides.updated && changes.overrides.updated.length > 0) {
+      hasAnyChanges = true;
+      logger.log(`   🔒 Overrides aggiornati:`, "yellow");
+      changes.overrides.updated.forEach(({ name, from, to }) => {
+        logger.log(`      ${name}: ${from} → ${to}`, "cyan");
+      });
+    }
   }
 
   if (!hasAnyChanges) {
@@ -1021,7 +1039,7 @@ async function updateAllConfigs(scope = "all", components = []) {
 
   // Ottieni configurazioni standard
   const standardScripts = depsFunctions.getStandardScripts();
-  const standardTsConfig = depsFunctions.getStandardTsConfig();
+  let standardTsConfig = depsFunctions.getStandardTsConfig();
   const nodeEngines = depsFunctions.getNodeEngines();
   const overrides = depsFunctions.getOverrides();
   const deprecatedDeps = depsFunctions.getDeprecatedDependencies();
@@ -1133,7 +1151,7 @@ async function updateAllConfigs(scope = "all", components = []) {
 
   // Mostra il riepilogo delle modifiche delle versioni solo se ci sono modifiche
   // Passa anche conditional deps per controllare le versioni se presenti in package.json
-  const hasChanges = showVersionChanges(
+  const versionChangesResult = showVersionChanges(
     componentDirs,
     finalBaseDeps,
     finalDevDeps,
@@ -1141,6 +1159,9 @@ async function updateAllConfigs(scope = "all", components = []) {
     conditionalDeps,
     conditionalDevDeps
   );
+
+  const hasChanges = versionChangesResult.hasChanges;
+  const componentChanges = versionChangesResult.componentChanges || {};
 
   if (!hasChanges) {
     logger.log("\n✅ Tutti i componenti sono già aggiornati!", "green");
@@ -1151,12 +1172,201 @@ async function updateAllConfigs(scope = "all", components = []) {
     return true;
   }
 
+  // Raccogliamo i pacchetti che verranno aggiornati per proporre overrides
+  // Solo se overrides sono già definiti nel config
+  const packagesToUpdate = new Map(); // Usa Map per evitare duplicati mantenendo versione
+  Object.entries(componentChanges).forEach(([componentDir, compChanges]) => {
+    compChanges.dependencies.forEach(({ name, to }) => {
+      // Mantieni la versione più alta se il pacchetto appare più volte
+      if (!packagesToUpdate.has(name) || compareVersions(to, packagesToUpdate.get(name)) > 0) {
+        packagesToUpdate.set(name, to);
+      }
+    });
+    compChanges.devDependencies.forEach(({ name, to }) => {
+      // Mantieni la versione più alta se il pacchetto appare più volte
+      if (!packagesToUpdate.has(name) || compareVersions(to, packagesToUpdate.get(name)) > 0) {
+        packagesToUpdate.set(name, to);
+      }
+    });
+  });
+
+  // Proponi di aggiungere overrides solo se sono già definiti nel config
+  // e ci sono pacchetti da aggiornare che non sono già in overrides
+  const packagesNotInOverrides = Array.from(packagesToUpdate.entries())
+    .filter(([name, version]) => !overrides[name] || overrides[name] !== version);
+
+  if (packagesNotInOverrides.length > 0 && Object.keys(overrides).length > 0) {
+    logger.log("\n💡 Alcuni pacchetti aggiornati non hanno overrides configurati", "yellow");
+    logger.log("   Pacchetti che verranno aggiornati (non in overrides):", "cyan");
+    
+    const packagesList = packagesNotInOverrides.slice(0, 20).map(([name, version], index) => {
+      return { index: index + 1, name, version, display: `${index + 1}. ${name}@${version}` };
+    });
+    
+    packagesList.forEach(p => logger.log(`      ${p.display}`, "gray"));
+    if (packagesNotInOverrides.length > 20) {
+      logger.log(`      ... e altri ${packagesNotInOverrides.length - 20} pacchetti`, "gray");
+    }
+    
+    const rl = createReadlineInterface();
+    logger.log("\n💡 Puoi aggiungere overrides per questi pacchetti", "cyan");
+    logger.log("   Inserisci i numeri separati da virgola (es: 1,3,5) o 'all' per tutti", "gray");
+    const addOverridesAnswer = await askQuestion(
+      rl,
+      "\nQuali pacchetti vuoi aggiungere agli overrides? (numeri/all/N): "
+    );
+    rl.close();
+
+    if (addOverridesAnswer && addOverridesAnswer.toLowerCase() !== 'n' && addOverridesAnswer.toLowerCase() !== 'no') {
+      const selectedPackages = new Map();
+      
+      if (addOverridesAnswer.toLowerCase() === 'all') {
+        // Aggiungi tutti i pacchetti
+        packagesNotInOverrides.forEach(([name, version]) => {
+          selectedPackages.set(name, version);
+        });
+      } else {
+        // Parsa i numeri selezionati
+        const selectedIndices = addOverridesAnswer.split(',').map(s => parseInt(s.trim())).filter(n => !isNaN(n) && n > 0 && n <= packagesList.length);
+        selectedIndices.forEach(index => {
+          const pkg = packagesList[index - 1];
+          if (pkg) {
+            selectedPackages.set(pkg.name, pkg.version);
+          }
+        });
+      }
+
+      if (selectedPackages.size > 0) {
+        // Aggiungi overrides al config
+        const newOverrides = {};
+        selectedPackages.forEach((version, name) => {
+          newOverrides[name] = version;
+        });
+
+        // Carica il config attuale
+        const dependenciesConfigPath = path.join(
+          projectRoot,
+          "package-manager",
+          "dependencies-config.js"
+        );
+        
+        if (fs.existsSync(dependenciesConfigPath)) {
+          try {
+            const configContent = fs.readFileSync(dependenciesConfigPath, "utf8");
+            
+            // Trova la sezione OVERRIDES e aggiorna
+            const overridesRegex = /const\s+OVERRIDES\s*=\s*({[\s\S]*?});/;
+            const existingOverrides = configContent.match(overridesRegex);
+            
+            let updatedConfig;
+            if (existingOverrides) {
+              // Aggiorna overrides esistenti
+              try {
+                const existingObj = existingOverrides[1];
+                // Rimuovi commenti e normalizza
+                const cleanedObj = existingObj.replace(/\/\/.*$/gm, '').trim();
+                const existingParsed = cleanedObj === '{}' || cleanedObj === '{\n  // Esempio: "package-name": "1.2.3"\n}' 
+                  ? {} 
+                  : JSON.parse(cleanedObj);
+                const mergedOverrides = { ...existingParsed, ...newOverrides };
+                updatedConfig = configContent.replace(
+                  overridesRegex,
+                  `const OVERRIDES = ${JSON.stringify(mergedOverrides, null, 2)};`
+                );
+              } catch (error) {
+                // Se il parsing fallisce, sostituisci completamente
+                const mergedOverrides = { ...overrides, ...newOverrides };
+                updatedConfig = configContent.replace(
+                  overridesRegex,
+                  `const OVERRIDES = ${JSON.stringify(mergedOverrides, null, 2)};`
+                );
+              }
+            } else {
+              // Aggiungi nuova sezione OVERRIDES prima di module.exports
+              const mergedOverrides = { ...overrides, ...newOverrides };
+              const overridesSection = `\n// ============================================================================\n// OVERRIDES (forzatura versioni dipendenze)\n// ============================================================================\nconst OVERRIDES = ${JSON.stringify(mergedOverrides, null, 2)};\n\n`;
+              updatedConfig = configContent.replace(
+                /module\.exports\s*=/,
+                `${overridesSection}module.exports =`
+              );
+            }
+            
+            fs.writeFileSync(dependenciesConfigPath, updatedConfig, "utf8");
+            logger.log(`✅ Aggiunti ${Object.keys(newOverrides).length} overrides al config`, "green");
+            
+            // Ricarica il config
+            const depsFunctionsReload = reloadDependenciesConfig(projectRoot, { showDuplicates: false });
+            if (depsFunctionsReload) {
+              const reloadedOverrides = depsFunctionsReload.getOverrides();
+              Object.keys(overrides).forEach(key => delete overrides[key]);
+              Object.assign(overrides, reloadedOverrides);
+            }
+          } catch (error) {
+            logger.warning(`⚠️  Errore aggiungendo overrides: ${error.message}`);
+          }
+        }
+      } else {
+        logger.log("❌ Nessun pacchetto selezionato", "yellow");
+      }
+    }
+  }
+
+  // Per tutti gli scope: chiedi una volta se vuoi aggiungere overrides ai componenti selezionati
+  let globalOverridesDecision = null; // null = non ancora deciso, true = sì, false = no
+  if (overrides && Object.keys(overrides).length > 0) {
+    // Verifica quali overrides mancano in almeno un componente
+    let overridesToAdd = {};
+    let hasAnyMissing = false;
+    
+    for (const componentDir of componentDirs) {
+      const packageJsonPath = path.join(process.cwd(), componentDir, "package.json");
+      if (fs.existsSync(packageJsonPath)) {
+        const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, "utf8"));
+        const currentOverrides = packageJson.overrides || {};
+        
+        Object.entries(overrides).forEach(([name, version]) => {
+          if (!currentOverrides[name] || currentOverrides[name] !== version) {
+            overridesToAdd[name] = version;
+            hasAnyMissing = true;
+          }
+        });
+      }
+    }
+    
+      if (hasAnyMissing && Object.keys(overridesToAdd).length > 0) {
+      let scopeLabel;
+      if (scope === "all") {
+        scopeLabel = "TUTTI i componenti";
+      } else if (scope === "exclude") {
+        scopeLabel = "i componenti selezionati";
+      } else {
+        // scope === "single"
+        scopeLabel = componentDirs.length === 1 ? `il componente ${componentDirs[0]}` : "i componenti selezionati";
+      }
+      
+      logger.log("\n💡 Overrides disponibili da aggiungere:", "yellow");
+      logger.log(`   I seguenti overrides verranno aggiunti a ${scopeLabel}:`, "cyan");
+      Object.entries(overridesToAdd).forEach(([name, version]) => {
+        logger.log(`      ${name}: ${version}`, "gray");
+      });
+      
+      const rl = createReadlineInterface();
+      const addOverridesAnswer = await askQuestion(
+        rl,
+        `\nVuoi aggiungere questi overrides a ${scopeLabel}? (y/N): `
+      );
+      rl.close();
+      
+      globalOverridesDecision = (addOverridesAnswer === "y" || addOverridesAnswer === "yes");
+    }
+  }
+
   let updatedCount = 0;
   let skippedCount = 0;
   let errorCount = 0;
   const totalCount = componentDirs.length;
 
-  componentDirs.forEach((componentDir) => {
+  for (const componentDir of componentDirs) {
     const fullPath = path.join(process.cwd(), componentDir);
 
     // Debug: mostra il percorso completo
@@ -1169,15 +1379,18 @@ async function updateAllConfigs(scope = "all", components = []) {
     if (!fs.existsSync(fullPath)) {
       logger.error(`❌ Directory non trovata: ${fullPath}`, "red");
       errorCount++;
-      return;
+      continue;
     }
 
     // Verifica se package.json esiste
     if (!fs.existsSync(packageJsonPath)) {
       logger.error(`❌ package.json non trovato in ${componentDir}`, "red");
       errorCount++;
-      return;
+      continue;
     }
+
+    // Leggi package.json una volta per tutto il componente
+    const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, "utf8"));
 
     // Analizza dipendenze condizionali per questo componente specifico
     const { analyzeDependencyUsage } = require("./dependencies/analyzer");
@@ -1204,7 +1417,6 @@ async function updateAllConfigs(scope = "all", components = []) {
 
     // Aggiungere conditional deps/devDeps che sono già in package.json
     // (indipendentemente dalla versione - per aggiornamento o conservazione)
-    const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, "utf8"));
 
     // Per conditional deps
     // Controlliamo sia dependencies che devDependencies
@@ -1248,6 +1460,23 @@ async function updateAllConfigs(scope = "all", components = []) {
       }
     });
 
+    // Determina quali overrides usare per questo componente
+    let finalOverrides = {};
+    
+    if (overrides && Object.keys(overrides).length > 0) {
+      // Per tutti gli scope: usa la decisione globale
+      if (globalOverridesDecision === true) {
+        // Aggiungi tutti gli overrides dal config
+        finalOverrides = overrides;
+      } else if (globalOverridesDecision === false) {
+        // Non aggiungere overrides - usa solo quelli già presenti
+        finalOverrides = packageJson.overrides || {};
+      } else {
+        // Se non c'erano overrides da aggiungere, usa quelli dal config
+        finalOverrides = overrides;
+      }
+    }
+
     const packageResult = updatePackageJson(
       fullPath,
       projectConfig,
@@ -1258,7 +1487,7 @@ async function updateAllConfigs(scope = "all", components = []) {
       nodeEngines,
       componentConditionalDeps,
       componentConditionalDevDeps,
-      overrides
+      finalOverrides
     );
 
     // Formattiamo i log per componente
@@ -1295,7 +1524,7 @@ async function updateAllConfigs(scope = "all", components = []) {
       errorCount++;
       logger.log(`   ❌ Errore aggiornamento ${componentDir}`, "red");
     }
-  });
+  }
 
   logger.log(`\n📊 Risultato:`, "cyan");
   logger.log(`   ✅ Aggiornati: ${updatedCount}/${totalCount}`, "green");
