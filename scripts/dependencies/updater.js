@@ -109,6 +109,10 @@ function updatePackageJson(
         conditional: [], // Aggiunte da CONDITIONAL_DEV_DEPENDENCIES
       },
       removed: [], // Rimosse deprecate
+      overrides: {
+        added: [], // Overrides aggiunti
+        updated: [], // Overrides aggiornati
+      },
     };
 
     // Aggiorna dependencies
@@ -290,20 +294,34 @@ function updatePackageJson(
     }
 
     // Aggiungi overrides se definiti (solo per standard mode, workspace gestito separatamente)
+    // IMPORTANTE: overrides devono essere sempre aggiunti/aggiornati, anche se non ci sono altre modifiche
+    let overridesChanged = false;
     if (overrides && Object.keys(overrides).length > 0) {
       if (!packageJson.overrides) {
         packageJson.overrides = {};
-        updated = true;
+        overridesChanged = true;
       }
+      
       Object.entries(overrides).forEach(([name, version]) => {
-        if (packageJson.overrides[name] !== version) {
+        if (!packageJson.overrides[name]) {
+          // Nuovo override
           packageJson.overrides[name] = version;
+          overridesChanged = true;
           updated = true;
+          changes.overrides.added.push({ name, version });
+        } else if (packageJson.overrides[name] !== version) {
+          // Override aggiornato
+          const oldVersion = packageJson.overrides[name];
+          packageJson.overrides[name] = version;
+          overridesChanged = true;
+          updated = true;
+          changes.overrides.updated.push({ name, from: oldVersion, to: version });
         }
       });
     }
 
-    if (updated) {
+    // Salva sempre se ci sono modifiche o se overrides sono stati aggiunti/aggiornati
+    if (updated || overridesChanged) {
       fs.writeFileSync(
         packageJsonPath,
         JSON.stringify(packageJson, null, 2),
