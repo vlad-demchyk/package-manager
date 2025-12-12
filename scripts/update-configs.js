@@ -99,6 +99,7 @@ function reloadDependenciesConfig(projectRoot) {
     getStandardScripts = depsConfig.getStandardScripts;
     getStandardTsConfig = depsConfig.getStandardTsConfig;
     getNodeEngines = depsConfig.getNodeEngines;
+    getOverrides = depsConfig.getOverrides;
     logger.log(
       "✅ Modulo dependencies-config ricaricato con successo!",
       "green"
@@ -115,6 +116,7 @@ function reloadDependenciesConfig(projectRoot) {
     getStandardScripts = () => ({});
     getStandardTsConfig = () => ({});
     getNodeEngines = () => ({});
+    getOverrides = () => ({});
     return false;
   }
 }
@@ -728,6 +730,7 @@ async function updateAllConfigs(scope = "all", components = []) {
   const standardScripts = getStandardScripts();
   const standardTsConfig = getStandardTsConfig();
   const nodeEngines = getNodeEngines();
+  const overrides = getOverrides();
   const deprecatedDeps = getDeprecatedDependencies();
 
   // Ottieni componenti con filtrazione
@@ -952,7 +955,8 @@ async function updateAllConfigs(scope = "all", components = []) {
       standardScripts,
       nodeEngines,
       componentConditionalDeps,
-      componentConditionalDevDeps
+      componentConditionalDevDeps,
+      overrides
     );
 
     // Formattiamo i log per componente
@@ -1026,6 +1030,32 @@ async function updateAllConfigs(scope = "all", components = []) {
             projectConfig.workspace?.enabled &&
             projectConfig.workspace?.initialized
           ) {
+            // Aggiorna overrides in root package.json per workspace
+            if (overrides && Object.keys(overrides).length > 0) {
+              const rootPackageJsonPath = path.join(process.cwd(), "package.json");
+              if (fs.existsSync(rootPackageJsonPath)) {
+                try {
+                  const rootPackageJson = JSON.parse(fs.readFileSync(rootPackageJsonPath, "utf8"));
+                  if (!rootPackageJson.overrides) {
+                    rootPackageJson.overrides = {};
+                  }
+                  let overridesUpdated = false;
+                  Object.entries(overrides).forEach(([name, version]) => {
+                    if (rootPackageJson.overrides[name] !== version) {
+                      rootPackageJson.overrides[name] = version;
+                      overridesUpdated = true;
+                    }
+                  });
+                  if (overridesUpdated) {
+                    fs.writeFileSync(rootPackageJsonPath, JSON.stringify(rootPackageJson, null, 2), "utf8");
+                    logger.log("✅ Overrides aggiornati in root package.json", "green");
+                  }
+                } catch (error) {
+                  logger.warning(`⚠️  Errore aggiornando overrides in root package.json: ${error.message}`);
+                }
+              }
+            }
+            
             logger.log(
               "\n🔄 Workspace rilevato - installazione pacchetti centralizzata...",
               "cyan"
