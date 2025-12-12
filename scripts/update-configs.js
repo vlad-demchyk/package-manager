@@ -78,8 +78,158 @@ function createEmptyDependenciesConfig(projectRoot) {
   }
 }
 
+// Funzione per verificare se una versione soddisfa un range semantico
+function versionSatisfiesRange(version, range) {
+  if (!version || !range) return false;
+  
+  // Se sono identici, soddisfa
+  if (version === range) return true;
+  
+  // Per git URLs, confrontiamo direttamente
+  if (version.includes('git+') || version.includes('bitbucket:') || version.includes('http')) {
+    return version === range;
+  }
+  if (range.includes('git+') || range.includes('bitbucket:') || range.includes('http')) {
+    return version === range;
+  }
+  
+  // Rimuoviamo prefissi per confronto
+  const cleanVersion = (v) => {
+    if (!v || typeof v !== 'string') return '0.0.0';
+    return v.replace(/^[\^~>=<]+/, '');
+  };
+  
+  const cleanV = cleanVersion(version);
+  const cleanR = cleanVersion(range);
+  
+  // Se dopo la pulizia sono uguali, soddisfa
+  if (cleanV === cleanR) return true;
+  
+  // Se il range ha prefisso ^, controlliamo compatibilità major
+  if (range.startsWith('^')) {
+    const vParts = cleanV.split('.').map(Number);
+    const rParts = cleanR.split('.').map(Number);
+    
+    // ^x.y.z significa >=x.y.z <(x+1).0.0
+    if (vParts[0] === rParts[0] && vParts[1] >= rParts[1]) {
+      if (vParts[1] > rParts[1]) return true;
+      if (vParts[1] === rParts[1] && vParts[2] >= rParts[2]) return true;
+    }
+    return false;
+  }
+  
+  // Se il range ha prefisso ~, controlliamo compatibilità minor
+  if (range.startsWith('~')) {
+    const vParts = cleanV.split('.').map(Number);
+    const rParts = cleanR.split('.').map(Number);
+    
+    // ~x.y.z significa >=x.y.z <x.(y+1).0
+    if (vParts[0] === rParts[0] && vParts[1] === rParts[1] && vParts[2] >= rParts[2]) {
+      return true;
+    }
+    return false;
+  }
+  
+  // Per versioni esatte senza prefisso, confrontiamo direttamente
+  return cleanV === cleanR;
+}
+
+// Funzione per confrontare versioni (versione semplificata di compareVersions)
+function compareVersions(version1, version2) {
+  // Rimuoviamo prefissi (^, ~, >=, <=, >, <)
+  const cleanVersion = (v) => {
+    if (!v || typeof v !== 'string') return '0.0.0';
+    // Per git URLs o altre stringhe non-versioni, restituiamo come sono
+    if (v.includes('git+') || v.includes('bitbucket:') || v.includes('http')) {
+      return v;
+    }
+    return v.replace(/^[\^~>=<]+/, '');
+  };
+
+  const v1 = cleanVersion(version1);
+  const v2 = cleanVersion(version2);
+
+  // Se una delle versioni è un git URL o altra stringa non-versione, non confrontiamo
+  if (v1.includes('git+') || v1.includes('bitbucket:') || v1.includes('http')) {
+    return v1 === v2 ? 0 : 1; // Se URL uguali, restituiamo 0
+  }
+  if (v2.includes('git+') || v2.includes('bitbucket:') || v2.includes('http')) {
+    return v1 === v2 ? 0 : -1;
+  }
+
+  const parseVersion = (v) => {
+    const parts = v.split('.').map(Number);
+    while (parts.length < 3) parts.push(0);
+    return parts;
+  };
+
+  const v1Parts = parseVersion(v1);
+  const v2Parts = parseVersion(v2);
+
+  for (let i = 0; i < 3; i++) {
+    if (v1Parts[i] > v2Parts[i]) return 1;
+    if (v1Parts[i] < v2Parts[i]) return -1;
+  }
+
+  return 0;
+}
+
+// Funzione per rilevare e risolvere duplicati tra CONDITIONAL_DEPENDENCIES e CONDITIONAL_DEV_DEPENDENCIES
+function resolveDuplicateDependencies(conditionalDeps, conditionalDevDeps) {
+  const resolvedConditionalDeps = { ...conditionalDeps };
+  const resolvedConditionalDevDeps = { ...conditionalDevDeps };
+  const duplicates = [];
+
+  // Troviamo duplicati
+  Object.keys(conditionalDeps).forEach((name) => {
+    if (conditionalDevDeps[name]) {
+      const depVersion = typeof conditionalDeps[name] === 'string' 
+        ? conditionalDeps[name] 
+        : (conditionalDeps[name]?.version || conditionalDeps[name]);
+      const devDepVersion = typeof conditionalDevDeps[name] === 'string' 
+        ? conditionalDevDeps[name] 
+        : (conditionalDevDeps[name]?.version || conditionalDevDeps[name]);
+
+      if (depVersion && devDepVersion) {
+        // Confrontiamo versioni e scegliamo la più alta
+        const comparison = compareVersions(depVersion, devDepVersion);
+        let highestVersion;
+        let source;
+
+        if (comparison >= 0) {
+          highestVersion = depVersion;
+          source = 'CONDITIONAL_DEPENDENCIES';
+        } else {
+          highestVersion = devDepVersion;
+          source = 'CONDITIONAL_DEV_DEPENDENCIES';
+        }
+
+        // Aggiorniamo entrambe le sezioni con la versione più alta
+        resolvedConditionalDeps[name] = highestVersion;
+        resolvedConditionalDevDeps[name] = highestVersion;
+
+        duplicates.push({
+          name,
+          depVersion,
+          devDepVersion,
+          resolvedVersion: highestVersion,
+          source
+        });
+      }
+    }
+  });
+
+  return {
+    conditionalDeps: resolvedConditionalDeps,
+    conditionalDevDeps: resolvedConditionalDevDeps,
+    duplicates
+  };
+}
+
 // Funzione per ricaricare il modulo dependencies-config
-function reloadDependenciesConfig(projectRoot) {
+function reloadDependenciesConfig(projectRoot, options = {}) {
+  const { showDuplicates = false } = options;
+  
   try {
     const configPath = path.join(
       projectRoot,
@@ -91,20 +241,57 @@ function reloadDependenciesConfig(projectRoot) {
     delete require.cache[resolvedPath];
 
     const depsConfig = require(configPath);
+    
+    // Отримуємо conditional deps та devDeps
+    const conditionalDeps = depsConfig.getConditionalDependencies 
+      ? depsConfig.getConditionalDependencies() 
+      : {};
+    const conditionalDevDeps = depsConfig.getConditionalDevDependencies 
+      ? depsConfig.getConditionalDevDependencies() 
+      : {};
+
+    // Risolviamo duplicati
+    const resolved = resolveDuplicateDependencies(conditionalDeps, conditionalDevDeps);
+    
+    // Mostra duplicati solo se richiesto (per menu gestione config)
+    if (showDuplicates && resolved.duplicates.length > 0) {
+      logger.warning(`⚠️  Trovati ${resolved.duplicates.length} duplicati tra CONDITIONAL_DEPENDENCIES e CONDITIONAL_DEV_DEPENDENCIES`);
+      resolved.duplicates.forEach((dup) => {
+        logger.log(
+          `   ${dup.name}: ${dup.depVersion} (deps) vs ${dup.devDepVersion} (devDeps) → ${dup.resolvedVersion}`,
+          "yellow"
+        );
+      });
+      logger.log("   Usata versione più alta in entrambe le sezioni", "cyan");
+    }
+
+    // Creiamo wrapper che restituiscono versioni risolte
     getBaseDependencies = depsConfig.getBaseDependencies;
-    getConditionalDependencies = depsConfig.getConditionalDependencies;
+    getConditionalDependencies = () => resolved.conditionalDeps;
     getDevDependencies = depsConfig.getDevDependencies;
-    getConditionalDevDependencies = depsConfig.getConditionalDevDependencies;
+    getConditionalDevDependencies = () => resolved.conditionalDevDeps;
     getDeprecatedDependencies = depsConfig.getDeprecatedDependencies;
     getStandardScripts = depsConfig.getStandardScripts;
     getStandardTsConfig = depsConfig.getStandardTsConfig;
     getNodeEngines = depsConfig.getNodeEngines;
-    getOverrides = depsConfig.getOverrides;
+    getOverrides = depsConfig.getOverrides || (() => ({}));
     logger.log(
       "✅ Modulo dependencies-config ricaricato con successo!",
       "green"
     );
-    return true;
+    
+    // Restituisce le funzioni per uso esterno
+    return {
+      getBaseDependencies,
+      getConditionalDependencies,
+      getDevDependencies,
+      getConditionalDevDependencies,
+      getDeprecatedDependencies,
+      getStandardScripts,
+      getStandardTsConfig,
+      getNodeEngines,
+      getOverrides
+    };
   } catch (error) {
     logger.error(`Errore ricaricando modulo: ${error.message}`);
     // Usiamo funzioni di default
@@ -117,7 +304,19 @@ function reloadDependenciesConfig(projectRoot) {
     getStandardTsConfig = () => ({});
     getNodeEngines = () => ({});
     getOverrides = () => ({});
-    return false;
+    
+    // Restituisce le funzioni di default
+    return {
+      getBaseDependencies,
+      getConditionalDependencies,
+      getDevDependencies,
+      getConditionalDevDependencies,
+      getDeprecatedDependencies,
+      getStandardScripts,
+      getStandardTsConfig,
+      getNodeEngines,
+      getOverrides
+    };
   }
 }
 
@@ -158,7 +357,8 @@ let getBaseDependencies,
   getDeprecatedDependencies,
   getStandardScripts,
   getStandardTsConfig,
-  getNodeEngines;
+  getNodeEngines,
+  getOverrides;
 
 // Funzioni di default vuote
 function initEmptyFunctions() {
@@ -170,6 +370,7 @@ function initEmptyFunctions() {
   getStandardScripts = () => ({});
   getStandardTsConfig = () => ({});
   getNodeEngines = () => ({});
+  getOverrides = () => ({});
 }
 
 // Inizializza con funzioni vuote di default
@@ -302,9 +503,12 @@ function showVersionChanges(
       // Controlla BASE dependencies (stesso meccanismo di prima)
       Object.entries(finalBaseDeps).forEach(([name, newVersion]) => {
         const oldVersion = packageJson.dependencies?.[name];
-        if (oldVersion && oldVersion !== newVersion) {
-          if (!changes.dependencies[name]) {
-            changes.dependencies[name] = { old: oldVersion, new: newVersion };
+        if (oldVersion) {
+          // Solo se la versione corrente non soddisfa il range configurato
+          if (!versionSatisfiesRange(oldVersion, newVersion)) {
+            if (!changes.dependencies[name]) {
+              changes.dependencies[name] = { old: oldVersion, new: newVersion };
+            }
           }
         } else if (!oldVersion) {
           if (!changes.dependencies[name]) {
@@ -317,17 +521,19 @@ function showVersionChanges(
       // updatePackageJson aggiorna conditional deps che sono già in package.json
       // anche se non vengono rilevate come "usate" nel codice
       // Quindi controlliamo TUTTE le conditional deps dal config
-      // se sono presenti in package.json del componente corrente
+      // se sono presenti in package.json del componente corrente (in qualsiasi sezione)
       Object.entries(conditionalDeps).forEach(([name, newVersion]) => {
         // Gestire sia stringhe che oggetti (per compatibilità)
         const configVersion = typeof newVersion === 'string' ? newVersion : (newVersion?.version || newVersion);
         if (!configVersion) return;
         
-        const oldVersion = packageJson.dependencies?.[name];
-        // Se il pacchetto è già presente in package.json di questo componente, 
+        // Controlliamo entrambe le sezioni
+        const oldVersion = packageJson.dependencies?.[name] || packageJson.devDependencies?.[name];
+        // Se il pacchetto è già presente in package.json di questo componente (in qualsiasi sezione), 
         // verrà aggiornato da updatePackageJson indipendentemente dall'uso nel codice
-        if (oldVersion && oldVersion !== configVersion) {
-          // Pacchetto presente ma con versione diversa - da aggiornare
+        // Ma solo se la versione corrente non soddisfa il range configurato
+        if (oldVersion && !versionSatisfiesRange(oldVersion, configVersion)) {
+          // Pacchetto presente ma con versione che non soddisfa il range - da aggiornare
           // Se già presente in changes, aggiorna solo se la nuova versione è diversa
           if (!changes.dependencies[name]) {
             changes.dependencies[name] = { old: oldVersion, new: configVersion };
@@ -341,12 +547,15 @@ function showVersionChanges(
       // Controlla BASE devDependencies (stesso meccanismo di prima)
       Object.entries(finalDevDeps).forEach(([name, newVersion]) => {
         const oldVersion = packageJson.devDependencies?.[name];
-        if (oldVersion && oldVersion !== newVersion) {
-          if (!changes.devDependencies[name]) {
-            changes.devDependencies[name] = {
-              old: oldVersion,
-              new: newVersion,
-            };
+        if (oldVersion) {
+          // Solo se la versione corrente non soddisfa il range configurato
+          if (!versionSatisfiesRange(oldVersion, newVersion)) {
+            if (!changes.devDependencies[name]) {
+              changes.devDependencies[name] = {
+                old: oldVersion,
+                new: newVersion,
+              };
+            }
           }
         } else if (!oldVersion) {
           if (!changes.devDependencies[name]) {
@@ -359,17 +568,19 @@ function showVersionChanges(
       // updatePackageJson aggiorna conditional devDeps che sono già in package.json
       // anche se non vengono rilevate come "usate" nel codice
       // Quindi controlliamo TUTTE le conditional devDeps dal config
-      // se sono presenti in package.json del componente corrente
+      // se sono presenti in package.json del componente corrente (in qualsiasi sezione)
       Object.entries(conditionalDevDeps).forEach(([name, newVersion]) => {
         // Gestire sia stringhe che oggetti (per compatibilità)
         const configVersion = typeof newVersion === 'string' ? newVersion : (newVersion?.version || newVersion);
         if (!configVersion) return;
         
-        const oldVersion = packageJson.devDependencies?.[name];
-        // Se il pacchetto è già presente in package.json di questo componente, 
+        // Controlliamo entrambe le sezioni
+        const oldVersion = packageJson.devDependencies?.[name] || packageJson.dependencies?.[name];
+        // Se il pacchetto è già presente in package.json di questo componente (in qualsiasi sezione), 
         // verrà aggiornato da updatePackageJson indipendentemente dall'uso nel codice
-        if (oldVersion && oldVersion !== configVersion) {
-          // Pacchetto presente ma con versione diversa - da aggiornare
+        // Ma solo se la versione corrente non soddisfa il range configurato
+        if (oldVersion && !versionSatisfiesRange(oldVersion, configVersion)) {
+          // Pacchetto presente ma con versione che non soddisfa il range - da aggiornare
           // Se già presente in changes, aggiorna solo se la nuova versione è diversa
           if (!changes.devDependencies[name]) {
             changes.devDependencies[name] = {
@@ -385,9 +596,92 @@ function showVersionChanges(
     }
   });
 
-  // Mostra le modifiche dependencies
+  // Raccogliamo le modifiche per componente
+  const componentChanges = {};
+  
+  componentDirs.forEach((componentDir) => {
+    const packageJsonPath = path.join(
+      process.cwd(),
+      componentDir,
+      "package.json"
+    );
+    if (fs.existsSync(packageJsonPath)) {
+      const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, "utf8"));
+      const compChanges = {
+        dependencies: [],
+        devDependencies: []
+      };
+
+      // Controlla BASE dependencies
+      Object.entries(finalBaseDeps).forEach(([name, newVersion]) => {
+        const oldVersion = packageJson.dependencies?.[name];
+        if (oldVersion && !versionSatisfiesRange(oldVersion, newVersion)) {
+          compChanges.dependencies.push({ name, from: oldVersion, to: newVersion });
+        }
+      });
+
+      // Controlla CONDITIONAL dependencies
+      Object.entries(conditionalDeps).forEach(([name, newVersion]) => {
+        const configVersion = typeof newVersion === 'string' ? newVersion : (newVersion?.version || newVersion);
+        if (!configVersion) return;
+        const oldVersion = packageJson.dependencies?.[name] || packageJson.devDependencies?.[name];
+        if (oldVersion && !versionSatisfiesRange(oldVersion, configVersion)) {
+          // Aggiungi solo se non è già presente
+          if (!compChanges.dependencies.find(d => d.name === name)) {
+            compChanges.dependencies.push({ name, from: oldVersion, to: configVersion });
+          }
+        }
+      });
+
+      // Controlla BASE devDependencies
+      Object.entries(finalDevDeps).forEach(([name, newVersion]) => {
+        const oldVersion = packageJson.devDependencies?.[name];
+        if (oldVersion && !versionSatisfiesRange(oldVersion, newVersion)) {
+          compChanges.devDependencies.push({ name, from: oldVersion, to: newVersion });
+        }
+      });
+
+      // Controlla CONDITIONAL devDependencies
+      Object.entries(conditionalDevDeps).forEach(([name, newVersion]) => {
+        const configVersion = typeof newVersion === 'string' ? newVersion : (newVersion?.version || newVersion);
+        if (!configVersion) return;
+        const oldVersion = packageJson.devDependencies?.[name] || packageJson.dependencies?.[name];
+        if (oldVersion && !versionSatisfiesRange(oldVersion, configVersion)) {
+          // Aggiungi solo se non è già presente
+          if (!compChanges.devDependencies.find(d => d.name === name)) {
+            compChanges.devDependencies.push({ name, from: oldVersion, to: configVersion });
+          }
+        }
+      });
+
+      if (compChanges.dependencies.length > 0 || compChanges.devDependencies.length > 0) {
+        componentChanges[componentDir] = compChanges;
+      }
+    }
+  });
+
+  // Mostra le modifiche per ogni componente
+  Object.entries(componentChanges).forEach(([componentDir, compChanges]) => {
+    logger.log(`\n📦 ${componentDir}:`, "cyan");
+    
+    if (compChanges.dependencies.length > 0) {
+      logger.log(`   🔄 Dipendenze da aggiornare (${compChanges.dependencies.length}):`, "yellow");
+      compChanges.dependencies.forEach(({ name, from, to }) => {
+        logger.log(`      ${name}: ${from} → ${to}`, "yellow");
+      });
+    }
+
+    if (compChanges.devDependencies.length > 0) {
+      logger.log(`   🔄 DevDependencies da aggiornare (${compChanges.devDependencies.length}):`, "yellow");
+      compChanges.devDependencies.forEach(({ name, from, to }) => {
+        logger.log(`      ${name}: ${from} → ${to}`, "yellow");
+      });
+    }
+  });
+
+  // Mostra anche il riepilogo globale (per compatibilità)
   if (Object.keys(changes.dependencies).length > 0) {
-    logger.log("\nDependencies:", "yellow");
+    logger.log("\n📊 Riepilogo globale Dependencies:", "yellow");
     Object.entries(changes.dependencies).forEach(([name, versions]) => {
       if (versions.old) {
         logger.log(`  ${name}: ${versions.old} → ${versions.new}`, "blue");
@@ -397,9 +691,8 @@ function showVersionChanges(
     });
   }
 
-  // Mostra le modifiche devDependencies
   if (Object.keys(changes.devDependencies).length > 0) {
-    logger.log("\nDevDependencies:", "yellow");
+    logger.log("\n📊 Riepilogo globale DevDependencies:", "yellow");
     Object.entries(changes.devDependencies).forEach(([name, versions]) => {
       if (versions.old) {
         logger.log(`  ${name}: ${versions.old} → ${versions.new}`, "blue");
@@ -574,27 +867,22 @@ async function updateAllConfigs(scope = "all", components = []) {
             "Salvare questa configurazione? (y/N): "
           );
           if (saveAnswer === "y" || saveAnswer === "yes") {
-            const saved = saveGeneratedDependencies(generated, projectRoot);
-            if (saved) {
-              logger.log("✅ Configurazione salvata!", "green");
+            saveDependenciesConfig(generated, projectConfig);
+            logger.log("✅ Configurazione salvata!", "green");
 
-              // Ricarica la configurazione dopo il salvataggio
-              reloadDependenciesConfig(projectRoot);
+            // Ricarica la configurazione dopo il salvataggio
+            // Non mostriamo i duplicati durante l'aggiornamento (silent mode)
+            reloadDependenciesConfig(projectRoot, { showDuplicates: false });
 
-              // Chiedi conferma per procedere con l'aggiornamento
-              const updateAnswer = await askQuestion(
-                rl,
-                "Procedere con l'aggiornamento per tutti i componenti? (y/N): "
-              );
-              if (updateAnswer === "y" || updateAnswer === "yes") {
-                // Continua con l'aggiornamento normale
-              } else {
-                logger.log("❌ Generazione annullata", "yellow");
-                rl.close();
-                return false;
-              }
+            // Chiedi conferma per procedere con l'aggiornamento
+            const updateAnswer = await askQuestion(
+              rl,
+              "Procedere con l'aggiornamento per tutti i componenti? (y/N): "
+            );
+            if (updateAnswer === "y" || updateAnswer === "yes") {
+              // Continua con l'aggiornamento normale
             } else {
-              logger.log("❌ Errore salvando configurazione", "red");
+              logger.log("❌ Generazione annullata", "yellow");
               rl.close();
               return false;
             }
@@ -681,7 +969,8 @@ async function updateAllConfigs(scope = "all", components = []) {
       if (confirm === "y" || confirm === "yes") {
         saveDependenciesConfig(generated, projectConfig);
         logger.log("Configurazione salvata!", "green");
-        reloadDependenciesConfig(projectRoot);
+        // Non mostriamo i duplicati durante l'aggiornamento (silent mode)
+        reloadDependenciesConfig(projectRoot, { showDuplicates: false });
 
         // Chiedi se vuole procedere con l'aggiornamento
         const proceed = await askQuestion(
@@ -713,13 +1002,17 @@ async function updateAllConfigs(scope = "all", components = []) {
   }
 
   // 5. Carica la configurazione dopo la verifica/generazione
-  reloadDependenciesConfig(projectRoot);
+  const depsFunctions = reloadDependenciesConfig(projectRoot);
+  if (!depsFunctions) {
+    logger.error("❌ Errore caricando configurazione dipendenze");
+    return false;
+  }
 
   // Carica le dipendenze dopo la verifica/generazione
-  const baseDeps = getBaseDependencies();
-  const conditionalDeps = getConditionalDependencies();
-  const devDeps = getDevDependencies();
-  const conditionalDevDeps = getConditionalDevDependencies();
+  const baseDeps = depsFunctions.getBaseDependencies();
+  const conditionalDeps = depsFunctions.getConditionalDependencies();
+  const devDeps = depsFunctions.getDevDependencies();
+  const conditionalDevDeps = depsFunctions.getConditionalDevDependencies();
 
   // Non aggiungere più tutte le dipendenze condizionali globalmente
   // Verranno processate per ogni componente individualmente
@@ -727,11 +1020,11 @@ async function updateAllConfigs(scope = "all", components = []) {
   const finalDevDeps = { ...devDeps };
 
   // Ottieni configurazioni standard
-  const standardScripts = getStandardScripts();
-  const standardTsConfig = getStandardTsConfig();
-  const nodeEngines = getNodeEngines();
-  const overrides = getOverrides();
-  const deprecatedDeps = getDeprecatedDependencies();
+  const standardScripts = depsFunctions.getStandardScripts();
+  const standardTsConfig = depsFunctions.getStandardTsConfig();
+  const nodeEngines = depsFunctions.getNodeEngines();
+  const overrides = depsFunctions.getOverrides();
+  const deprecatedDeps = depsFunctions.getDeprecatedDependencies();
 
   // Ottieni componenti con filtrazione
   const { getComponentDirectories } = require("./dependencies/analyzer");
@@ -909,10 +1202,12 @@ async function updateAllConfigs(scope = "all", components = []) {
       componentConditionalDevDeps[dep.name] = dep.version;
     });
 
-    // Додати conditional deps/devDeps, які вже є в package.json з іншою версією
+    // Aggiungere conditional deps/devDeps che sono già in package.json
+    // (indipendentemente dalla versione - per aggiornamento o conservazione)
     const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, "utf8"));
 
-    // Для conditional deps
+    // Per conditional deps
+    // Controlliamo sia dependencies che devDependencies
     Object.entries(conditionalDeps).forEach(([name, configVersionValue]) => {
       // Gestire sia stringhe che oggetti (per compatibilità)
       const configVersion = typeof configVersionValue === 'string' 
@@ -920,16 +1215,21 @@ async function updateAllConfigs(scope = "all", components = []) {
         : (configVersionValue?.version || configVersionValue);
       if (!configVersion) return;
       
-      const currentVersion = packageJson.dependencies?.[name];
-      if (currentVersion && currentVersion !== configVersion) {
-        // Вже є в package.json з іншою версією - додати для оновлення
+      // Controlliamo entrambe le sezioni
+      const currentVersion = packageJson.dependencies?.[name] || packageJson.devDependencies?.[name];
+      
+      // Aggiungere solo se è già in package.json (in qualsiasi sezione, indipendentemente dalla versione)
+      // Questo permette di aggiornare versioni di dipendenze esistenti
+      // Se NON trovata nel codice E NON è in package.json - NON aggiungere
+      if (currentVersion) {
         if (!componentConditionalDeps[name]) {
           componentConditionalDeps[name] = configVersion;
         }
       }
     });
 
-    // Для conditional devDeps
+    // Per conditional devDeps
+    // Controlliamo sia devDependencies che dependencies
     Object.entries(conditionalDevDeps).forEach(([name, configVersionValue]) => {
       // Gestire sia stringhe che oggetti (per compatibilità)
       const configVersion = typeof configVersionValue === 'string' 
@@ -937,9 +1237,11 @@ async function updateAllConfigs(scope = "all", components = []) {
         : (configVersionValue?.version || configVersionValue);
       if (!configVersion) return;
       
-      const currentVersion = packageJson.devDependencies?.[name];
-      if (currentVersion && currentVersion !== configVersion) {
-        // Вже є в package.json з іншою версією - додати для оновлення
+      // Controlliamo entrambe le sezioni
+      const currentVersion = packageJson.devDependencies?.[name] || packageJson.dependencies?.[name];
+      
+      // Aggiungere solo se è già in package.json (in qualsiasi sezione, indipendentemente dalla versione)
+      if (currentVersion) {
         if (!componentConditionalDevDeps[name]) {
           componentConditionalDevDeps[name] = configVersion;
         }

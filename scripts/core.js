@@ -135,9 +135,9 @@ function installPackages(componentPath, mode = "normal") {
 }
 
 // Funzioni per aggiornamento configurazioni
-async function updateAllConfigs() {
+async function updateAllConfigs(scope = "all", components = []) {
   const updateScript = require("./update-configs");
-  return await updateScript.updateAllConfigs();
+  return await updateScript.updateAllConfigs(scope, components);
 }
 
 // Importa isDependenciesConfigEmpty per verificare se il config è vuoto
@@ -1368,28 +1368,25 @@ async function showUpdatePreview(scope, components) {
   }
 
   try {
-    // Ricarica il modulo dependencies-config
-    delete require.cache[require.resolve(dependenciesConfigPath)];
-    const depsConfig = require(dependenciesConfigPath);
-
-    const baseDeps = depsConfig.getBaseDependencies
-      ? depsConfig.getBaseDependencies()
-      : {};
-    const devDeps = depsConfig.getDevDependencies
-      ? depsConfig.getDevDependencies()
-      : {};
-    const scripts = depsConfig.getStandardScripts
-      ? depsConfig.getStandardScripts()
-      : {};
-    const deprecatedDeps = depsConfig.getDeprecatedDependencies
-      ? depsConfig.getDeprecatedDependencies()
-      : [];
-    const conditionalDeps = depsConfig.getConditionalDependencies
-      ? depsConfig.getConditionalDependencies()
-      : {};
-    const conditionalDevDeps = depsConfig.getConditionalDevDependencies
-      ? depsConfig.getConditionalDevDependencies()
-      : {};
+    // Ricarica il modulo dependencies-config usando reloadDependenciesConfig
+    // che risolve automaticamente i duplicati e usa la versione più alta
+    // Non mostriamo i duplicati durante l'aggiornamento (silent mode)
+    const { reloadDependenciesConfig } = require("./update-configs");
+    const depsFunctions = reloadDependenciesConfig(projectRoot, { showDuplicates: false });
+    
+    if (!depsFunctions) {
+      logger.error("❌ Errore caricando configurazione dipendenze");
+      return { isEmpty: true };
+    }
+    
+    // Usa le funzioni già risolte da reloadDependenciesConfig
+    // Queste funzioni restituiscono versioni già allineate (con la più alta per duplicati)
+    const baseDeps = depsFunctions.getBaseDependencies();
+    const devDeps = depsFunctions.getDevDependencies();
+    const scripts = depsFunctions.getStandardScripts();
+    const deprecatedDeps = depsFunctions.getDeprecatedDependencies();
+    const conditionalDeps = depsFunctions.getConditionalDependencies();
+    const conditionalDevDeps = depsFunctions.getConditionalDevDependencies();
 
     // Log per debug
     if (Object.keys(conditionalDeps).length > 0) {
@@ -1454,11 +1451,14 @@ async function showUpdatePreview(scope, components) {
           componentPath,
           conditionalDeps
         );
-        // Додати conditional deps, які вже є в package.json з іншою версією
+        // Додати conditional deps, які вже є в package.json
+        // (незалежно від версії - для оновлення або збереження)
+        // Перевіряємо як dependencies, так і devDependencies
         Object.entries(conditionalDeps).forEach(([name, configVersion]) => {
-          const currentVersion = currentDeps[name];
-          if (currentVersion && currentVersion !== configVersion) {
-            // Вже є в package.json з іншою версією - треба оновити
+          const currentVersion = currentDeps[name] || currentDevDeps[name];
+          // Додати тільки якщо вже є в package.json (в будь-якому розділі)
+          // Якщо НЕ знайдена в коді І НЕ є в package.json - НЕ додавати
+          if (currentVersion) {
             if (!usedConditionalDeps[name]) {
               usedConditionalDeps[name] = configVersion;
             }
@@ -1466,9 +1466,12 @@ async function showUpdatePreview(scope, components) {
         });
         const targetDeps = { ...baseDeps, ...usedConditionalDeps };
 
+        // Analizza dependencies: mostra aggiornamenti solo se il pacchetto è già in dependencies
+        // Se il pacchetto è in devDependencies, lo gestiremo quando analizziamo devDependencies
         const { newDeps, updatedDeps } = analyzeDependencies(
           currentDeps,
-          targetDeps
+          targetDeps,
+          currentDevDeps
         );
 
         totalNewDeps += newDeps.length;
@@ -1479,19 +1482,61 @@ async function showUpdatePreview(scope, components) {
           componentPath,
           conditionalDevDeps
         );
-        // Додати conditional devDeps, які вже є в package.json з іншою версією
+        // Aggiungere conditional devDeps che sono già in package.json
+        // (indipendentemente dalla versione - per aggiornamento o conservazione)
+        // Controlliamo sia devDependencies che dependencies
         Object.entries(conditionalDevDeps).forEach(([name, configVersion]) => {
-          const currentVersion = currentDevDeps[name];
-          if (currentVersion && currentVersion !== configVersion) {
-            // Вже є в package.json з іншою версією - треба оновити
+          const currentVersion = currentDevDeps[name] || currentDeps[name];
+          // Aggiungere solo se è già in package.json (in qualsiasi sezione)
+          // Se NON trovata nel codice E NON è in package.json - NON aggiungere
+          if (currentVersion) {
             if (!usedConditionalDevDeps[name]) {
               usedConditionalDevDeps[name] = configVersion;
             }
           }
         });
         const targetDevDeps = { ...devDeps, ...usedConditionalDevDeps };
+        
+        // Analizza devDependencies: mostra aggiornamenti solo se il pacchetto è già in devDependencies
+        // Ma anche controlla se alcuni pacchetti da CONDITIONAL_DEPENDENCIES sono in devDependencies
+        // e devono essere aggiornati qui
         const { newDeps: newDevDeps, updatedDeps: updatedDevDeps } =
-          analyzeDependencies(currentDevDeps, targetDevDeps);
+          analyzeDependencies(currentDevDeps, targetDevDeps, currentDeps);
+        
+        // IMPORTANTE: Se un pacchetto da CONDITIONAL_DEPENDENCIES è in devDependencies,
+        // dobbiamo aggiornarlo in devDependencies, non in dependencies
+        // Usiamo la versione da conditionalDevDeps (che dopo il resolve ha la versione più alta)
+        Object.entries(conditionalDeps).forEach(([name, configVersion]) => {
+          // Se il pacchetto è in devDependencies ma non in dependencies
+          if (currentDevDeps[name] && !currentDeps[name]) {
+            // Usa la versione da conditionalDevDeps (se esiste, altrimenti da conditionalDeps)
+            // Dopo resolveDuplicateDependencies, entrambe hanno la versione più alta
+            const targetVersion = conditionalDevDeps[name] || configVersion;
+            // Verifica se la versione in devDependencies non soddisfa il range target
+            if (!versionSatisfiesRange(currentDevDeps[name], targetVersion)) {
+              // Aggiungi all'elenco degli aggiornamenti per devDependencies
+              updatedDevDeps.push([name, currentDevDeps[name], targetVersion]);
+            }
+          }
+        });
+        
+        // IMPORTANTE: Se un pacchetto da CONDITIONAL_DEV_DEPENDENCIES è in dependencies,
+        // dobbiamo aggiornarlo in dependencies, non in devDependencies
+        // Usiamo la versione da conditionalDeps (che dopo il resolve ha la versione più alta)
+        Object.entries(conditionalDevDeps).forEach(([name, configVersion]) => {
+          // Se il pacchetto è in dependencies ma non in devDependencies
+          if (currentDeps[name] && !currentDevDeps[name]) {
+            // Usa la versione da conditionalDeps (se esiste, altrimenti da conditionalDevDeps)
+            // Dopo resolveDuplicateDependencies, entrambe hanno la versione più alta
+            const targetVersion = conditionalDeps[name] || configVersion;
+            // Verifica se la versione in dependencies non soddisfa il range target
+            if (!versionSatisfiesRange(currentDeps[name], targetVersion)) {
+              // Aggiungi all'elenco degli aggiornamenti per dependencies
+              updatedDeps.push([name, currentDeps[name], targetVersion]);
+            }
+          }
+        });
+        
         totalNewDevDeps += newDevDeps.length;
         totalUpdatedDevDeps += updatedDevDeps.length;
 
@@ -1639,19 +1684,84 @@ async function showUpdatePreview(scope, components) {
   }
 }
 
-function analyzeDependencies(currentDeps, targetDeps) {
+// Funzione per verificare se una versione soddisfa un range semantico
+function versionSatisfiesRange(version, range) {
+  if (!version || !range) return false;
+  
+  // Se sono identici, soddisfa
+  if (version === range) return true;
+  
+  // Per git URLs, confrontiamo direttamente
+  if (version.includes('git+') || version.includes('bitbucket:') || version.includes('http')) {
+    return version === range;
+  }
+  if (range.includes('git+') || range.includes('bitbucket:') || range.includes('http')) {
+    return version === range;
+  }
+  
+  // Rimuoviamo prefissi per confronto
+  const cleanVersion = (v) => {
+    if (!v || typeof v !== 'string') return '0.0.0';
+    return v.replace(/^[\^~>=<]+/, '');
+  };
+  
+  const cleanV = cleanVersion(version);
+  const cleanR = cleanVersion(range);
+  
+  // Se dopo la pulizia sono uguali, soddisfa
+  if (cleanV === cleanR) return true;
+  
+  // Se il range ha prefisso ^, controlliamo compatibilità major
+  if (range.startsWith('^')) {
+    const vParts = cleanV.split('.').map(Number);
+    const rParts = cleanR.split('.').map(Number);
+    
+    // ^x.y.z significa >=x.y.z <(x+1).0.0
+    if (vParts[0] === rParts[0] && vParts[1] >= rParts[1]) {
+      if (vParts[1] > rParts[1]) return true;
+      if (vParts[1] === rParts[1] && vParts[2] >= rParts[2]) return true;
+    }
+    return false;
+  }
+  
+  // Se il range ha prefisso ~, controlliamo compatibilità minor
+  if (range.startsWith('~')) {
+    const vParts = cleanV.split('.').map(Number);
+    const rParts = cleanR.split('.').map(Number);
+    
+    // ~x.y.z significa >=x.y.z <x.(y+1).0
+    if (vParts[0] === rParts[0] && vParts[1] === rParts[1] && vParts[2] >= rParts[2]) {
+      return true;
+    }
+    return false;
+  }
+  
+  // Per versioni esatte senza prefisso, confrontiamo direttamente
+  return cleanV === cleanR;
+}
+
+function analyzeDependencies(currentDeps, targetDeps, currentOtherDeps = {}) {
   const newDeps = [];
   const updatedDeps = [];
 
   for (const [name, targetVersion] of Object.entries(targetDeps)) {
-    if (!currentDeps[name]) {
-      // Nuova dipendenza
+    // Controlliamo prima nel sezione corrente
+    if (currentDeps[name]) {
+      // Se la versione non soddisfa il range target - è un aggiornamento
+      // IMPORTANTE: mostriamo aggiornamento solo se il pacchetto è già nella sezione corrente
+      if (!versionSatisfiesRange(currentDeps[name], targetVersion)) {
+        updatedDeps.push([name, currentDeps[name], targetVersion]);
+      }
+      // Se la versione soddisfa il range - non facciamo nulla
+    } else if (currentOtherDeps[name]) {
+      // Il pacchetto è già nell'altra sezione (dependencies/devDependencies)
+      // NON lo mostriamo come aggiornamento nella sezione corrente, perché non è presente qui
+      // Se l'utente vuole spostarlo o aggiornarlo, lo farà manualmente o attraverso l'altra sezione
+      // Non aggiungiamo né a newDeps né a updatedDeps
+    } else {
+      // Il pacchetto non è stato trovato né in dependencies né in devDependencies - è una nuova dipendenza
       newDeps.push([name, targetVersion]);
-    } else if (currentDeps[name] !== targetVersion) {
-      // Versione diversa
-      updatedDeps.push([name, currentDeps[name], targetVersion]);
     }
-    // Se la versione è uguale, non fare nulla
   }
 
   return { newDeps, updatedDeps };
@@ -1690,11 +1800,55 @@ function scanDirectoryForPatterns(
 ) {
   const results = new Set();
 
+  function extractImports(content) {
+    const imports = new Set();
+    const importPatterns = [
+      /import\s+[^'"`]*?from\s*['"`]([^'"`]+)['"`]/g,
+      /import\s*\(\s*['"`]([^'"`]+)['"`]\s*\)/g,
+      /require\(\s*['"`]([^'"`]+)['"`]\s*\)/g,
+      /\bdefine\(\s*\[([^\]]+)\]/g,
+    ];
+
+    for (const rx of importPatterns) {
+      let m;
+      while ((m = rx.exec(content))) {
+        if (rx === importPatterns[3]) {
+          // AMD array
+          const arr = m[1].split(",").map((s) => s.trim().replace(/['"`]/g, ""));
+          arr.forEach(name => {
+            if (name && !name.startsWith(".") && !name.startsWith("/")) {
+              const root = name.split("/")[0].startsWith("@") 
+                ? name.split("/").slice(0, 2).join("/") 
+                : name.split("/")[0];
+              if (root) imports.add(root);
+            }
+          });
+        } else {
+          const name = m[1].trim().replace(/['"`]/g, "");
+          if (name && !name.startsWith(".") && !name.startsWith("/")) {
+            const root = name.split("/")[0].startsWith("@") 
+              ? name.split("/").slice(0, 2).join("/") 
+              : name.split("/")[0];
+            if (root) imports.add(root);
+          }
+        }
+      }
+    }
+    return Array.from(imports);
+  }
+
   function scanFile(filePath) {
     try {
       const content = fs.readFileSync(filePath, "utf8");
+      const imports = extractImports(content);
+
       patterns.forEach((pattern) => {
-        if (content.includes(pattern)) {
+        // Перевірка через імпорти (точніше)
+        if (imports.includes(pattern)) {
+          results.add(pattern);
+        }
+        // Fallback: простий пошук для старих форматів з patterns
+        else if (content.includes(pattern)) {
           results.add(pattern);
         }
       });
@@ -2380,6 +2534,7 @@ function showExperimentalMenu() {
   logger.info("3. Gestione Monorepo Workspace");
   logger.info("4. Strumenti npm/package");
   logger.info("5. Aggiorna tsconfig (skipLibCheck)");
+  logger.info("6. Gestione configurazione dipendenze");
   logger.space();
   logger.warning("0. Torna al menu principale");
 
@@ -2400,6 +2555,9 @@ function showExperimentalMenu() {
         break;
       case "5":
         showUpdateTsConfigSkipLibCheckMenu();
+        break;
+      case "6":
+        showDependenciesConfigMenu();
         break;
       case "0":
         logger.info("Tornando al menu principale...");
@@ -3683,6 +3841,276 @@ function syncWorkspaceFromMenu() {
       setTimeout(() => showWorkspaceMenu(), 1000);
     }
   });
+}
+
+// ============================================================================
+// Gestione configurazione dipendenze
+// ============================================================================
+function showDependenciesConfigMenu() {
+  logger.section("⚙️  Gestione configurazione dipendenze");
+  logger.space();
+  logger.info("1. Rimuovi prefissi versioni (^, ~, >=, <=, >, <)");
+  logger.info("2. Rimuovi duplicati (usa la versione più alta)");
+  logger.info("3. Allinea versioni duplicate (mantiene duplicati con versione più alta)");
+  logger.space();
+  logger.warning("0. 🔙 Torna al menu sperimentale");
+
+  if (!rl) return;
+  rl.question("\nScegli opzione: ", (answer) => {
+    switch (answer.trim()) {
+      case "1":
+        cleanVersionPrefixes();
+        break;
+      case "2":
+        removeDuplicateDependencies();
+        break;
+      case "3":
+        alignDuplicateVersions();
+        break;
+      case "0":
+        logger.info("Tornando al menu sperimentale...");
+        setTimeout(() => showExperimentalMenu(), 500);
+        break;
+      default:
+        logger.log("Scelta non valida. Riprova.", "red");
+        setTimeout(() => showDependenciesConfigMenu(), 1000);
+    }
+  });
+}
+
+// Funzione per rimuovere prefissi dalle versioni
+function cleanVersionPrefixes() {
+  logger.section("🧹 Rimozione prefissi versioni");
+  logger.warning("⚠️  Questa operazione rimuoverà i prefissi (^, ~, >=, <=, >, <) da tutte le versioni");
+  logger.info("Può essere utile se le versioni sono state definite automaticamente");
+  logger.space();
+
+  if (!rl) return;
+  
+  // Prima mostriamo il preview
+  try {
+    const { previewCleanVersionPrefixes } = require("./dependencies/config-manager");
+    const preview = previewCleanVersionPrefixes();
+
+    if (!preview.success) {
+      logger.error(`❌ Errore: ${preview.error}`);
+      setTimeout(() => showDependenciesConfigMenu(), 2000);
+      return;
+    }
+
+    if (preview.cleaned === 0) {
+      logger.info("ℹ️  Nessun prefisso trovato nelle versioni");
+      logger.warning("\nPremi INVIO per tornare...");
+      rl.question("", () => showDependenciesConfigMenu());
+      return;
+    }
+
+    logger.log(`\n📋 Anteprima: verranno rimossi prefissi da ${preview.cleaned} versioni`, "cyan");
+    logger.log("Esempi di modifiche:", "yellow");
+    
+    // Mostriamo alcuni esempi
+    const examples = preview.changes.slice(0, 10);
+    examples.forEach((change) => {
+      logger.log(`   "${change.prefix}${change.version}" → "${change.cleaned}"`, "blue");
+    });
+    
+    if (preview.changes.length > 10) {
+      logger.log(`   ... e altre ${preview.changes.length - 10} versioni`, "blue");
+    }
+
+    logger.space();
+    rl.question("Continuare con il salvataggio? (y/N): ", (confirm) => {
+      if (confirm.toLowerCase() === "y" || confirm.toLowerCase() === "yes") {
+        try {
+          const { cleanVersionPrefixesFromConfig } = require("./dependencies/config-manager");
+          const result = cleanVersionPrefixesFromConfig();
+
+          if (result.success) {
+            logger.success(`✅ Rimosso prefissi da ${result.cleaned} versioni`);
+            if (result.errors.length > 0) {
+              logger.warning(`⚠️  ${result.errors.length} errori durante l'elaborazione`);
+            }
+          } else {
+            logger.error(`❌ Errore: ${result.error}`);
+          }
+        } catch (error) {
+          logger.error(`❌ Errore: ${error.message}`);
+        }
+
+        setTimeout(() => showDependenciesConfigMenu(), 2000);
+      } else {
+        logger.info("Operazione annullata");
+        setTimeout(() => showDependenciesConfigMenu(), 1000);
+      }
+    });
+  } catch (error) {
+    logger.error(`❌ Errore: ${error.message}`);
+    setTimeout(() => showDependenciesConfigMenu(), 2000);
+  }
+}
+
+// Funzione per rimuovere duplicati
+function removeDuplicateDependencies() {
+  logger.section("🗑️  Rimozione duplicati");
+  logger.warning("⚠️  Questa operazione rimuoverà i duplicati tra CONDITIONAL_DEPENDENCIES e CONDITIONAL_DEV_DEPENDENCIES");
+  logger.info("Rimarrà la versione più alta nella sezione dove è stata trovata più frequentemente");
+  logger.space();
+
+  if (!rl) return;
+  
+  // Prima mostriamo il preview
+  try {
+    const { previewRemoveDuplicateDependencies } = require("./dependencies/config-manager");
+    const preview = previewRemoveDuplicateDependencies();
+
+    if (!preview.success) {
+      logger.error(`❌ Errore: ${preview.error}`);
+      setTimeout(() => showDependenciesConfigMenu(), 2000);
+      return;
+    }
+
+    if (preview.removed === 0) {
+      logger.info("ℹ️  Nessun duplicato trovato");
+      logger.warning("\nPremi INVIO per tornare...");
+      rl.question("", () => showDependenciesConfigMenu());
+      return;
+    }
+
+    logger.log(`\n📋 Anteprima: verranno rimossi ${preview.removed} duplicati`, "cyan");
+    logger.log("Duplicati che verranno risolti:", "yellow");
+    
+    preview.duplicates.forEach((dup) => {
+      logger.log(
+        `   ${dup.name}:`,
+        "blue"
+      );
+      logger.log(
+        `      ${dup.depVersion} (CONDITIONAL_DEPENDENCIES) vs ${dup.devDepVersion} (CONDITIONAL_DEV_DEPENDENCIES)`,
+        "gray"
+      );
+      logger.log(
+        `      → Rimossa da ${dup.removedFrom}, mantenuta in ${dup.keptIn} con versione ${dup.version}`,
+        "green"
+      );
+    });
+
+    logger.space();
+    rl.question("Continuare con il salvataggio? (y/N): ", (confirm) => {
+      if (confirm.toLowerCase() === "y" || confirm.toLowerCase() === "yes") {
+        try {
+          const { removeDuplicateDependenciesFromConfig } = require("./dependencies/config-manager");
+          const result = removeDuplicateDependenciesFromConfig();
+
+          if (result.success) {
+            logger.success(`✅ Rimossi ${result.removed} duplicati`);
+            if (result.duplicates.length > 0) {
+              logger.log("\n📋 Duplicati risolti:", "cyan");
+              result.duplicates.forEach((dup) => {
+                logger.log(
+                  `   ${dup.name}: ${dup.removedFrom} → ${dup.keptIn} (${dup.version})`,
+                  "yellow"
+                );
+              });
+            }
+          } else {
+            logger.error(`❌ Errore: ${result.error}`);
+          }
+        } catch (error) {
+          logger.error(`❌ Errore: ${error.message}`);
+        }
+
+        setTimeout(() => showDependenciesConfigMenu(), 2000);
+      } else {
+        logger.info("Operazione annullata");
+        setTimeout(() => showDependenciesConfigMenu(), 1000);
+      }
+    });
+  } catch (error) {
+    logger.error(`❌ Errore: ${error.message}`);
+    setTimeout(() => showDependenciesConfigMenu(), 2000);
+  }
+}
+
+// Funzione per allineare versioni duplicate
+function alignDuplicateVersions() {
+  logger.section("⚖️  Allineamento versioni duplicate");
+  logger.warning("⚠️  Questa operazione allineerà le versioni dei duplicati, usando la versione più alta");
+  logger.info("I duplicati rimarranno in entrambe le sezioni, ma con la stessa versione più alta");
+  logger.space();
+
+  if (!rl) return;
+  
+  // Prima mostriamo il preview
+  try {
+    const { previewAlignDuplicateVersions } = require("./dependencies/config-manager");
+    const preview = previewAlignDuplicateVersions();
+
+    if (!preview.success) {
+      logger.error(`❌ Errore: ${preview.error}`);
+      setTimeout(() => showDependenciesConfigMenu(), 2000);
+      return;
+    }
+
+    if (preview.aligned === 0) {
+      logger.info("ℹ️  Nessun duplicato da allineare (tutte le versioni sono già allineate)");
+      logger.warning("\nPremi INVIO per tornare...");
+      rl.question("", () => showDependenciesConfigMenu());
+      return;
+    }
+
+    logger.log(`\n📋 Anteprima: verranno allineati ${preview.aligned} duplicati`, "cyan");
+    logger.log("Versioni che verranno allineate:", "yellow");
+    
+    preview.duplicates.forEach((dup) => {
+      logger.log(
+        `   ${dup.name}:`,
+        "blue"
+      );
+      logger.log(
+        `      CONDITIONAL_DEPENDENCIES: ${dup.oldDepVersion} → ${dup.newVersion}`,
+        "gray"
+      );
+      logger.log(
+        `      CONDITIONAL_DEV_DEPENDENCIES: ${dup.oldDevDepVersion} → ${dup.newVersion}`,
+        "gray"
+      );
+    });
+
+    logger.space();
+    rl.question("Continuare con il salvataggio? (y/N): ", (confirm) => {
+      if (confirm.toLowerCase() === "y" || confirm.toLowerCase() === "yes") {
+        try {
+          const { alignDuplicateVersionsInConfig } = require("./dependencies/config-manager");
+          const result = alignDuplicateVersionsInConfig();
+
+          if (result.success) {
+            logger.success(`✅ Allineati ${result.aligned} duplicati`);
+            if (result.duplicates.length > 0) {
+              logger.log("\n📋 Duplicati allineati:", "cyan");
+              result.duplicates.forEach((dup) => {
+                logger.log(
+                  `   ${dup.name}: ${dup.oldDepVersion} (deps) + ${dup.oldDevDepVersion} (devDeps) → ${dup.newVersion}`,
+                  "yellow"
+                );
+              });
+            }
+          } else {
+            logger.error(`❌ Errore: ${result.error}`);
+          }
+        } catch (error) {
+          logger.error(`❌ Errore: ${error.message}`);
+        }
+
+        setTimeout(() => showDependenciesConfigMenu(), 2000);
+      } else {
+        logger.info("Operazione annullata");
+        setTimeout(() => showDependenciesConfigMenu(), 1000);
+      }
+    });
+  } catch (error) {
+    logger.error(`❌ Errore: ${error.message}`);
+    setTimeout(() => showDependenciesConfigMenu(), 2000);
+  }
 }
 
 module.exports = {
