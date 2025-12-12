@@ -9,6 +9,62 @@ const path = require("path");
 // Import shared logger
 const logger = require("../utils/logger");
 
+// Funzione per verificare se una versione soddisfa un range semantico
+function versionSatisfiesRange(version, range) {
+  if (!version || !range) return false;
+  
+  // Se sono identici, soddisfa
+  if (version === range) return true;
+  
+  // Per git URLs, confrontiamo direttamente
+  if (version.includes('git+') || version.includes('bitbucket:') || version.includes('http')) {
+    return version === range;
+  }
+  if (range.includes('git+') || range.includes('bitbucket:') || range.includes('http')) {
+    return version === range;
+  }
+  
+  // Rimuoviamo prefissi per confronto
+  const cleanVersion = (v) => {
+    if (!v || typeof v !== 'string') return '0.0.0';
+    return v.replace(/^[\^~>=<]+/, '');
+  };
+  
+  const cleanV = cleanVersion(version);
+  const cleanR = cleanVersion(range);
+  
+  // Se dopo la pulizia sono uguali, soddisfa
+  if (cleanV === cleanR) return true;
+  
+  // Se il range ha prefisso ^, controlliamo compatibilità major
+  if (range.startsWith('^')) {
+    const vParts = cleanV.split('.').map(Number);
+    const rParts = cleanR.split('.').map(Number);
+    
+    // ^x.y.z significa >=x.y.z <(x+1).0.0
+    if (vParts[0] === rParts[0] && vParts[1] >= rParts[1]) {
+      if (vParts[1] > rParts[1]) return true;
+      if (vParts[1] === rParts[1] && vParts[2] >= rParts[2]) return true;
+    }
+    return false;
+  }
+  
+  // Se il range ha prefisso ~, controlliamo compatibilità minor
+  if (range.startsWith('~')) {
+    const vParts = cleanV.split('.').map(Number);
+    const rParts = cleanR.split('.').map(Number);
+    
+    // ~x.y.z significa >=x.y.z <x.(y+1).0
+    if (vParts[0] === rParts[0] && vParts[1] === rParts[1] && vParts[2] >= rParts[2]) {
+      return true;
+    }
+    return false;
+  }
+  
+  // Per versioni esatte senza prefisso, confrontiamo direttamente
+  return cleanV === cleanR;
+}
+
 function updatePackageJson(
   componentPath,
   projectConfig,
@@ -68,8 +124,8 @@ function updatePackageJson(
         packageJson.dependencies[name] = version;
         updated = true;
         changes.dependencies.added.push({ name, version, type: "base" });
-      } else if (currentVersion !== version) {
-        // Aggiornamento versione
+      } else if (!versionSatisfiesRange(currentVersion, version)) {
+        // Aggiornamento versione solo se la versione corrente non soddisfa il range
         packageJson.dependencies[name] = version;
         updated = true;
         changes.dependencies.updated.push({
@@ -81,22 +137,39 @@ function updatePackageJson(
     });
 
     // Aggiungi dipendenze condizionali utilizzate
+    // IMPORTANTE: Se il pacchetto è già in devDependencies, aggiorniamolo lì, non in dependencies
     Object.entries(conditionalDeps).forEach(([name, version]) => {
-      const currentVersion = packageJson.dependencies[name];
-      if (currentVersion === undefined) {
-        // Nuova dipendenza condizionale
+      const currentDepVersion = packageJson.dependencies?.[name];
+      const currentDevDepVersion = packageJson.devDependencies?.[name];
+      
+      // Se il pacchetto è in devDependencies ma non in dependencies
+      if (currentDevDepVersion !== undefined && currentDepVersion === undefined) {
+        // Aggiorniamo in devDependencies dove è già presente solo se la versione non soddisfa il range
+        if (!versionSatisfiesRange(currentDevDepVersion, version)) {
+          packageJson.devDependencies[name] = version;
+          updated = true;
+          changes.devDependencies.updated.push({
+            name,
+            from: currentDevDepVersion,
+            to: version,
+          });
+        }
+      } else if (currentDepVersion !== undefined) {
+        // Il pacchetto è in dependencies - aggiorniamo lì solo se la versione non soddisfa il range
+        if (!versionSatisfiesRange(currentDepVersion, version)) {
+          packageJson.dependencies[name] = version;
+          updated = true;
+          changes.dependencies.updated.push({
+            name,
+            from: currentDepVersion,
+            to: version,
+          });
+        }
+      } else if (currentDepVersion === undefined && currentDevDepVersion === undefined) {
+        // Nuova dipendenza condizionale - aggiungiamo in dependencies
         packageJson.dependencies[name] = version;
         updated = true;
         changes.dependencies.conditional.push({ name, version });
-      } else if (currentVersion !== version) {
-        // Aggiornamento versione dipendenza condizionale
-        packageJson.dependencies[name] = version;
-        updated = true;
-        changes.dependencies.updated.push({
-          name,
-          from: currentVersion,
-          to: version,
-        });
       }
     });
 
@@ -127,8 +200,8 @@ function updatePackageJson(
         packageJson.devDependencies[name] = version;
         updated = true;
         changes.devDependencies.added.push({ name, version, type: "base" });
-      } else if (currentVersion !== version) {
-        // Aggiornamento versione dipendenza dev
+      } else if (!versionSatisfiesRange(currentVersion, version)) {
+        // Aggiornamento versione dipendenza dev solo se la versione corrente non soddisfa il range
         packageJson.devDependencies[name] = version;
         updated = true;
         changes.devDependencies.updated.push({
@@ -139,30 +212,40 @@ function updatePackageJson(
       }
     });
 
-    // Aggiungi dipendenze dev condizionali utilizzate (solo in devDependencies!)
+    // Aggiungi dipendenze dev condizionali utilizzate
+    // IMPORTANTE: Se il pacchetto è già in dependencies, aggiorniamolo lì, non in devDependencies
     Object.entries(conditionalDevDeps).forEach(([name, version]) => {
-      // Verifichiamo se non è già in dependencies (non deve essere lì!)
-      if (packageJson.dependencies && packageJson.dependencies[name]) {
-        // Se dipendenza dev condizionale trovata in dependencies - rimuoviamo da lì
-        delete packageJson.dependencies[name];
-        updated = true;
-      }
-
-      const currentVersion = packageJson.devDependencies[name];
-      if (currentVersion === undefined) {
-        // Nuova dipendenza dev condizionale
+      const currentDepVersion = packageJson.dependencies?.[name];
+      const currentDevDepVersion = packageJson.devDependencies?.[name];
+      
+      // Se il pacchetto è in dependencies ma non in devDependencies
+      if (currentDepVersion !== undefined && currentDevDepVersion === undefined) {
+        // Aggiorniamo in dependencies dove è già presente solo se la versione non soddisfa il range
+        if (!versionSatisfiesRange(currentDepVersion, version)) {
+          packageJson.dependencies[name] = version;
+          updated = true;
+          changes.dependencies.updated.push({
+            name,
+            from: currentDepVersion,
+            to: version,
+          });
+        }
+      } else if (currentDevDepVersion !== undefined) {
+        // Il pacchetto è in devDependencies - aggiorniamo lì solo se la versione non soddisfa il range
+        if (!versionSatisfiesRange(currentDevDepVersion, version)) {
+          packageJson.devDependencies[name] = version;
+          updated = true;
+          changes.devDependencies.updated.push({
+            name,
+            from: currentDevDepVersion,
+            to: version,
+          });
+        }
+      } else if (currentDepVersion === undefined && currentDevDepVersion === undefined) {
+        // Nuova dipendenza dev condizionale - aggiungiamo in devDependencies
         packageJson.devDependencies[name] = version;
         updated = true;
         changes.devDependencies.conditional.push({ name, version });
-      } else if (currentVersion !== version) {
-        // Aggiornamento versione dipendenza dev condizionale
-        packageJson.devDependencies[name] = version;
-        updated = true;
-        changes.devDependencies.updated.push({
-          name,
-          from: currentVersion,
-          to: version,
-        });
       }
     });
 

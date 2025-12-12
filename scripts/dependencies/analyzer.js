@@ -17,12 +17,55 @@ function scanDirectoryForPatterns(
 ) {
   const results = new Set();
 
+  function extractImports(content) {
+    const imports = new Set();
+    const importPatterns = [
+      /import\s+[^'"`]*?from\s*['"`]([^'"`]+)['"`]/g,
+      /import\s*\(\s*['"`]([^'"`]+)['"`]\s*\)/g,
+      /require\(\s*['"`]([^'"`]+)['"`]\s*\)/g,
+      /\bdefine\(\s*\[([^\]]+)\]/g,
+    ];
+
+    for (const rx of importPatterns) {
+      let m;
+      while ((m = rx.exec(content))) {
+        if (rx === importPatterns[3]) {
+          // AMD array
+          const arr = m[1].split(",").map((s) => s.trim().replace(/['"`]/g, ""));
+          arr.forEach(name => {
+            if (name && !name.startsWith(".") && !name.startsWith("/")) {
+              const root = name.split("/")[0].startsWith("@") 
+                ? name.split("/").slice(0, 2).join("/") 
+                : name.split("/")[0];
+              if (root) imports.add(root);
+            }
+          });
+        } else {
+          const name = m[1].trim().replace(/['"`]/g, "");
+          if (name && !name.startsWith(".") && !name.startsWith("/")) {
+            const root = name.split("/")[0].startsWith("@") 
+              ? name.split("/").slice(0, 2).join("/") 
+              : name.split("/")[0];
+            if (root) imports.add(root);
+          }
+        }
+      }
+    }
+    return Array.from(imports);
+  }
+
   function scanFile(filePath) {
     try {
       const content = fs.readFileSync(filePath, "utf8");
+      const imports = extractImports(content);
 
       patterns.forEach((pattern) => {
-        if (content.includes(pattern)) {
+        // Перевірка через імпорти (точніше)
+        if (imports.includes(pattern)) {
+          results.add(pattern);
+        }
+        // Fallback: простий пошук для старих форматів з patterns
+        else if (content.includes(pattern)) {
           results.add(pattern);
         }
       });

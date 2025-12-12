@@ -215,6 +215,88 @@ function generateDependenciesConfig(projectConfig) {
     }
   });
 
+  // Risolviamo duplicati tra CONDITIONAL_DEPENDENCIES e CONDITIONAL_DEV_DEPENDENCIES
+  // Se una dipendenza è in entrambe le sezioni, determiniamo dove si trova più frequentemente
+  // e la lasciamo lì con la versione più alta
+  const duplicates = [];
+  const namesToRemove = [];
+  
+  Object.keys(conditionalDeps).forEach((name) => {
+    if (conditionalDevDeps[name]) {
+      const depVersion = conditionalDeps[name];
+      const devDepVersion = conditionalDevDeps[name];
+      
+      // Determiniamo dove la dipendenza si trova più frequentemente
+      const depCount = depUsage[name] || 0;
+      const devDepCount = devDepUsage[name] || 0;
+      
+      // Confrontiamo versioni e scegliamo la più alta
+      const comparison = compareVersions(depVersion, devDepVersion);
+      let highestVersion;
+      let whereToKeep;
+      
+      if (comparison >= 0) {
+        highestVersion = depVersion;
+      } else {
+        highestVersion = devDepVersion;
+      }
+      
+      // Determiniamo dove lasciare la dipendenza in base alla frequenza
+      if (depCount > devDepCount) {
+        // Più frequente in dependencies - la lasciamo lì
+        whereToKeep = 'dependencies';
+        conditionalDeps[name] = highestVersion;
+        delete conditionalDevDeps[name];
+        namesToRemove.push({ name, from: 'devDependencies' });
+      } else if (devDepCount > depCount) {
+        // Più frequente in devDependencies - la lasciamo lì
+        whereToKeep = 'devDependencies';
+        conditionalDevDeps[name] = highestVersion;
+        delete conditionalDeps[name];
+        namesToRemove.push({ name, from: 'dependencies' });
+      } else {
+        // Frequenza uguale - la lasciamo in entrambe con la versione più alta
+        whereToKeep = 'both';
+        conditionalDeps[name] = highestVersion;
+        conditionalDevDeps[name] = highestVersion;
+      }
+      
+      duplicates.push({
+        name,
+        depVersion,
+        devDepVersion,
+        resolvedVersion: highestVersion,
+        whereToKeep,
+        depCount,
+        devDepCount
+      });
+    }
+  });
+
+  if (duplicates.length > 0) {
+    logger.log(`\n⚠️  Trovati ${duplicates.length} duplicati tra CONDITIONAL_DEPENDENCIES e CONDITIONAL_DEV_DEPENDENCIES:`, "yellow", projectConfig);
+    duplicates.forEach((dup) => {
+      if (dup.whereToKeep === 'both') {
+        logger.log(
+          `   ${dup.name}: ${dup.depVersion} (deps, ${dup.depCount}x) vs ${dup.devDepVersion} (devDeps, ${dup.devDepCount}x) → ${dup.resolvedVersion} (in entrambe le sezioni)`,
+          "yellow",
+          projectConfig
+        );
+      } else {
+        logger.log(
+          `   ${dup.name}: ${dup.depVersion} (deps, ${dup.depCount}x) vs ${dup.devDepVersion} (devDeps, ${dup.devDepCount}x) → ${dup.resolvedVersion} (lasciato in ${dup.whereToKeep})`,
+          "yellow",
+          projectConfig
+        );
+      }
+    });
+    if (namesToRemove.length > 0) {
+      logger.log(`   Rimossi ${namesToRemove.length} duplicati da una sezione`, "cyan", projectConfig);
+    } else {
+      logger.log("   Usata versione più alta in entrambe le sezioni", "cyan", projectConfig);
+    }
+  }
+
   // Mostriamo il riepilogo della distribuzione
   logger.log(`\n📊 Riepilogo distribuzione dipendenze:`, "cyan", projectConfig);
   logger.log(
