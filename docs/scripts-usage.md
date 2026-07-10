@@ -166,7 +166,9 @@ scripts/
 │   ├── workspace-menu.js      # Gestione Monorepo Workspace (Yarn Workspaces)
 │   ├── npm-tools-menu.js      # Lock files, npm outdated/audit, skipLibCheck
 │   ├── dependencies-config-menu.js  # Pulizia prefissi/duplicati in dependencies-config.js
-│   └── version-alignment-menu.js    # Allineamento versioni dipendenze tra progetti
+│   ├── version-alignment-menu.js    # Allineamento versioni dipendenze tra progetti (coppia base/target)
+│   ├── generate-config-menu.js      # Genera dependencies-config.js in sola lettura (menu principale, voce 7)
+│   └── compare-projects-menu.js     # Confronto versioni tra TUTTI i progetti (menu principale, voce 8)
 ├── dependencies/               # Logica di analisi/generazione/aggiornamento dipendenze
 ├── operations/                  # Installazione/pulizia standard e workspace
 ├── utils/                        # Utility condivise (version-utils, common, logger, ...)

@@ -32,6 +32,8 @@ pm
 ⚠️  4. 🧹 Pulizia/rimozione pacchetti
 ℹ️  5. 📝 Visualizza log delle operazioni
 ⚠️  6. 🔬 EXPERIMENTAL - Funzioni sperimentali
+ℹ️  7. 📄 Genera configurazione dipendenze (solo lettura, nessuna modifica)
+ℹ️  8. 📊 Confronta versioni tra tutti i progetti
 ℹ️  9. 📁 Mostra tutti i componenti trovati
 ❌ 0. 🚪Esci
 ```
@@ -162,6 +164,68 @@ senza dover modificare `dependencies-config.js`.
 > riferimento non viene mai toccato. Vengono allineate solo le dipendenze
 > presenti in **entrambi** i progetti: quelle presenti solo in uno dei due
 > sono mostrate a scopo informativo ma non vengono aggiunte automaticamente.
+
+#### 🔒 Modalità "versione esatta" (pin)
+
+Se almeno una delle versioni di riferimento usa un simbolo di range (`^`,
+`~`, `>=`, `<=`, `>`, `<`), prima della conferma finale viene chiesto:
+
+```
+ℹ️  Alcune versioni di riferimento usano un range (^, ~, >=, <=, >, <)
+Vuoi fissare la versione ESATTA indicata (rimuovendo il simbolo di range)
+invece del range originale? (y/N):
+```
+
+- **Sì**: viene scritta solo la versione esatta (es. `^1.4.0` → `1.4.0`),
+  così il progetto base non potrà mai risolvere a una versione diversa da
+  quella del progetto di riferimento al prossimo `npm install`.
+- **No** (predefinito): viene copiato il range così com'è (es. `^1.4.0`
+  resta `^1.4.0`), comportamento identico a prima dell'introduzione di
+  questa modalità.
+
+Se nessuna delle versioni coinvolte usa simboli di range, la domanda viene
+saltata automaticamente (non ci sarebbe alcuna differenza).
+
+### 7. 📄 Genera Configurazione Dipendenze (Solo Lettura)
+
+Disponibile direttamente nel **menu principale**, opzione `7`.
+
+Analizza i `package.json` di **tutti** i progetti trovati ed esegue la stessa
+analisi automatica proposta durante l'Aggiornamento configurazioni (opzione
+`1`) quando `dependencies-config.js` è vuoto o assente, ma **senza procedere
+mai con l'aggiornamento dei progetti**: nessun `package.json` viene
+modificato e non viene eseguita alcuna installazione.
+
+Utile per:
+- Ottenere/aggiornare una "fotografia" di `dependencies-config.js` da
+  leggere o rivedere manualmente prima di applicarla.
+- Rigenerare il file di configurazione dopo aver aggiunto/rimosso progetti,
+  senza il rischio di modificare accidentalmente i `package.json` esistenti.
+
+Al termine chiede se salvare il risultato in
+`package-manager/dependencies-config.js` (rispondendo "N" non viene scritto
+nulla). Se salvato, per applicarlo ai progetti va usato separatamente il
+punto `1. Aggiornamento configurazioni`.
+
+### 8. 📊 Confronta Versioni tra Tutti i Progetti
+
+Disponibile direttamente nel **menu principale**, opzione `8`.
+
+A differenza dell'Allineamento versioni (punto 6, che confronta **due**
+progetti alla volta: uno base e uno di riferimento), questo menu analizza
+**tutti** i progetti insieme e mostra:
+- Quante dipendenze hanno versione identica ovunque siano presenti.
+- Quante dipendenze hanno **versioni divergenti** tra i progetti che le usano.
+
+Per ogni dipendenza divergente viene mostrato quante versioni univoche
+esistono e in quanti progetti è usata; scegliendone una si vede il dettaglio
+per singolo progetto (versione o "non presente"). Da lì è possibile scegliere
+due progetti (base + riferimento) e passare direttamente al confronto/
+allineamento completo già descritto al punto 6 (inclusa la modalità
+"versione esatta").
+
+> ℹ️ Questo menu è di sola analisi sui `package.json` reali dei progetti: non
+> dipende da `dependencies-config.js` e non lo modifica.
 
 ## 💻 Modalità Comando
 

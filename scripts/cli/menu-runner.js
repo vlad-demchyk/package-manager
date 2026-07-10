@@ -106,6 +106,8 @@ function showMenu() {
   logger.warning("4. 🧹 Pulizia/rimozione pacchetti");
   logger.info("5. 📝 Visualizza log delle operazioni");
   logger.warning("6. 🔬 EXPERIMENTAL - Funzioni sperimentali");
+  logger.info("7. 📄 Genera configurazione dipendenze (solo lettura, nessuna modifica)");
+  logger.info("8. 📊 Confronta versioni tra tutti i progetti");
   logger.space();
   logger.info("9. 📁 Mostra tutti i componenti trovati");
   logger.error("0. 🚪Esci");
@@ -197,7 +199,7 @@ async function main() {
       // Mostra il menu e chiedi l'opzione
       showMenu();
       if (rl) {
-        rl.question("\nScegli opzione (0-6, 9): ", (answer) => {
+        rl.question("\nScegli opzione (0-9): ", (answer) => {
           switch (answer.trim()) {
             case "1":
               require("../menus/update-menu").showUpdateMenu();
@@ -216,6 +218,12 @@ async function main() {
               break;
             case "6":
               require("../menus/experimental-menu").showExperimentalMenu();
+              break;
+            case "7":
+              require("../menus/generate-config-menu").showGenerateConfigMenu();
+              break;
+            case "8":
+              require("../menus/compare-projects-menu").showCompareAllProjectsMenu();
               break;
             case "9":
               require("../menus/component-list").showDetailedComponentList();

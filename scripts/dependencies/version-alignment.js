@@ -12,6 +12,7 @@ const path = require("path");
 
 const logger = require("../utils/logger");
 const { getComponentDirectories, loadPackageJson, removeFile } = require("../utils/common");
+const { cleanVersion } = require("../utils/version-utils");
 
 /**
  * Legge dependencies + devDependencies di un componente.
@@ -208,6 +209,58 @@ function computeVersionDiff(baseInfo, targetInfo) {
 }
 
 /**
+ * Calcola una matrice di confronto delle versioni tra TUTTI i progetti
+ * (non solo una coppia base/target). Utile per avere una vista d'insieme
+ * di quali dipendenze sono divergenti nell'intero repository, a partire dai
+ * `package.json` reali (indipendentemente da dependencies-config.js).
+ *
+ * @param {Object} componentsData - Output di loadComponentsData()
+ * @returns {{
+ *   components: string[],
+ *   packages: Array<{
+ *     name: string,
+ *     versions: Object<string, string|undefined>,
+ *     uniqueVersions: string[],
+ *     presentIn: number,
+ *     status: "same"|"diverging"
+ *   }>
+ * }}
+ * status "diverging": il pacchetto ha più di una versione univoca tra i
+ * progetti in cui è presente. status "same": stessa versione ovunque sia
+ * presente (anche se presente solo in un sottoinsieme dei progetti).
+ */
+function computeAllProjectsVersionMatrix(componentsData) {
+  const components = Object.keys(componentsData).sort();
+  const allNames = new Set();
+  components.forEach((component) => {
+    getAllDependencyNames(componentsData[component]).forEach((name) => allNames.add(name));
+  });
+
+  const packages = Array.from(allNames)
+    .sort()
+    .map((name) => {
+      const versions = {};
+      components.forEach((component) => {
+        const { version } = getVersionAndSection(componentsData[component], name);
+        versions[component] = version;
+      });
+
+      const presentVersions = Object.values(versions).filter((v) => v !== undefined);
+      const uniqueVersions = Array.from(new Set(presentVersions));
+      const status = uniqueVersions.length > 1 ? "diverging" : "same";
+
+      return { name, versions, uniqueVersions, presentIn: presentVersions.length, status };
+    });
+
+  packages.sort((a, b) => {
+    if (a.status !== b.status) return a.status === "diverging" ? -1 : 1;
+    return b.presentIn - a.presentIn || a.name.localeCompare(b.name);
+  });
+
+  return { components, packages };
+}
+
+/**
  * Applica l'allineamento delle versioni al package.json del componente base.
  * Aggiorna solo le dipendenze indicate, mantenendo la sezione (dependencies/
  * devDependencies) in cui si trovano già nel componente base.
@@ -215,9 +268,12 @@ function computeVersionDiff(baseInfo, targetInfo) {
  * @param {string} baseComponent - Nome/percorso del componente base
  * @param {Array<{name: string, section: string, newVersion: string}>} alignments
  * @param {boolean} removeLockFile - Se rimuovere package-lock.json dopo l'allineamento
+ * @param {boolean} pinExactVersion - Se true, rimuove i prefissi di range semver
+ *   (^, ~, >=, <=, >, <) da `newVersion` prima di scriverlo, così viene fissata
+ *   esattamente la versione indicata invece del range originale.
  * @returns {{success: boolean, applied: Array, error?: string}}
  */
-function applyVersionAlignment(baseComponent, alignments, removeLockFile = true) {
+function applyVersionAlignment(baseComponent, alignments, removeLockFile = true, pinExactVersion = false) {
   const componentPath = path.join(process.cwd(), baseComponent);
   const packageJsonPath = path.join(componentPath, "package.json");
 
@@ -235,8 +291,9 @@ function applyVersionAlignment(baseComponent, alignments, removeLockFile = true)
         packageJson[targetSection] = {};
       }
       const oldVersion = packageJson[targetSection][name];
-      packageJson[targetSection][name] = newVersion;
-      applied.push({ name, section: targetSection, oldVersion, newVersion });
+      const finalVersion = pinExactVersion ? cleanVersion(newVersion) : newVersion;
+      packageJson[targetSection][name] = finalVersion;
+      applied.push({ name, section: targetSection, oldVersion, newVersion: finalVersion });
     });
 
     if (applied.length === 0) {
@@ -267,5 +324,6 @@ module.exports = {
   findMatchingProjectsByName,
   findMatchingPackagesForComponent,
   computeVersionDiff,
+  computeAllProjectsVersionMatrix,
   applyVersionAlignment,
 };

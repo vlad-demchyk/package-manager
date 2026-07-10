@@ -335,36 +335,65 @@ function confirmAndApplyAlignment(baseComponent, targetComponent, rows) {
   });
   logger.info("💡 Verrà inoltre rimosso package-lock.json del progetto (se presente)");
 
+  const hasRangeSymbols = rows.some((row) => /^[\^~>=<]/.test(row.targetVersion || ""));
+
   const rl = cliContext.getRl();
   if (!rl) return;
-  rl.question("\nConfermi l'allineamento? (y/N): ", (confirm) => {
-    if (confirm.toLowerCase() !== "y" && confirm.toLowerCase() !== "yes") {
-      logger.info("Operazione annullata, nessuna modifica effettuata");
-      backToExperimentalMenu();
-      return;
-    }
 
-    const { applyVersionAlignment } = require("../dependencies/version-alignment");
-    const alignments = rows.map((row) => ({
-      name: row.name,
-      section: row.baseSection,
-      newVersion: row.targetVersion,
-    }));
+  askPinExactVersion(rl, hasRangeSymbols, (pinExactVersion) => {
+    rl.question("\nConfermi l'allineamento? (y/N): ", (confirm) => {
+      if (confirm.toLowerCase() !== "y" && confirm.toLowerCase() !== "yes") {
+        logger.info("Operazione annullata, nessuna modifica effettuata");
+        backToExperimentalMenu();
+        return;
+      }
 
-    const result = applyVersionAlignment(baseComponent, alignments, true);
+      const { applyVersionAlignment } = require("../dependencies/version-alignment");
+      const alignments = rows.map((row) => ({
+        name: row.name,
+        section: row.baseSection,
+        newVersion: row.targetVersion,
+      }));
 
-    if (result.success) {
-      logger.success(`\n✅ Allineate ${result.applied.length} dipendenze di ${baseComponent} su ${targetComponent}`);
-      result.applied.forEach((a) => {
-        logger.log(`   ${a.name}: ${a.oldVersion} → ${a.newVersion}`, "green");
-      });
-      logger.info(`💡 Esegui l'installazione per ${baseComponent} per applicare le nuove versioni`);
-    } else {
-      logger.error(`❌ Errore durante l'allineamento: ${result.error}`);
-    }
+      const result = applyVersionAlignment(baseComponent, alignments, true, pinExactVersion);
 
-    backToExperimentalMenu(2000);
+      if (result.success) {
+        logger.success(`\n✅ Allineate ${result.applied.length} dipendenze di ${baseComponent} su ${targetComponent}`);
+        result.applied.forEach((a) => {
+          logger.log(`   ${a.name}: ${a.oldVersion} → ${a.newVersion}`, "green");
+        });
+        logger.info(`💡 Esegui l'installazione per ${baseComponent} per applicare le nuove versioni`);
+      } else {
+        logger.error(`❌ Errore durante l'allineamento: ${result.error}`);
+      }
+
+      backToExperimentalMenu(2000);
+    });
   });
+}
+
+// Se almeno una delle versioni target ha un simbolo di range (^, ~, >=, <=,
+// >, <), chiede se fissare la versione esatta (senza il simbolo) invece di
+// copiare il range così com'è. Se nessuna versione ha simboli di range, salta
+// la domanda e procede senza pin (non ci sarebbe alcuna differenza).
+function askPinExactVersion(rl, hasRangeSymbols, callback) {
+  if (!hasRangeSymbols) {
+    callback(false);
+    return;
+  }
+
+  logger.space();
+  logger.info("ℹ️  Alcune versioni di riferimento usano un range (^, ~, >=, <=, >, <)");
+  rl.question(
+    "Vuoi fissare la versione ESATTA indicata (rimuovendo il simbolo di range) invece del range originale? (y/N): ",
+    (answer) => {
+      const pin = answer.toLowerCase() === "y" || answer.toLowerCase() === "yes";
+      if (pin) {
+        logger.info("💡 Verrà usata solo la versione esatta indicata, senza simboli di range");
+      }
+      callback(pin);
+    }
+  );
 }
 
 module.exports = {
