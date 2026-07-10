@@ -455,6 +455,13 @@ function saveProjectConfig(config, targetDir = null) {
     : path.join(__dirname, "project-config.js");
 
   const configContent = `module.exports = {
+  // Pacchetti che depcheck non deve MAI proporre per la rimozione.
+  // Usalo per i pacchetti che sai essere usati ma che i pattern statici
+  // (import/require) non riescono a rilevare.
+  depcheck: {
+    ignore: []
+  },
+
   // Configurazione del progetto
   project: {
     name: "${config.project.name}",

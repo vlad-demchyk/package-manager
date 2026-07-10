@@ -128,6 +128,41 @@ pm
 - **Rimozione sicura**: Richiede sempre conferma prima di rimuovere dipendenze
 - **Report dettagliato**: Mostra statistiche complete per ogni componente
 
+### 6. 🔀 Allineamento Versioni Dipendenze tra Progetti
+
+Disponibile in `EXPERIMENTAL → 7. Allineamento versioni dipendenze tra progetti`.
+
+Permette di prendere un progetto come **base** e allinearne le dipendenze
+divergenti su quelle di un altro progetto già presente nel repository,
+senza dover modificare `dependencies-config.js`.
+
+#### Flusso
+
+1. **Scegli il progetto base**: quello le cui versioni vuoi eventualmente allineare.
+2. Il tool analizza `dependencies` + `devDependencies` del progetto base e cerca,
+   tra tutti gli altri progetti, quelli che condividono **almeno una dipendenza
+   con versione identica** (candidati compatibili).
+3. Scegli come individuare il progetto di riferimento:
+   - **Per nome progetto**: mostra l'elenco dei progetti compatibili, ordinati
+     per numero di corrispondenze, con qualche esempio di dipendenza in comune.
+   - **Per pacchetto**: mostra le dipendenze del progetto base che hanno una
+     corrispondenza esatta altrove; scegliendone una, vedi quali progetti la
+     usano con la stessa versione.
+4. Una volta scelto il progetto di riferimento, viene mostrato il **confronto
+   completo**: dipendenze con versione diversa (⚠️), presenti solo in uno dei
+   due progetti (ℹ️), e quelle già identiche (✅).
+5. Decidi se allineare **tutte** le versioni divergenti, oppure **selezionarle
+   singolarmente** (per numero, separati da spazio), prima di confermare.
+6. Dopo la conferma, il `package.json` del progetto base viene aggiornato
+   (mantenendo la sezione `dependencies`/`devDependencies` originale) e viene
+   rimosso il `package-lock.json` del progetto, per evitare conflitti alla
+   successiva installazione.
+
+> ℹ️ L'operazione modifica solo il progetto **base**; il progetto scelto come
+> riferimento non viene mai toccato. Vengono allineate solo le dipendenze
+> presenti in **entrambi** i progetti: quelle presenti solo in uno dei due
+> sono mostrate a scopo informativo ma non vengono aggiunte automaticamente.
+
 ## 💻 Modalità Comando
 
 ### Sintassi Generale

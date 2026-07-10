@@ -11,26 +11,7 @@ const logger = require("../utils/logger");
 
 // Import common utilities
 const { getComponentDirectories } = require("../utils/common");
-
-function parseVersion(version) {
-  // Rimuove prefissi come ^, ~, >=, etc.
-  return version.replace(/^[\^~>=<]+/, "");
-}
-
-function compareVersions(version1, version2) {
-  const v1Parts = parseVersion(version1).split(".").map(Number);
-  const v2Parts = parseVersion(version2).split(".").map(Number);
-
-  for (let i = 0; i < Math.max(v1Parts.length, v2Parts.length); i++) {
-    const v1Part = v1Parts[i] || 0;
-    const v2Part = v2Parts[i] || 0;
-
-    if (v1Part > v2Part) return 1;
-    if (v1Part < v2Part) return -1;
-  }
-
-  return 0;
-}
+const { compareVersions } = require("../utils/version-utils");
 
 function findLatestTypeScriptComponent(componentDirs, projectConfig) {
   let latestVersion = null;

@@ -22,6 +22,7 @@ function detectWorkspaceConfiguration(projectRoot) {
     const detection = {
       hasWorkspaceConfig: false,
       hasYarnLock: false,
+      hasNpmLock: false,
       hasRootNodeModules: false,
       workspaces: [],
       workspaceCount: 0,
@@ -52,13 +53,15 @@ function detectWorkspaceConfiguration(projectRoot) {
         detection.isYarnWorkspace = detection.hasWorkspaceConfig;
       }
 
-      // Check for npm workspaces (package-lock.json)
+      // Check for package-lock.json (npm)
       const packageLockPath = path.join(projectRoot, "package-lock.json");
-      if (fs.existsSync(packageLockPath) && detection.hasWorkspaceConfig) {
+      detection.hasNpmLock = fs.existsSync(packageLockPath);
+
+      if (detection.hasNpmLock && detection.hasWorkspaceConfig) {
         detection.isNpmWorkspace = true;
-        if (!detection.hasYarnLock) {
-          detection.packageManager = "npm";
-        }
+      }
+      if (detection.hasNpmLock && !detection.hasYarnLock) {
+        detection.packageManager = "npm";
       }
 
       // Check for root node_modules

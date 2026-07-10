@@ -21,6 +21,7 @@ const {
 } = require("../utils/common");
 const crypto = require("crypto");
 const { builtinModules } = require("module");
+const depcheckWhitelist = require("../dependencies/depcheck-whitelist");
 
 const projectRoot = process.cwd();
 let projectConfig = {};
@@ -209,6 +210,12 @@ function buildWhitelist(dir, pkg) {
   Object.keys(pkg?.peerDependencies || {}).forEach((d) => keep.add(d));
   Object.keys(pkg?.optionalDependencies || {}).forEach((d) => keep.add(d));
 
+  // Whitelist manuale del progetto (package-manager/project-config.js -> depcheck.ignore)
+  // Ha SEMPRE la precedenza: se l'utente non è sicuro che un pacchetto sia
+  // davvero inutilizzato, può escluderlo qui invece di lasciare che depcheck
+  // lo proponga per la rimozione.
+  depcheckWhitelist.getIgnoreList(projectConfig).forEach((name) => keep.add(name));
+
   return keep;
 }
 
@@ -393,6 +400,17 @@ async function handleComponent(componentName, options) {
     logger.list(candidates.deps, "Unused dependencies (after filters)");
     logger.list(candidates.devDeps, "Unused devDependencies (after filters)");
   }
+  // Segnala sempre i pacchetti esclusi manualmente (depcheck.ignore) che
+  // sarebbero stati altrimenti proposti per la rimozione: l'utente deve
+  // sapere che l'esclusione manuale ha avuto effetto.
+  try {
+    const manualIgnore = new Set(depcheckWhitelist.getIgnoreList(projectConfig));
+    const manuallyKept = [...unusedDeps, ...unusedDevDeps].filter((d) => manualIgnore.has(d));
+    if (manuallyKept.length > 0) {
+      logger.list(manuallyKept, "🔒 Esclusi manualmente (depcheck.ignore)");
+    }
+  } catch (_) {}
+
   // Optional verbose info about ignored-by-whitelist
   try {
     if (logger.isVerbose && logger.isVerbose()) {
@@ -546,6 +564,9 @@ function parseArgs(argv) {
     json: false,
     includeDev: true,
     quickRemove: false,
+    ignoreAdd: null,
+    ignoreRemove: null,
+    ignoreList: false,
   };
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
@@ -573,6 +594,12 @@ function parseArgs(argv) {
       out.includeDev = true;
     } else if (a === "--no-dev") {
       out.includeDev = false;
+    } else if (a === "--ignore-add" && i + 1 < argv.length) {
+      out.ignoreAdd = argv[++i];
+    } else if (a === "--ignore-remove" && i + 1 < argv.length) {
+      out.ignoreRemove = argv[++i];
+    } else if (a === "--ignore-list") {
+      out.ignoreList = true;
     }
   }
   return out;
@@ -580,6 +607,42 @@ function parseArgs(argv) {
 
 async function parseAndExecuteCommand(argv, onComplete) {
   const opts = parseArgs(argv || []);
+
+  // Gestione whitelist manuale (depcheck.ignore), indipendente da workspace/standard
+  if (opts.ignoreAdd) {
+    const result = depcheckWhitelist.addToIgnoreList(projectRoot, projectConfig, opts.ignoreAdd);
+    if (result.success) {
+      logger.success(`🔒 "${opts.ignoreAdd}" aggiunto alla whitelist depcheck`);
+    } else if (result.reason === "already-present") {
+      logger.info(`"${opts.ignoreAdd}" è già nella whitelist`);
+    } else {
+      logger.error(`Impossibile aggiungere "${opts.ignoreAdd}" alla whitelist (${result.reason})`);
+    }
+    if (typeof onComplete === "function") onComplete();
+    return true;
+  }
+  if (opts.ignoreRemove) {
+    const result = depcheckWhitelist.removeFromIgnoreList(projectRoot, projectConfig, opts.ignoreRemove);
+    if (result.success) {
+      logger.success(`🔓 "${opts.ignoreRemove}" rimosso dalla whitelist depcheck`);
+    } else if (result.reason === "not-present") {
+      logger.info(`"${opts.ignoreRemove}" non è nella whitelist`);
+    } else {
+      logger.error(`Impossibile rimuovere "${opts.ignoreRemove}" dalla whitelist (${result.reason})`);
+    }
+    if (typeof onComplete === "function") onComplete();
+    return true;
+  }
+  if (opts.ignoreList) {
+    const list = depcheckWhitelist.getIgnoreList(projectConfig);
+    if (list.length === 0) {
+      logger.info("Whitelist depcheck vuota");
+    } else {
+      logger.list(list, "🔒 Whitelist depcheck (mai proposti per la rimozione)");
+    }
+    if (typeof onComplete === "function") onComplete();
+    return true;
+  }
 
   // Check if workspace mode is enabled
   const isWorkspaceMode = projectConfig.workspace?.enabled && projectConfig.workspace?.initialized;

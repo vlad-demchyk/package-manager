@@ -6,45 +6,7 @@
 const fs = require("fs");
 const path = require("path");
 const logger = require("../utils/logger");
-
-// Funzione per confrontare versioni
-function compareVersions(version1, version2) {
-  const cleanVersion = (v) => {
-    if (!v || typeof v !== 'string') return '0.0.0';
-    // Per git URLs o altre stringhe non-versioni, restituiamo come sono
-    if (v.includes('git+') || v.includes('bitbucket:') || v.includes('http')) {
-      return v;
-    }
-    return v.replace(/^[\^~>=<]+/, '');
-  };
-
-  const v1 = cleanVersion(version1);
-  const v2 = cleanVersion(version2);
-
-  // Se una delle versioni è un git URL o altra stringa non-versione
-  if (v1.includes('git+') || v1.includes('bitbucket:') || v1.includes('http')) {
-    return v1 === v2 ? 0 : 1;
-  }
-  if (v2.includes('git+') || v2.includes('bitbucket:') || v2.includes('http')) {
-    return v1 === v2 ? 0 : -1;
-  }
-
-  const parseVersion = (v) => {
-    const parts = v.split('.').map(Number);
-    while (parts.length < 3) parts.push(0);
-    return parts;
-  };
-
-  const v1Parts = parseVersion(v1);
-  const v2Parts = parseVersion(v2);
-
-  for (let i = 0; i < 3; i++) {
-    if (v1Parts[i] > v2Parts[i]) return 1;
-    if (v1Parts[i] < v2Parts[i]) return -1;
-  }
-
-  return 0;
-}
+const { compareVersions } = require("../utils/version-utils");
 
 // Funzione per preview rimozione prefissi dalle versioni
 function previewCleanVersionPrefixes() {

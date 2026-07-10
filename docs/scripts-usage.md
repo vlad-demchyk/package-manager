@@ -116,14 +116,15 @@ if (args.length === 0) {
 ```
 
 ### 3. core.js (Script Principale)
-**Script centrale** - Contiene tutta la logica del package manager.
+**Entry point sottile** - Setup iniziale (config + logging), parsing dei comandi
+CLI non interattivi (`parseAndExecuteCommand`) e avvio del processo. La logica
+del menu interattivo e delle singole funzionalità vive nei moduli descritti in
+["Architettura interna degli script"](#-architettura-interna-degli-script) qui sotto.
 
 #### Funzionalità
-- Menu interattivo
-- Parsing comandi
-- Gestione installazioni
-- Gestione pulizia
-- Aggiornamento configurazioni
+- Setup configurazione progetto e logging su file
+- Parsing comandi CLI (`install`, `reinstall`, `clean`, `update`, `depcheck`)
+- Punto di ingresso (`main()`, richiamato da `package-manager.js`)
 
 #### Posizione
 ```
@@ -135,6 +136,53 @@ package-manager/scripts/core.js
 # Chiamato automaticamente da package-manager.js
 packman
 ```
+
+## 🧩 Architettura interna degli script
+
+Per mantenere ogni file di dimensioni gestibili, la logica è divisa in moduli
+per responsabilità. Chi deve modificare/estendere una funzionalità del menu
+interattivo dovrebbe partire da qui invece che da `core.js`:
+
+```
+scripts/
+├── core.js                    # Setup + parsing CLI non interattivo + entry point
+├── cli/
+│   ├── context.js             # Stato condiviso: istanza readline, projectConfig,
+│   │                          # handler per tornare al menu principale
+│   ├── actions.js             # Azioni condivise tra CLI e menu (install/clean/
+│   │                          # update/depcheck) — evita dipendenze circolari
+│   ├── prompt.js               # Helper per domande readline (riusa l'istanza
+│   │                          # condivisa quando disponibile)
+│   └── menu-runner.js         # main(), showMenu(), showUsage(): il menu
+│                               # principale e il ciclo di vita di readline
+├── menus/                     # Un file per ciascuna sezione del menu interattivo
+│   ├── component-list.js      # Elenco componenti (semplice/dettagliato)
+│   ├── update-menu.js         # Menu "Aggiornamento configurazioni"
+│   ├── install-menu.js        # Menu installazione/reinstallazione/pulizia
+│   ├── logs-menu.js           # Menu log delle operazioni
+│   ├── experimental-menu.js   # Menu EXPERIMENTAL (orchestratore sottile)
+│   ├── recursive-search-menu.js   # Ricerca ricorsiva progetti on/off
+│   ├── depcheck-menu.js       # Controllo dipendenze non utilizzate + whitelist
+│   ├── workspace-menu.js      # Gestione Monorepo Workspace (Yarn Workspaces)
+│   ├── npm-tools-menu.js      # Lock files, npm outdated/audit, skipLibCheck
+│   ├── dependencies-config-menu.js  # Pulizia prefissi/duplicati in dependencies-config.js
+│   └── version-alignment-menu.js    # Allineamento versioni dipendenze tra progetti
+├── dependencies/               # Logica di analisi/generazione/aggiornamento dipendenze
+├── operations/                  # Installazione/pulizia standard e workspace
+├── utils/                        # Utility condivise (version-utils, common, logger, ...)
+└── validation/                   # depcheck
+```
+
+Regole di massima seguite in questa struttura:
+- I moduli `menus/*` non si richiedono mai direttamente a vicenda in modo
+  circolare: per tornare al menu principale usano `cliContext.returnToMainMenu()`,
+  e per navigare verso `experimental-menu.js` (che a sua volta richiede molti
+  `menus/*`) usano un `require()` "lazy" dentro la funzione, non in testa al file.
+- Tutte le azioni "pesanti" (install/clean/update/depcheck) condivise tra CLI e
+  menu interattivo vivono in `cli/actions.js`, non duplicate nei singoli menu.
+- L'accesso a `projectConfig` e all'istanza `readline` condivisa passa sempre
+  da `cliContext` (`scripts/cli/context.js`), non da variabili globali locali
+  ai singoli file.
 
 ### 4. update-configs.js (Aggiornamento Configurazioni)
 **Script specializzato** - Aggiorna package.json e tsconfig.json.
