@@ -1,5 +1,5 @@
 import { existsSync } from 'node:fs';
-import { rm } from 'node:fs/promises';
+import { lstat, rm, unlink } from 'node:fs/promises';
 import path from 'node:path';
 import type { Project } from '../core/types.js';
 import { unlinkProjects } from '../store/store.js';
@@ -45,6 +45,13 @@ export async function executeClean(root: string, targets: CleanTarget[]): Promis
   if (linked.length > 0) {
     const result = await unlinkProjects(root, linked, { restore: false });
     for (const id of result.unlinked) removed.push(path.join(root, id, 'node_modules'));
+    for (const target of targets.filter((item) => item.kind === 'linked')) {
+      const stat = await lstat(target.path).catch(() => undefined);
+      if (stat?.isSymbolicLink()) {
+        await unlink(target.path);
+        removed.push(target.path);
+      }
+    }
   }
   for (const target of targets) {
     if (target.kind === 'linked') continue;

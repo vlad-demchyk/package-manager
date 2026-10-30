@@ -1,6 +1,7 @@
 import { existsSync } from 'node:fs';
 import path from 'node:path';
 import { z } from 'zod';
+import semver from 'semver';
 import { readJsonFile } from './json.js';
 
 export const CONFIG_FILE = 'packman.config.json';
@@ -29,7 +30,10 @@ const groupSchema = z.object({
   /** Glob patterns on project ids. */
   projects: z.array(z.string()).min(1),
   /** Node version (exact or range) the group is built with. */
-  node: z.string().optional(),
+  node: z
+    .string()
+    .refine((value) => semver.validRange(value) !== null, 'invalid Node version or range')
+    .optional(),
   /** Versions every project of the group must use, e.g. `{ "react": "17.0.1" }`. */
   pins: z.record(z.string(), z.string()).default({}),
 });
@@ -88,12 +92,6 @@ export const configSchema = z.object({
       ignorePaths: z.array(z.string()).default([]),
     })
     .default({ disabled: [], ignoreUnused: [], ignorePaths: [] }),
-  store: z
-    .object({
-      enabled: z.boolean().default(false),
-      dir: z.string().default('.packman/store'),
-    })
-    .default({ enabled: false, dir: '.packman/store' }),
 });
 
 export type PackmanConfig = z.infer<typeof configSchema>;

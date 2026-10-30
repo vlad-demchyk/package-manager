@@ -1,4 +1,6 @@
 import type { PackmanConfig } from './core/config.js';
+import picomatch from 'picomatch';
+import path from 'node:path';
 import { finding, msg, sortFindings } from './core/findings.js';
 import type {
   Constraint,
@@ -8,7 +10,8 @@ import type {
   StackInfo,
   Workspace,
 } from './core/types.js';
-import { satisfies, resolveVersion } from './core/versions.js';
+import { satisfies, resolveVersion, isRegistrySpec } from './core/versions.js';
+import { isTopLevel } from './core/lockfile.js';
 import { planNode, type NodePlan } from './node/plan.js';
 import { nodeDataDate, nodeVulnDataInfo } from './node/releases.js';
 import { readNodeRequirements } from './node/requirement.js';
@@ -75,6 +78,8 @@ export interface AnalyzeOptions {
   security?: boolean;
   /** Scan sources for undeclared/unused imports and network usage. */
   usage?: boolean;
+  /** Plan npm against the desired manifest, ignoring installed/locked roots that no longer satisfy it. */
+  targetVersions?: boolean;
   today?: Date;
   installedNodes?: InstalledNode[];
   fetchImpl?: typeof fetch;
@@ -117,7 +122,15 @@ export async function analyze(workspace: Workspace, options: AnalyzeOptions): Pr
   let index = 0;
   for (const project of workspace.projects) {
     options.onProgress?.(index++, workspace.projects.length, project.id);
-    reports.push(await analyzeProject(workspace, project, options, installedNodes, today));
+    reports.push(
+      await analyzeProject(
+        workspace,
+        options.targetVersions ? targetProject(project) : project,
+        options,
+        installedNodes,
+        today,
+      ),
+    );
   }
 
   let advisoryStatus: AdvisoryStatus = { checked: false, source: 'none' };
@@ -180,6 +193,29 @@ export async function analyze(workspace: Workspace, options: AnalyzeOptions): Pr
   };
 }
 
+function targetProject(project: Project): Project {
+  const accepted = (name: string, version: string): boolean => {
+    const declared = project.dependencies.find((dependency) => dependency.name === name);
+    return !declared || !isRegistrySpec(declared.spec) || satisfies(version, declared.spec);
+  };
+  return {
+    ...project,
+    installed: Object.fromEntries(
+      Object.entries(project.installed).filter(([name, version]) => accepted(name, version)),
+    ),
+    ...(project.lockfile
+      ? {
+          lockfile: {
+            ...project.lockfile,
+            packages: project.lockfile.packages.filter(
+              (pkg) => !isTopLevel(pkg) || accepted(pkg.name, pkg.version),
+            ),
+          },
+        }
+      : {}),
+  };
+}
+
 async function analyzeProject(
   workspace: Workspace,
   project: Project,
@@ -208,6 +244,17 @@ async function analyzeProject(
   }
 
   const findings: Finding[] = [];
+  const configuredGroup = options.config.policy.groups.find((group) =>
+    picomatch(group.projects)(project.id),
+  );
+  if (configuredGroup?.node) {
+    ctx.nodeRequirements.push({
+      range: configuredGroup.node,
+      source: 'policy.groups',
+      file: path.join(workspace.root, 'packman.config.json'),
+      pinned: true,
+    });
+  }
   const constraints: Constraint[] = [];
   const implicit: string[] = [];
   const virtual: string[] = [];

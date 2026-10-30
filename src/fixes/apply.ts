@@ -1,4 +1,4 @@
-import { copyFile, mkdir, readFile, rm, writeFile } from 'node:fs/promises';
+import { copyFile, mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import path from 'node:path';
 import { editJsonText } from '../core/json.js';
@@ -83,8 +83,18 @@ export async function applyPreviews(
   previews: FilePreview[],
   now = new Date(),
 ): Promise<ApplyResult> {
+  // Confirmation may take time: refuse stale previews before touching any file.
+  for (const preview of previews) {
+    const current = existsSync(preview.file) ? await readFile(preview.file, 'utf8') : '';
+    if (current !== preview.before)
+      throw new Error(
+        `file changed since preview: ${path.relative(root, preview.file)}; review the changes again`,
+      );
+  }
   const stamp = now.toISOString().replace(/[:.]/g, '-');
-  const backupDir = path.join(root, '.packman', 'backups', stamp);
+  const backupRoot = path.join(root, '.packman', 'backups');
+  await mkdir(backupRoot, { recursive: true });
+  const backupDir = await mkdtemp(path.join(backupRoot, `${stamp}-`));
   for (const preview of previews) {
     if (existsSync(preview.file)) {
       const target = path.join(backupDir, path.relative(root, preview.file));

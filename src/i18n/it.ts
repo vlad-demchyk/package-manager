@@ -200,5 +200,4 @@ export const it: Catalogue = {
   'cli.noFixes': 'Niente da correggere.',
   'cli.confirm': 'Applicare {count} modifiche a {files} file?',
   'cli.aborted': 'Annullato.',
-  'cli.backup': 'backup',
 };

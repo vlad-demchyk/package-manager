@@ -24,6 +24,7 @@ import { STORE_MARKER } from '../core/discovery.js';
 export const STORE_DIR = path.join('.packman', 'store');
 const LINKS_FILE = path.join('.packman', 'links.json');
 const TRASH_DIR = path.join('.packman', 'trash');
+const READY_FILE = '.packman-ready.json';
 
 /** Dependency-shaped fields that must be identical for projects to share one install. */
 const SHARED_FIELDS = [
@@ -109,10 +110,11 @@ function lockFingerprint(project: Project): string | undefined {
   if (lock?.kind !== 'npm' || (lock.version ?? 1) < 2 || lock.packages.length === 0)
     return undefined;
   return hash(
-    lock.packages
-      .map((pkg) => `${pkg.location}@${pkg.version}`)
-      .sort()
-      .join('\n'),
+    (lock.contentHash ?? '') +
+      lock.packages
+        .map((pkg) => `${pkg.location}@${pkg.version}`)
+        .sort()
+        .join('\n'),
   );
 }
 
@@ -122,6 +124,12 @@ export function planStore(report: Report, options: { union?: boolean } = {}): St
 
 function unsafeScripts(project: Project): boolean {
   return UNSAFE_SCRIPTS.test(Object.values(project.manifest.scripts ?? {}).join(' '));
+}
+
+function localDependencies(project: Project): boolean {
+  return project.dependencies.some((dep) =>
+    /^(?:file:|link:|workspace:|portal:|\.{1,2}[\\/])/.test(dep.spec),
+  );
 }
 
 function stackWarnings(members: ProjectReport[]): string[] {
@@ -145,6 +153,13 @@ function planUnion(report: Report): StorePlan {
       (entry) => versionGroup.projectIds.includes(entry.project.id) && !entry.project.isRoot,
     );
     const eligible = members.filter((entry) => {
+      if (localDependencies(entry.project)) {
+        excluded.push({
+          projectId: entry.project.id,
+          reason: 'local dependencies cannot be relocated into the store',
+        });
+        return false;
+      }
       if (unsafeScripts(entry.project)) {
         excluded.push({
           projectId: entry.project.id,
@@ -178,7 +193,7 @@ function planUnion(report: Report): StorePlan {
       eligible.map((entry) => canonical(entry.project.manifest.overrides ?? {})),
     );
     if (overrides.size > 1) conflicts.add('overrides');
-    const nodes = new Set(eligible.map((entry) => entry.node.selected?.version.split('.')[0]));
+    const nodes = new Set(eligible.map((entry) => entry.node.selected?.version));
     const ids = eligible.map((entry) => entry.project.id);
     if (conflicts.size > 0) {
       candidates.push({
@@ -195,7 +210,7 @@ function planUnion(report: Report): StorePlan {
     const first = eligible[0];
     const node = first?.node.selected;
     const group: StoreGroup = {
-      key: `u-${hash(canonical({ manifest: storeManifest, overrides: first?.project.manifest.overrides ?? {}, node: node?.version }))}`,
+      key: `u-${hash(canonical({ manifest: storeManifest, overrides: first?.project.manifest.overrides ?? {}, node: node?.version, locks: eligible.map((entry) => [entry.project.id, lockFingerprint(entry.project) ?? null]) }))}`,
       mode: 'union',
       projectIds: ids,
       manifest: storeManifest,
@@ -216,6 +231,13 @@ function planExact(report: Report): StorePlan {
   for (const entry of report.projects) {
     const { project } = entry;
     if (project.isRoot) continue;
+    if (localDependencies(project)) {
+      excluded.push({
+        projectId: project.id,
+        reason: 'local dependencies cannot be relocated into the store',
+      });
+      continue;
+    }
     if (!lockFingerprint(project)) {
       excluded.push({ projectId: project.id, reason: 'needs an npm lockfile v2+' });
       continue;
@@ -237,7 +259,11 @@ function planExact(report: Report): StorePlan {
     if (entries.length < 2) continue;
     const byLock = new Map<string, ProjectReport[]>();
     for (const entry of entries) {
-      const key = `${lockFingerprint(entry.project) ?? ''}|${entry.node.selected ? semver.major(entry.node.selected.version) : '?'}`;
+      if (!entry.node.selected) {
+        excluded.push({ projectId: entry.project.id, reason: 'no compatible installed Node' });
+        continue;
+      }
+      const key = `${lockFingerprint(entry.project) ?? ''}|${entry.node.selected.version}`;
       byLock.set(key, [...(byLock.get(key) ?? []), entry]);
     }
     for (const members of byLock.values()) {
@@ -246,9 +272,12 @@ function planExact(report: Report): StorePlan {
       const node = first.node.selected;
       const warnings = stackWarnings(members);
       const group: StoreGroup = {
-        key: `${manifestKey(first.project.manifest)}-${lockFingerprint(first.project) ?? ''}`.slice(
-          0,
-          24,
+        key: hash(
+          canonical({
+            manifest: manifestKey(first.project.manifest),
+            lock: lockFingerprint(first.project),
+            node: node?.version,
+          }),
         ),
         mode: 'exact',
         projectIds: members.map((member) => member.project.id),
@@ -318,9 +347,15 @@ export async function linkGroup(
     throw new Error(`lockfile of ${group.lockSource ?? '?'} not found`);
   }
 
-  const blocked = members.filter(
-    (project) => project.nodeModules === 'folder' && !options.replaceExisting,
-  );
+  // Filesystem state can have changed since the report was built.
+  const blocked: Project[] = [];
+  for (const project of members) {
+    if (
+      (await linkState(path.join(project.dir, 'node_modules'))).kind === 'folder' &&
+      !options.replaceExisting
+    )
+      blocked.push(project);
+  }
   if (blocked.length > 0) {
     throw new Error(
       `real node_modules folders found (${blocked.map((project) => project.id).join(', ')}); re-run with --replace-existing to move them to ${TRASH_DIR}`,
@@ -329,55 +364,74 @@ export async function linkGroup(
 
   const storeDir = path.join(root, STORE_DIR, group.key);
   const result: LinkResult = { storeDir, linked: [], skipped: [] };
-  await mkdir(storeDir, { recursive: true });
-  const storeName = `packman-store-${group.key.slice(0, 8)}`;
-  const manifest: Record<string, unknown> = { name: storeName, version: '0.0.0', private: true };
-  if (source?.lockfile) {
-    for (const field of SHARED_FIELDS) {
-      if (source.manifest[field]) manifest[field] = source.manifest[field];
-    }
-    const lock = JSON.parse(await readFile(source.lockfile.path, 'utf8')) as {
-      name?: string;
-      packages?: Record<string, { name?: string }>;
-    };
-    lock.name = storeName;
-    const rootEntry = lock.packages?.[''];
-    if (rootEntry) rootEntry.name = storeName;
-    await writeFile(
-      path.join(storeDir, 'package-lock.json'),
-      `${JSON.stringify(lock, null, 2)}\n`,
-      'utf8',
+  const target = path.join(storeDir, 'node_modules');
+  const previous = await readLinks(root);
+  const ready = await readJsonFile<{ key: string; node: string }>(path.join(storeDir, READY_FILE));
+  const reusable =
+    ready.ok &&
+    ready.value.key === group.key &&
+    ready.value.node === group.node.version &&
+    existsSync(target);
+  if (!reusable && previous.some((link) => path.resolve(link.target) === path.resolve(target))) {
+    throw new Error(
+      `store ${group.key} is linked but has no completed installation; unlink its projects before rebuilding`,
     );
-  } else {
-    Object.assign(manifest, group.manifest);
-    const overrides = members[0]?.manifest.overrides;
-    if (overrides) manifest.overrides = overrides;
-    // Without a lockfile npm would re-resolve every range to today's latest; the merged lockfile keeps
-    // the versions the projects are locked to, and npm only resolves what is missing.
-    const merged = await mergeLockfiles(members, storeName, manifest);
-    if (merged) {
+  }
+  if (!reusable) {
+    await mkdir(storeDir, { recursive: true });
+    const storeName = `packman-store-${group.key.slice(0, 8)}`;
+    const manifest: Record<string, unknown> = { name: storeName, version: '0.0.0', private: true };
+    if (source?.lockfile) {
+      for (const field of SHARED_FIELDS) {
+        if (source.manifest[field]) manifest[field] = source.manifest[field];
+      }
+      const lock = JSON.parse(await readFile(source.lockfile.path, 'utf8')) as {
+        name?: string;
+        packages?: Record<string, { name?: string }>;
+      };
+      lock.name = storeName;
+      const rootEntry = lock.packages?.[''];
+      if (rootEntry) rootEntry.name = storeName;
       await writeFile(
         path.join(storeDir, 'package-lock.json'),
-        `${JSON.stringify(merged.lock, null, 2)}\n`,
+        `${JSON.stringify(lock, null, 2)}\n`,
         'utf8',
       );
-      result.conflicts = merged.conflicts;
+    } else {
+      Object.assign(manifest, group.manifest);
+      const overrides = members[0]?.manifest.overrides;
+      if (overrides) manifest.overrides = overrides;
+      // Without a lockfile npm would re-resolve every range to today's latest; the merged lockfile keeps
+      // the versions the projects are locked to, and npm only resolves what is missing.
+      const merged = await mergeLockfiles(members, storeName, manifest);
+      if (merged) {
+        await writeFile(
+          path.join(storeDir, 'package-lock.json'),
+          `${JSON.stringify(merged.lock, null, 2)}\n`,
+          'utf8',
+        );
+        result.conflicts = merged.conflicts;
+      }
     }
+    await writeFile(
+      path.join(storeDir, 'package.json'),
+      `${JSON.stringify(manifest, null, 2)}\n`,
+      'utf8',
+    );
+
+    const code = await options.install(storeDir, group.node, group.mode);
+    if (code !== 0)
+      throw new Error(`npm ci failed in ${storeDir} (exit ${code}); nothing was linked`);
+    if (!existsSync(target))
+      throw new Error(`installation created no node_modules in ${storeDir}; nothing was linked`);
+    await writeFile(
+      path.join(storeDir, READY_FILE),
+      JSON.stringify({ key: group.key, node: group.node.version }),
+    );
   }
-  await writeFile(
-    path.join(storeDir, 'package.json'),
-    `${JSON.stringify(manifest, null, 2)}\n`,
-    'utf8',
-  );
 
-  const code = await options.install(storeDir, group.node, group.mode);
-  if (code !== 0)
-    throw new Error(`npm ci failed in ${storeDir} (exit ${code}); nothing was linked`);
-
-  const target = path.join(storeDir, 'node_modules');
   const stamp = (options.now ?? new Date()).toISOString().replace(/[:.]/g, '-');
-  const previous = await readLinks(root);
-  const links = previous.filter((link) => !group.projectIds.includes(link.projectId));
+  let links = [...previous];
 
   const linkMode = options.linkMode ?? (group.mode === 'union' ? 'packages' : 'folder');
   for (const project of members) {
@@ -391,9 +445,13 @@ export async function linkGroup(
       mode: linkMode,
     };
     const state = await linkState(linkPath);
+    const earlier = previous.find((link) => link.projectId === project.id)?.movedTo;
+    if (earlier && state.kind !== 'folder') record.movedTo = earlier;
     if (state.kind === 'link') {
       if (linkMode === 'folder' && path.resolve(state.target) === path.resolve(target)) {
+        links = links.filter((link) => link.projectId !== project.id);
         links.push(record);
+        await writeLinks(root, links);
         result.skipped.push({ projectId: project.id, reason: 'already linked' });
         continue;
       }
@@ -402,14 +460,17 @@ export async function linkGroup(
       await removeLinkedFolder(linkPath);
     }
     // A re-link must not forget where the project's own node_modules was moved.
-    const earlier = previous.find((link) => link.projectId === project.id)?.movedTo;
-    if (earlier && state.kind !== 'folder') record.movedTo = earlier;
     if (state.kind === 'folder') {
       const movedTo = path.join(root, TRASH_DIR, stamp, project.id, 'node_modules');
       await mkdir(path.dirname(movedTo), { recursive: true });
       await rename(linkPath, movedTo);
       record.movedTo = movedTo;
     }
+    // Persist recovery information before creating junctions. Earlier members remain tracked
+    // if a later link fails (for example because a tool kept a directory open).
+    links = links.filter((link) => link.projectId !== project.id);
+    links.push(record);
+    await writeLinks(root, links);
     if (linkMode === 'folder') {
       await symlink(target, linkPath, 'junction');
     } else {
@@ -422,7 +483,7 @@ export async function linkGroup(
       record.roots = roots.filter((name) => existsSync(path.join(target, name)));
       record.packages = await linkPackages(linkPath, target, await storeClosure(target, roots));
     }
-    links.push(record);
+    await writeLinks(root, links);
     result.linked.push(project.id);
   }
   await writeLinks(root, links);
@@ -470,6 +531,7 @@ export async function unlinkProjects(
         projectId: link.projectId,
         reason: 'node_modules is a real folder, left untouched',
       });
+      keep.push(link);
       continue;
     }
     if (state.kind === 'link') {
@@ -504,22 +566,33 @@ export function neededPackages(project: Project, roots: string[]): string[] {
  */
 export async function storeClosure(storeModules: string, roots: string[]): Promise<string[]> {
   const lock = await readNpmLockfile(path.join(path.dirname(storeModules), 'package-lock.json'));
-  const requires = new Map<string, string[]>();
-  for (const pkg of lock.packages) {
-    if (!isTopLevel(pkg)) continue;
-    requires.set(pkg.name, pkg.requires ?? []);
-  }
+  const packages = new Map(lock.packages.map((pkg) => [pkg.location, pkg]));
   const seen = new Set<string>();
-  const queue = roots.filter((name) => existsSync(path.join(storeModules, name)));
+  const linked = new Set<string>();
+  const queue = roots
+    .filter((name) => existsSync(path.join(storeModules, name)))
+    .map((name) => `node_modules/${name}`);
   while (queue.length > 0) {
-    const name = queue.pop() as string;
-    if (seen.has(name)) continue;
-    seen.add(name);
-    for (const next of requires.get(name) ?? []) {
-      if (!seen.has(next) && existsSync(path.join(storeModules, next))) queue.push(next);
+    const location = queue.pop() as string;
+    if (seen.has(location)) continue;
+    seen.add(location);
+    const pkg = packages.get(location);
+    if (!pkg || isTopLevel(pkg)) linked.add(location.slice('node_modules/'.length));
+    for (const next of pkg?.requires ?? []) {
+      let parent = location;
+      for (;;) {
+        const candidate = parent ? `${parent}/node_modules/${next}` : `node_modules/${next}`;
+        if (packages.has(candidate)) {
+          queue.push(candidate);
+          break;
+        }
+        if (!parent) break;
+        const index = parent.lastIndexOf('/node_modules/');
+        parent = index < 0 ? '' : parent.slice(0, index);
+      }
     }
   }
-  return [...seen].sort();
+  return [...linked].sort();
 }
 
 /**
@@ -532,6 +605,7 @@ async function linkPackages(
   needed: string[],
 ): Promise<string[]> {
   await mkdir(linkPath, { recursive: true });
+  await writeFile(path.join(linkPath, STORE_MARKER), JSON.stringify({ store: storeModules }));
   const linked: string[] = [];
   for (const name of needed) {
     const source = path.join(storeModules, name);

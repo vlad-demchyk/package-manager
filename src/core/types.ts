@@ -53,6 +53,8 @@ export interface LockfileSummary {
   path: string;
   /** npm lockfileVersion, when known. */
   version?: number;
+  /** Hash of npm package entries, including resolution and integrity metadata (excluding the root). */
+  contentHash?: string;
   /** Root-level specs recorded in the lockfile, used for drift detection. */
   rootSpecs: Record<string, string>;
   packages: LockedPackage[];

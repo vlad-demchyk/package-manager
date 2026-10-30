@@ -201,7 +201,6 @@ export const en = {
   'cli.noFixes': 'Nothing to fix.',
   'cli.confirm': 'Apply {count} changes to {files} files?',
   'cli.aborted': 'Aborted.',
-  'cli.backup': 'backup',
 } as const;
 
 export type MessageKey = keyof typeof en;

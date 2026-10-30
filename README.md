@@ -6,7 +6,8 @@ project, checks compatibility and known vulnerabilities, groups projects by vers
 inside a group, runs npm with the right Node for each project and can share one `node_modules` per group.
 
 It never changes a repository unless you ask: `check` only reads, `fix` is a dry run until `--apply`,
-and every write is backed up in `.packman/backups/`.
+and manifest/config edits are backed up in `.packman/backups/`. `clean` removes the requested
+modules/lockfiles; npm commands update installation files directly.
 
 ## Requirements
 
@@ -110,6 +111,10 @@ How the union store works:
 - npm never runs in linked projects (`packman install` skips them). A real `node_modules` is moved to
   `.packman/trash/` with `--replace-existing` and brought back by `unlink --restore`, also after re-links.
 - If the store install fails, nothing is linked.
+- Completed stores are reused on re-link. Node versions and member lockfiles identify separate stores,
+  so a new installation does not rebuild a store that other projects are using.
+- Project-relative dependencies (`file:`, `link:`, `workspace:`) are excluded: moving their manifest
+  into the store would change what those paths resolve to.
 
 Verified on a copy of a real SPFx 1.21.1 repository (3 web parts): `gulp bundle` and
 `gulp bundle --ship && gulp package-solution --ship` pass through the store, and the production bundle
@@ -162,6 +167,15 @@ has the same size and the same normalized code as a build with the project's own
   }
 }
 ```
+
+## Node selection and edits
+
+`policy.groups[].node` selects the installed Node used by npm commands for the matching projects.
+Stack-incompatible group settings are reported and block execution. npm operations plan upgrades
+against the target manifest, even when an older stack is still installed. `check` reports the installed
+stack. Commands fail when a compatible Node is unavailable; `reinstall` checks before cleaning.
+
+If a file changes after the preview, applying it stops so the new content can be reviewed first.
 
 ## Languages
 

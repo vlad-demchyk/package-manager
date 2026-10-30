@@ -36,6 +36,7 @@ import {
   unlinkProjects,
 } from '../store/store.js';
 import { journal } from '../ops/journal.js';
+import { applyPreviews } from '../fixes/apply.js';
 import { rm } from 'node:fs/promises';
 
 const pkg = JSON.parse(readFileSync(new URL('../../package.json', import.meta.url), 'utf8')) as {
@@ -159,18 +160,30 @@ export function buildProgram(): Command {
           projects: { include: ['**'], exclude: [], maxDepth: 4, includeRoot: false },
           policy: { exactVersions: true, groups: [] as unknown[] },
           checks: { disabled: [], ignoreUnused: [], ignorePaths: [] },
-          store: { enabled: false, dir: '.packman/store' },
         };
         if (options.withGroups) {
           const report = await runAnalysis(session, { ...options, security: false, usage: false });
           (config.policy as { groups: unknown[] }).groups = report.groups.map((group) => ({
             name: group.name.replace(/\s+\/\s+/g, ' ').replace(/[^\w@.\- ]/g, ''),
             projects: group.projectIds,
-            ...(group.node ? { node: group.node } : {}),
+            ...(group.node
+              ? {
+                  node:
+                    report.projects.find(
+                      (entry) => group.projectIds.includes(entry.project.id) && entry.node.selected,
+                    )?.node.selected?.version ?? group.node,
+                }
+              : {}),
             pins: {},
           }));
         }
-        await writeFile(file, `${JSON.stringify(config, null, 2)}\n`, 'utf8');
+        await applyPreviews(session.root, [
+          {
+            file,
+            before: existsSync(file) ? readFileSync(file, 'utf8') : '',
+            after: `${JSON.stringify(config, null, 2)}\n`,
+          },
+        ]);
         console.log(pc.green(t('init.created', { file })));
       },
     );
@@ -183,7 +196,11 @@ export function buildProgram(): Command {
     .option('--union', 'one install per version group with the union of aligned dependencies')
     .action(async (root: string, options: CommonOptions & { union?: boolean }) => {
       const session = await openSession(root, options);
-      const report = await runAnalysis(session, { ...options, security: false, usage: false });
+      const report = await runAnalysis(
+        session,
+        { ...options, security: false, usage: false },
+        { targetVersions: true },
+      );
       const plan = planStore(report, { union: options.union ?? false });
       for (const group of plan.groups) {
         console.log(
@@ -220,7 +237,11 @@ export function buildProgram(): Command {
         },
       ) => {
         const session = await openSession(root, options);
-        const report = await runAnalysis(session, { ...options, security: false, usage: false });
+        const report = await runAnalysis(
+          session,
+          { ...options, security: false },
+          { targetVersions: true },
+        );
         const group = planStore(report, { union: options.union ?? false }).groups.find((item) =>
           item.key.startsWith(options.group),
         );
@@ -326,7 +347,13 @@ export function buildProgram(): Command {
       const report = await runAnalysis(session, { ...options, security: false, usage: false });
       const linked = report.projects.filter((entry) => entry.project.nodeModules === 'link');
       for (const entry of linked) {
-        if (!entry.node.selected) continue;
+        if (!entry.node.selected) {
+          console.error(
+            `${entry.project.id}: ${t('node.notInstalled', { ranges: entry.node.effective.join(' & '), recommended: entry.node.recommended ?? '-' })}`,
+          );
+          process.exitCode = 1;
+          continue;
+        }
         console.log(pc.bold(`\n> ${entry.project.id}: npm run ${options.script}`));
         const result = await runWithNode(entry.node.selected, entry.project.dir, [
           'run',

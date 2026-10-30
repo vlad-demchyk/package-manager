@@ -8,7 +8,7 @@ import { runWithNode } from '../exec/run.js';
 import { applyPreviews, collectEdits, lineDiff, previewEdits } from '../fixes/apply.js';
 import { t } from '../i18n/index.js';
 import { journal } from '../ops/journal.js';
-import type { Session } from './context.js';
+import { runAnalysis, type Session } from './context.js';
 
 export const RISK_ORDER: Record<Risk, number> = { safe: 0, review: 1, breaking: 2 };
 
@@ -71,11 +71,11 @@ export async function reviewAndApply(
   report: Report,
   fixes: Fix[],
   options: ApplyOptions,
-): Promise<void> {
+): Promise<boolean> {
   const previews = await previewEdits(collectEdits(fixes));
   if (previews.length === 0) {
     console.log(t('cli.noFixes'));
-    return;
+    return true;
   }
   for (const preview of previews) {
     console.log(
@@ -100,7 +100,7 @@ export async function reviewAndApply(
       .map((entry) => entry.project.id);
   if (!options.apply) {
     console.log(pc.yellow(t('cli.dryRun')));
-    return;
+    return false;
   }
   const edits = collectEdits(fixes).length;
   if (
@@ -113,7 +113,7 @@ export async function reviewAndApply(
       projects: projectsOf(previews.map((p) => p.file)),
       result: 'aborted',
     });
-    return;
+    return false;
   }
   const result = await applyPreviews(session.root, previews);
   console.log(
@@ -132,15 +132,25 @@ export async function reviewAndApply(
     detail: `backup ${path.relative(session.root, result.backupDir)}`,
   });
   if (options.relock) {
-    const changed = report.projects.filter((entry) =>
-      result.files.includes(entry.project.manifestPath),
+    // Pins, engines and stack versions may themselves have changed in these edits.
+    const fresh = await runAnalysis(
+      session,
+      { security: false, usage: false },
+      { targetVersions: true },
     );
-    await relock(
+    const changed = fresh.projects.filter(
+      (entry) =>
+        result.files.some((file) => file.startsWith(entry.project.dir + path.sep)) ||
+        entry.node.requirements.some((requirement) => result.files.includes(requirement.file)),
+    );
+    const failures = await relock(
       session,
       changed.map((entry) => entry.project.id),
-      report,
+      fresh,
     );
+    return failures === 0;
   }
+  return true;
 }
 
 /** `npm install --package-lock-only` with each project's Node (2.x "verifica rapida"). */
@@ -151,7 +161,20 @@ export async function relock(
 ): Promise<number> {
   let failures = 0;
   for (const entry of report.projects.filter((item) => projectIds.includes(item.project.id))) {
-    if (!entry.node.selected || entry.project.nodeModules === 'link') continue;
+    if (entry.project.nodeModules === 'link') continue;
+    if (!entry.node.selected) {
+      console.error(
+        `${entry.project.id}: ${t('node.notInstalled', { ranges: entry.node.effective.join(' & '), recommended: entry.node.recommended ?? '-' })}`,
+      );
+      failures++;
+      await journal(session.root, {
+        command: 'relock',
+        projects: [entry.project.id],
+        result: 'failed',
+        detail: 'no compatible installed Node',
+      });
+      continue;
+    }
     console.log(
       pc.bold(
         `\n> ${entry.project.id}: npm install --package-lock-only (node ${entry.node.selected.version})`,

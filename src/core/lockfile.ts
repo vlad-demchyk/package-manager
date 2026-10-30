@@ -1,4 +1,5 @@
 import { existsSync } from 'node:fs';
+import { createHash } from 'node:crypto';
 import path from 'node:path';
 import { readJsonFile } from './json.js';
 import type { LockedPackage, LockfileSummary } from './types.js';
@@ -60,6 +61,15 @@ export async function readNpmLockfile(file: string): Promise<LockfileSummary> {
   }
 
   if (lock.packages) {
+    summary.contentHash = createHash('sha256')
+      .update(
+        JSON.stringify(
+          Object.entries(lock.packages)
+            .filter(([location]) => location !== '')
+            .sort(([a], [b]) => a.localeCompare(b)),
+        ),
+      )
+      .digest('hex');
     for (const [location, entry] of Object.entries(lock.packages)) {
       if (location === '') {
         summary.rootSpecs = {

@@ -1,4 +1,5 @@
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
+import { createHash } from 'node:crypto';
 import os from 'node:os';
 import path from 'node:path';
 import semver from 'semver';
@@ -71,12 +72,14 @@ export function collectPackageVersions(projects: Project[]): Map<string, Set<str
 
 export async function fetchAdvisories(
   packages: Map<string, Set<string>>,
-  options: { offline: boolean; fetchImpl?: typeof fetch },
+  options: { offline: boolean; fetchImpl?: typeof fetch; cacheRoot?: string },
 ): Promise<{ advisories: Map<string, Advisory[]>; status: AdvisoryStatus }> {
   const keys = [...packages.entries()]
     .flatMap(([name, versions]) => [...versions].map((v) => `${name}@${v}`))
     .sort();
-  const cacheFile = path.join(cacheDir(), 'advisories.json');
+  // Switching workspaces must not replace the only offline snapshot of another package set.
+  const key = createHash('sha256').update(JSON.stringify(keys)).digest('hex');
+  const cacheFile = path.join(options.cacheRoot ?? cacheDir(), `advisories-${key}.json`);
   const cached = await readCache(cacheFile);
   const cacheCovers = cached !== undefined && keys.every((key) => cached.keys.includes(key));
   if (cached && cacheCovers && (options.offline || Date.now() - cached.fetchedAt < TTL_MS)) {
@@ -130,12 +133,15 @@ export function projectVulnerabilities(
   advisories: Map<string, Advisory[]>,
 ): PackageVulnerability[] {
   const declared = new Set(project.dependencies.map((dep) => dep.name));
-  const seen = new Set<string>();
+  const seen = new Map<string, PackageVulnerability>();
   const result: PackageVulnerability[] = [];
   const consider = (name: string, version: string, dev: boolean): void => {
     const key = `${name}@${version}`;
-    if (seen.has(key)) return;
-    seen.add(key);
+    const previous = seen.get(key);
+    if (previous) {
+      previous.devOnly = previous.devOnly && dev;
+      return;
+    }
     const matching = (advisories.get(name) ?? []).filter((advisory) => {
       try {
         return semver.satisfies(version, advisory.vulnerable_versions);
@@ -143,14 +149,17 @@ export function projectVulnerabilities(
         return false;
       }
     });
-    if (matching.length > 0)
-      result.push({
+    if (matching.length > 0) {
+      const vulnerability = {
         name,
         version,
         advisories: matching,
         devOnly: dev,
         direct: declared.has(name),
-      });
+      };
+      seen.set(key, vulnerability);
+      result.push(vulnerability);
+    }
   };
   if (project.lockfile && project.lockfile.packages.length > 0) {
     for (const pkg of project.lockfile.packages) consider(pkg.name, pkg.version, pkg.dev);

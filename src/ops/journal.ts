@@ -42,9 +42,11 @@ export async function readJournal(root: string): Promise<JournalEntry[]> {
 
 /** Keeps only the entries newer than `days` days. */
 export async function pruneJournal(root: string, days: number, now = new Date()): Promise<number> {
+  if (!Number.isFinite(days) || days < 0) throw new Error('days must be a non-negative number');
   const entries = await readJournal(root);
   const limit = now.getTime() - days * 24 * 60 * 60 * 1000;
   const kept = entries.filter((entry) => Date.parse(entry.at) >= limit);
+  await mkdir(path.join(root, '.packman'), { recursive: true });
   await writeFile(
     path.join(root, JOURNAL),
     kept.map((entry) => JSON.stringify(entry)).join('\n') + (kept.length ? '\n' : ''),

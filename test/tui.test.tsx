@@ -59,6 +59,46 @@ afterAll(async () => {
 });
 
 describe('TUI', () => {
+  it('shows diverging package versions in the Matrix tab', async () => {
+    const divergent = structuredClone(report);
+    const other = structuredClone(divergent.projects[0]);
+    if (!other) throw new Error('project expected');
+    other.project.id = 'other';
+    for (const pkg of other.project.lockfile?.packages ?? [])
+      if (pkg.name === 'react') pkg.version = '18.3.1';
+    divergent.projects.push(other);
+    const { lastFrame, stdin, unmount } = render(
+      <App load={() => Promise.resolve(divergent)} apply={vi.fn()} />,
+    );
+    await tick();
+    stdin.write('3');
+    await tick();
+    expect(lastFrame()).toContain('react');
+    expect(lastFrame()).toContain('17.0.1');
+    expect(lastFrame()).toContain('18.3.1');
+    unmount();
+  });
+
+  it('shows an apply failure without an unhandled rejection or a reload', async () => {
+    const finding = report.projects[0]?.findings.find((item) => item.fixes.length > 0);
+    if (!finding) throw new Error('fix expected');
+    const load = vi.fn(() => Promise.resolve({ ...report, workspaceFindings: [finding] }));
+    const apply = vi.fn(() => Promise.reject(new Error('write denied')));
+    const { lastFrame, stdin, unmount } = render(<App load={load} apply={apply} />);
+    await tick();
+    stdin.write(' ');
+    await tick();
+    stdin.write('5');
+    await tick(80);
+    stdin.write('a');
+    await tick();
+    stdin.write('y');
+    await tick();
+    expect(lastFrame()).toContain('write denied');
+    expect(load).toHaveBeenCalledTimes(1);
+    unmount();
+  });
+
   it('navigates tabs, opens a project, selects a fix and applies it after confirmation', async () => {
     const apply = vi.fn(() =>
       Promise.resolve({ files: ['package.json'], backupDir: '.packman/backups/x' }),

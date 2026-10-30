@@ -1,11 +1,18 @@
 import { existsSync } from 'node:fs';
 import { lstat, mkdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { analyze, type Report } from '../src/analyze.js';
 import { configSchema } from '../src/core/config.js';
 import { discoverWorkspace } from '../src/core/discovery.js';
-import { linkGroup, planStore, readLinks, unlinkProjects } from '../src/store/store.js';
+import {
+  linkGroup,
+  planStore,
+  pruneTargets,
+  readLinks,
+  storeClosure,
+  unlinkProjects,
+} from '../src/store/store.js';
 import { fakeNodes, lockfile, makeWorkspace, TODAY } from './helpers.js';
 
 const manifest = (name: string, react = '18.3.1'): object => ({
@@ -60,6 +67,74 @@ async function fakeInstall(dir: string): Promise<number> {
 }
 
 describe('store plan', () => {
+  it('does not relocate project-relative dependencies into exact or union stores', async () => {
+    const { report } = await setup();
+    for (const entry of report.projects)
+      entry.project.dependencies.push({
+        name: 'local',
+        spec: 'file:../local',
+        section: 'dependencies',
+      });
+    for (const union of [false, true]) {
+      const plan = planStore(report, { union });
+      expect(plan.groups).toEqual([]);
+      expect(plan.excluded).toContainEqual({
+        projectId: 'app-a',
+        reason: 'local dependencies cannot be relocated into the store',
+      });
+    }
+  });
+
+  it('keeps lockfiles with different origins or integrity out of the same exact store', async () => {
+    const { report } = await setup({
+      'app-a/package-lock.json': {
+        lockfileVersion: 3,
+        packages: {
+          '': {},
+          'node_modules/react': { version: '18.3.1', resolved: 'https://one.invalid/react.tgz' },
+        },
+      },
+      'app-b/package-lock.json': {
+        lockfileVersion: 3,
+        packages: {
+          '': {},
+          'node_modules/react': { version: '18.3.1', resolved: 'https://two.invalid/react.tgz' },
+        },
+      },
+    });
+    expect(planStore(report).groups).toEqual([]);
+    expect(planStore(report).candidates).toContainEqual({
+      projectIds: ['app-a', 'app-b'],
+      reason: 'lockfile-differs',
+    });
+  });
+  it('keeps Node versions and union lockfile changes in separate stores', async () => {
+    const { report } = await setup();
+    const exact = planStore(report).groups[0]?.key;
+    const union = planStore(report, { union: true }).groups[0]?.key;
+    const replacement = fakeNodes('22.19.0')[0];
+    if (!replacement) throw new Error('Node expected');
+    for (const entry of report.projects) if (entry.node.selected) entry.node.selected = replacement;
+    expect(planStore(report).groups[0]?.key).not.toBe(exact);
+    expect(planStore(report, { union: true }).groups[0]?.key).not.toBe(union);
+    const before = planStore(report, { union: true }).groups[0]?.key;
+    const locked = report.projects[0]?.project.lockfile?.packages[0];
+    if (!locked) throw new Error('locked package expected');
+    locked.version = '18.3.2';
+    expect(planStore(report, { union: true }).groups[0]?.key).not.toBe(before);
+  });
+
+  it('excludes exact members with no installed Node', async () => {
+    const { report } = await setup();
+    for (const entry of report.projects) delete entry.node.selected;
+    const plan = planStore(report);
+    expect(plan.groups).toEqual([]);
+    expect(plan.excluded).toContainEqual({
+      projectId: 'app-a',
+      reason: 'no compatible installed Node',
+    });
+  });
+
   it('groups only projects with identical manifests and lockfiles, excluding unsafe install scripts', async () => {
     const { report } = await setup();
     const plan = planStore(report);
@@ -73,6 +148,19 @@ describe('store plan', () => {
 });
 
 describe('store plan --union', () => {
+  it('requires one full Node version across members, including the patch', async () => {
+    const { report } = await setup();
+    const second = report.projects.find((entry) => entry.project.id === 'app-b');
+    const alternate = fakeNodes('24.8.0')[0];
+    if (!second || !alternate) throw new Error('member expected');
+    second.node.selected = alternate;
+    const plan = planStore(report, { union: true });
+    expect(plan.groups).toEqual([]);
+    expect(plan.candidates).toContainEqual({
+      projectIds: ['app-a', 'app-b'],
+      reason: 'node-differs',
+    });
+  });
   const unionFiles = {
     'wp-a/package.json': { name: 'wp-a', dependencies: { react: '17.0.1', '@pnp/sp': '4.12.0' } },
     'wp-b/package.json': { name: 'wp-b', dependencies: { react: '17.0.1', axios: '1.13.2' } },
@@ -129,6 +217,61 @@ describe('store plan --union', () => {
 });
 
 describe('store link and unlink', () => {
+  it('reuses a completed store without reinstalling and preserves exact-mode backups on re-link', async () => {
+    const { root, report } = await setup({ 'app-a/node_modules/own.txt': 'original' });
+    const group = planStore(report).groups[0];
+    if (!group) throw new Error('group expected');
+    const install = vi.fn(fakeInstall);
+    await linkGroup(root, report, group, { replaceExisting: true, install });
+    await linkGroup(root, report, group, { replaceExisting: false, install });
+    expect(install).toHaveBeenCalledTimes(1);
+    expect(
+      (await readLinks(root)).find((link) => link.projectId === 'app-a')?.movedTo,
+    ).toBeDefined();
+    await unlinkProjects(root, undefined, { restore: true });
+    expect(await readFile(path.join(root, 'app-a/node_modules/own.txt'), 'utf8')).toBe('original');
+  });
+
+  it('retains recovery records when unlink encounters a real folder', async () => {
+    const { root, report } = await setup({ 'app-a/node_modules/own.txt': 'original' });
+    const group = planStore(report).groups[0];
+    if (!group) throw new Error('group expected');
+    await linkGroup(root, report, group, { replaceExisting: true, install: fakeInstall });
+    const { unlink } = await import('node:fs/promises');
+    await unlink(path.join(root, 'app-a/node_modules'));
+    await mkdir(path.join(root, 'app-a/node_modules'));
+    const result = await unlinkProjects(root, undefined, { restore: true });
+    expect(result.skipped.map((item) => item.projectId)).toEqual(['app-a']);
+    const record = (await readLinks(root))[0];
+    expect(record?.movedTo).toBeDefined();
+    expect(
+      (await pruneTargets(root, { trash: true })).some((target) =>
+        record?.movedTo?.startsWith(target + path.sep),
+      ),
+    ).toBe(false);
+  });
+
+  it('tracks earlier members and the moved folder when linking a later member fails', async () => {
+    const { root, report } = await setup({ 'app-b/node_modules/own.txt': 'original' });
+    const group = planStore(report).groups[0];
+    if (!group) throw new Error('group expected');
+    // Inject an operation failure after the second member's modules have been moved.
+    group.mode = 'union';
+    const second = report.projects.find((entry) => entry.project.id === 'app-b');
+    if (!second) throw new Error('member expected');
+    Object.defineProperty(second.project, 'dependencies', {
+      get() {
+        throw new Error('simulated link failure');
+      },
+    });
+    await expect(
+      linkGroup(root, report, group, { replaceExisting: true, install: fakeInstall }),
+    ).rejects.toThrow('simulated link failure');
+    expect((await readLinks(root)).map((link) => link.projectId)).toEqual(['app-a', 'app-b']);
+    const restored = await unlinkProjects(root, undefined, { restore: true });
+    expect(restored.restored).toContain('app-b');
+  });
+
   it('refuses to replace a real node_modules folder without --replace-existing', async () => {
     const { root, report } = await setup({ 'app-a/node_modules/.keep': '' });
     const group = planStore(report).groups[0];
@@ -187,5 +330,33 @@ describe('store link and unlink', () => {
       true,
     );
     expect(await readLinks(root)).toEqual([]);
+  });
+});
+
+describe('store dependency closure', () => {
+  it('finds hoisted dependencies reached through nested packages without linking unrelated names', async () => {
+    const workspace = await makeWorkspace({
+      'store/package-lock.json': {
+        lockfileVersion: 3,
+        packages: {
+          '': {},
+          'node_modules/root': { version: '1.0.0', dependencies: { nested: '1' } },
+          'node_modules/root/node_modules/nested': {
+            version: '1.0.0',
+            dependencies: { hoisted: '1' },
+          },
+          'node_modules/hoisted': { version: '1.0.0' },
+          'node_modules/unrelated': { version: '1.0.0' },
+        },
+      },
+      'store/node_modules/root/package.json': { name: 'root' },
+      'store/node_modules/hoisted/package.json': { name: 'hoisted' },
+      'store/node_modules/unrelated/package.json': { name: 'unrelated' },
+    });
+    cleanup = workspace.cleanup;
+    expect(await storeClosure(path.join(workspace.root, 'store/node_modules'), ['root'])).toEqual([
+      'hoisted',
+      'root',
+    ]);
   });
 });

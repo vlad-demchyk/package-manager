@@ -2,6 +2,22 @@
 
 ## 3.0.0-alpha.0
 
+### Fixed after the integration review
+
+- Reload configuration, manifests, locks and installed versions after edits and on TUI refresh.
+- Honour group Node settings; plan npm against the target stack during upgrades; fail when no
+  compatible Node is installed and check before destructive reinstall cleanup.
+- Stop update/install after declined changes or failed relock; install only projects changed by update.
+- Reuse completed stores, separate stores by Node and lockfile metadata, scan imports when linking,
+  traverse nested dependency closures, preserve recovery records across re-links and partial failures.
+- Exclude dependencies whose relative paths would break inside the store; safely clean unrecorded junctions.
+- Detect stale previews, keep distinct backups and back up configuration edits from init/profile/ignore.
+- Handle TUI preview/apply errors and stale async results; keep long paths inside the terminal header.
+- Keep advisory caches for independent package sets; classify a package as runtime when any copy is runtime.
+- Provide the ESM entrypoint declared in package exports; remove unused store settings from generated configs.
+
+### Original rewrite
+
 Complete rewrite. 2.x remains available on the `common/public` branch.
 
 ### Added

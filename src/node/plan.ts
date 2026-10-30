@@ -35,14 +35,20 @@ export function planNode(
     .map(({ range, source }) => ({ range, source }));
   const engines = requirements.find((req) => req.source === 'engines');
   const pins = requirements.filter((req) => req.pinned);
+  const groupRanges = pins
+    .filter((requirement) => requirement.source === 'policy.groups')
+    .map((requirement) => ({ range: requirement.range, source: requirement.source }));
 
   const stackRecommended = recommendNode(
-    stackRanges.map((item) => item.range),
+    [...stackRanges, ...groupRanges].map((item) => item.range),
     today,
   );
   const conflictingPins = new Set<NodeRequirement>();
   for (const pin of pins) {
-    const conflicts = stackRanges.filter((stack) => !safeIntersects(pin.range, stack.range));
+    const policyRanges = pin.source === 'policy.groups' ? [] : groupRanges;
+    const conflicts = [...stackRanges, ...policyRanges].filter(
+      (stack) => !safeIntersects(pin.range, stack.range),
+    );
     const first = conflicts[0];
     if (!first) continue;
     conflictingPins.add(pin);
@@ -80,7 +86,7 @@ export function planNode(
     );
   }
 
-  const primary = stackRanges[0];
+  const primary = stackRanges[0] ?? groupRanges[0];
   if (primary) {
     const setEngines = fix(
       'node/set-engines',
@@ -145,11 +151,13 @@ export function planNode(
   // A pin that contradicts the stack is reported above and must not block the recommendation.
   const effective = [
     ...stackRanges.map((item) => item.range),
-    ...pins.filter((pin) => !conflictingPins.has(pin)).map((pin) => pin.range),
+    ...pins
+      .filter((pin) => pin.source === 'policy.groups' || !conflictingPins.has(pin))
+      .map((pin) => pin.range),
   ];
   if (
     engines &&
-    (stackRanges.length === 0 || stackRanges.every((s) => safeIntersects(engines.range, s.range)))
+    [...stackRanges, ...groupRanges].every((s) => safeIntersects(engines.range, s.range))
   ) {
     effective.push(engines.range);
   }

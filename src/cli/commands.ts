@@ -1,5 +1,5 @@
 import { existsSync } from 'node:fs';
-import { readFile, writeFile } from 'node:fs/promises';
+import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { Option, type Command } from 'commander';
 import pc from 'picocolors';
@@ -7,6 +7,7 @@ import type { Report } from '../analyze.js';
 import { CONFIG_FILE } from '../core/config.js';
 import { editJsonText } from '../core/json.js';
 import type { Fix } from '../core/types.js';
+import { applyPreviews } from '../fixes/apply.js';
 import { runWithNode } from '../exec/run.js';
 import { t, tm } from '../i18n/index.js';
 import { alignPackage, alignToProject, closestProjects, diffProjects } from '../ops/align.js';
@@ -72,7 +73,18 @@ async function runInstall(
   }
   let ok = true;
   for (const { entry, args } of plan) {
-    if (!entry.node.selected || entry.project.nodeModules === 'link') continue;
+    if (entry.project.nodeModules === 'link') continue;
+    if (!entry.node.selected) {
+      ok = false;
+      process.exitCode = 1;
+      await journal(session.root, {
+        command,
+        projects: [entry.project.id],
+        result: 'failed',
+        detail: 'no compatible installed Node',
+      });
+      continue;
+    }
     console.log(pc.bold(`\n> ${entry.project.id}`));
     const result = await runWithNode(entry.node.selected, entry.project.dir, args);
     await journal(session.root, {
@@ -97,9 +109,14 @@ const installModeOption = (): Option =>
 async function quickReport(
   root: string,
   options: CommonOptions,
+  targetVersions = false,
 ): Promise<{ session: Session; report: Report }> {
   const session = await openSession(root, options);
-  const report = await runAnalysis(session, { ...options, security: false, usage: false });
+  const report = await runAnalysis(
+    session,
+    { ...options, security: false, usage: false },
+    { targetVersions },
+  );
   return { session, report };
 }
 
@@ -113,7 +130,7 @@ export function registerCommands(program: Command): void {
     .option('--lock-only', 'only update package-lock.json (npm install --package-lock-only)')
     .option('-y, --yes', 'do not ask for confirmation')
     .action(async (root: string, options: InstallOptions) => {
-      const { session, report } = await quickReport(root, options);
+      const { session, report } = await quickReport(root, options, true);
       await runInstall(session, report, options, 'install');
     });
 
@@ -166,7 +183,18 @@ export function registerCommands(program: Command): void {
     .addOption(installModeOption())
     .option('-y, --yes', 'do not ask for confirmation')
     .action(async (root: string, options: InstallOptions & { lockOnly?: boolean }) => {
-      const { session, report } = await quickReport(root, options);
+      const { session, report } = await quickReport(root, options, true);
+      const missing = report.projects.filter(
+        (entry) => entry.project.nodeModules !== 'link' && !entry.node.selected,
+      );
+      if (missing.length > 0) {
+        for (const entry of missing)
+          console.error(
+            `${entry.project.id}: ${t('node.notInstalled', { ranges: entry.node.effective.join(' & '), recommended: entry.node.recommended ?? '-' })}`,
+          );
+        process.exitCode = 1;
+        return;
+      }
       const targets = planClean(
         report.projects
           .filter((entry) => entry.project.nodeModules !== 'link')
@@ -187,7 +215,11 @@ export function registerCommands(program: Command): void {
         projects: [...new Set(targets.map((x) => x.projectId))],
         result: 'ok',
       });
-      const fresh = await runAnalysis(session, { ...options, security: false, usage: false });
+      const fresh = await runAnalysis(
+        session,
+        { ...options, security: false, usage: false },
+        { targetVersions: true },
+      );
       await runInstall(session, fresh, { ...options, yes: true, lockOnly: false }, 'reinstall');
     });
 
@@ -223,9 +255,20 @@ export function registerCommands(program: Command): void {
         const fixes = allFindings(report)
           .filter((item) => item.ruleId.startsWith('profile/'))
           .flatMap((item) => item.fixes);
-        await reviewAndApply(session, report, fixes, { ...options, command: 'update' });
-        if (options.apply && options.install) {
-          const fresh = await runAnalysis(session, { ...options, security: false, usage: false });
+        const applied = await reviewAndApply(session, report, fixes, {
+          ...options,
+          command: 'update',
+        });
+        if (applied && options.apply && options.install) {
+          const fresh = await runAnalysis(
+            session,
+            { ...options, security: false, usage: false },
+            { targetVersions: true },
+          );
+          const affected = new Set(fixes.flatMap((fix) => fix.edits.map((edit) => edit.file)));
+          fresh.projects = fresh.projects.filter((entry) =>
+            [...affected].some((file) => file.startsWith(entry.project.dir + path.sep)),
+          );
           await runInstall(
             session,
             fresh,
@@ -285,12 +328,16 @@ export function registerCommands(program: Command): void {
           return;
         }
         const file = path.join(session.root, CONFIG_FILE);
-        const before = existsSync(file) ? await readFile(file, 'utf8') : '{}\n';
-        await writeFile(
-          file,
-          editJsonText(before, [{ path: ['profiles', options.name], value: generated }]),
-          'utf8',
-        );
+        const before = existsSync(file) ? await readFile(file, 'utf8') : '';
+        await applyPreviews(session.root, [
+          {
+            file,
+            before,
+            after: editJsonText(before || '{}\n', [
+              { path: ['profiles', options.name], value: generated },
+            ]),
+          },
+        ]);
         await journal(session.root, {
           command: 'profile generate',
           projects: projects.map((p) => p.id),
@@ -516,18 +563,22 @@ export function registerCommands(program: Command): void {
       .option('-C, --cwd <path>', 'workspace root', '.')
       .action(async (packages: string[], options: { cwd: string }) => {
         const file = path.join(path.resolve(options.cwd), CONFIG_FILE);
-        const text = existsSync(file) ? await readFile(file, 'utf8') : '{}\n';
+        const text = existsSync(file) ? await readFile(file, 'utf8') : '';
         const session = await openSession(options.cwd, {});
         const current = new Set(session.loaded.config.checks.ignoreUnused);
         for (const name of packages) {
           if (action === 'add') current.add(name);
           else current.delete(name);
         }
-        await writeFile(
-          file,
-          editJsonText(text, [{ path: ['checks', 'ignoreUnused'], value: [...current].sort() }]),
-          'utf8',
-        );
+        await applyPreviews(session.root, [
+          {
+            file,
+            before: text,
+            after: editJsonText(text || '{}\n', [
+              { path: ['checks', 'ignoreUnused'], value: [...current].sort() },
+            ]),
+          },
+        ]);
         console.log([...current].sort().join('\n') || t('ignore.empty'));
       });
   }
@@ -571,7 +622,7 @@ export function registerCommands(program: Command): void {
       .command('relock')
       .description('regenerate lockfiles with each project Node (npm install --package-lock-only)'),
   ).action(async (root: string, options: CommonOptions) => {
-    const { session, report } = await quickReport(root, options);
+    const { session, report } = await quickReport(root, options, true);
     await relock(
       session,
       report.projects.map((entry) => entry.project.id),

@@ -418,10 +418,8 @@ describe('fix idempotency (rule <-> fix wiring)', () => {
     const remaining = after.projects
       .flatMap((p) => p.findings.map((f) => `${p.project.id} ${f.ruleId}`))
       .filter((key) => fixable.some(({ project, finding: f }) => key === `${project} ${f.ruleId}`));
-    // Rules whose result depends on a fresh install or on package versions changed by other fixes may stay.
-    const allowed =
-      /(npm\/unused-dependency|npm\/undeclared-import|spfx\/core-transitive|npm\/family-mismatch|policy\/|node\/pin-conflict)/;
-    expect(remaining.filter((key) => !allowed.test(key))).toEqual([]);
+    // React/React DOM still resolve from the old lock until npm regenerates it.
+    expect(remaining).toEqual(['web-app npm/family-mismatch']);
   });
 });
 

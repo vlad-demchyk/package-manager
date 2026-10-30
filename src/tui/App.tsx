@@ -1,6 +1,6 @@
 import path from 'node:path';
 import { Box, Text, useApp, useInput, useWindowSize } from 'ink';
-import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import type { ProjectReport, Report } from '../analyze.js';
 import { SEVERITY_ORDER } from '../core/findings.js';
 import type { Finding, Fix, Severity } from '../core/types.js';
@@ -50,17 +50,27 @@ export function App({ load, apply }: AppProps): ReactNode {
   const [previews, setPreviews] = useState<FilePreview[]>([]);
   const [confirming, setConfirming] = useState(false);
   const [notice, setNotice] = useState<string>();
+  const [applying, setApplying] = useState(false);
+  const loadId = useRef(0);
 
   const reload = useCallback(() => {
+    const request = ++loadId.current;
     setReport(undefined);
     setError(undefined);
     setSelected(new Map());
+    setPreviews([]);
+    setDetail(undefined);
+    setDetailCursor(0);
+    setConfirming(false);
     load((done, total, id) => {
       setProgress(`[${done + 1}/${total}] ${id}`);
     })
-      .then(setReport)
+      .then((next) => {
+        if (request === loadId.current) setReport(next);
+      })
       .catch((reason: unknown) => {
-        setError(reason instanceof Error ? reason.message : String(reason));
+        if (request === loadId.current)
+          setError(reason instanceof Error ? reason.message : String(reason));
       });
   }, [load]);
 
@@ -73,9 +83,18 @@ export function App({ load, apply }: AppProps): ReactNode {
 
   useEffect(() => {
     if (tab !== 'fixes') return;
-    void previewEdits(collectEdits([...selected.values()].map((entry) => entry.fix))).then(
-      setPreviews,
-    );
+    let cancelled = false;
+    setPreviews([]);
+    void previewEdits(collectEdits([...selected.values()].map((entry) => entry.fix)))
+      .then((next) => {
+        if (!cancelled) setPreviews(next);
+      })
+      .catch((reason: unknown) => {
+        if (!cancelled) setError(reason instanceof Error ? reason.message : String(reason));
+      });
+    return () => {
+      cancelled = true;
+    };
   }, [tab, selected]);
 
   const listHeight = Math.max(5, rows - 9);
@@ -118,13 +137,26 @@ export function App({ load, apply }: AppProps): ReactNode {
   };
 
   useInput((input, key) => {
+    if (applying) return;
     if (confirming) {
       if (input === 'y' || input === 's' || input === 'т') {
         setConfirming(false);
-        void apply(previews).then((result) => {
-          setNotice(t('cli.applied', { count: result.files.length, dir: result.backupDir }));
-          reload();
-        });
+        setApplying(true);
+        void apply(previews)
+          .then((result) => {
+            const dir =
+              report && path.isAbsolute(result.backupDir)
+                ? path.relative(report.root, result.backupDir)
+                : result.backupDir;
+            setNotice(t('cli.applied', { count: result.files.length, dir }));
+            reload();
+          })
+          .catch((reason: unknown) => {
+            setError(reason instanceof Error ? reason.message : String(reason));
+          })
+          .finally(() => {
+            setApplying(false);
+          });
       } else {
         setConfirming(false);
         setNotice(t('cli.aborted'));
@@ -200,11 +232,15 @@ export function App({ load, apply }: AppProps): ReactNode {
   const totals = summarize(allFindings(report));
   return (
     <Box flexDirection="column" height={rows}>
-      <Box justifyContent="space-between">
-        <Text bold>
-          {t('report.title')} <Text dimColor>{report.root}</Text>
-        </Text>
-        <Counts counts={totals} />
+      <Box justifyContent="space-between" columnGap={1}>
+        <Box flexShrink={1} minWidth={0}>
+          <Text bold wrap="truncate-end">
+            {t('report.title')} <Text dimColor>{report.root}</Text>
+          </Text>
+        </Box>
+        <Box flexShrink={0}>
+          <Counts counts={totals} />
+        </Box>
       </Box>
       <Box columnGap={2}>
         {TABS.map((name, index) => (

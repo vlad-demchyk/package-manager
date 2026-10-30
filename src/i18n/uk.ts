@@ -199,5 +199,4 @@ export const uk: Catalogue = {
   'cli.noFixes': 'Нічого виправляти.',
   'cli.confirm': 'Застосувати {count} змін у {files} файлах?',
   'cli.aborted': 'Скасовано.',
-  'cli.backup': 'резервна копія',
 };

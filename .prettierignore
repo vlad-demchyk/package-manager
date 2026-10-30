@@ -4,3 +4,4 @@ legacy/
 data/*.json
 test/fixtures/
 bin/
+.packman/

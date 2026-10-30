@@ -5,7 +5,13 @@ import semver from 'semver';
 import type { Project } from '../core/types.js';
 
 export type NodePinSource =
-  'devEngines' | '.nvmrc' | '.node-version' | '.tool-versions' | 'volta' | 'engines';
+  | 'devEngines'
+  | '.nvmrc'
+  | '.node-version'
+  | '.tool-versions'
+  | 'volta'
+  | 'engines'
+  | 'policy.groups';
 
 export interface NodeRequirement {
   /** Semver range the project accepts (intersection is evaluated by callers). */
