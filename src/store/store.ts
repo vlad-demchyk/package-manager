@@ -6,7 +6,8 @@ import {
   readdir,
   readFile,
   readlink,
-  rename,
+  copyFile,
+  rm,
   rmdir,
   symlink,
   unlink,
@@ -20,6 +21,7 @@ import { isTopLevel, readNpmLockfile } from '../core/lockfile.js';
 import type { PackageManifest, Project } from '../core/types.js';
 import type { InstalledNode } from '../node/toolchain.js';
 import { STORE_MARKER } from '../core/discovery.js';
+import { backupFiles } from '../fixes/apply.js';
 
 export const STORE_DIR = path.join('.packman', 'store');
 const LINKS_FILE = path.join('.packman', 'links.json');
@@ -74,8 +76,13 @@ export interface LinkRecord {
   key: string;
   target: string;
   createdAt: string;
-  /** Where the project's own node_modules was moved, when it existed. */
+  /** Legacy records only: old releases moved node_modules here. New links never move modules. */
   movedTo?: string;
+  /** Backup of the project's package.json and lockfiles, without installed modules. */
+  backupDir?: string;
+  /** Input snapshots used to reuse a linked store after per-project locks were synchronized. */
+  lockKey?: string;
+  nodeVersion?: string;
   /** Manifest key of the project when it was linked; a different key means the link is stale. */
   manifestKey?: string;
   /** `folder`: node_modules is one junction; `packages`: a folder with one junction per needed package. */
@@ -105,7 +112,7 @@ export function manifestKey(manifest: PackageManifest): string {
   );
 }
 
-function lockFingerprint(project: Project): string | undefined {
+function lockFingerprint(project: Pick<Project, 'lockfile'>): string | undefined {
   const lock = project.lockfile;
   if (lock?.kind !== 'npm' || (lock.version ?? 1) < 2 || lock.packages.length === 0)
     return undefined;
@@ -119,7 +126,31 @@ function lockFingerprint(project: Project): string | undefined {
 }
 
 export function planStore(report: Report, options: { union?: boolean } = {}): StorePlan {
-  return options.union ? planUnion(report) : planExact(report);
+  const plan = options.union ? planUnion(report) : planExact(report);
+  for (const group of plan.groups) {
+    const records = group.projectIds.map((id) =>
+      report.links?.find((link) => link.projectId === id),
+    );
+    const first = records[0];
+    if (
+      first &&
+      records.every((record, index) => {
+        const project = report.projects.find(
+          (entry) => entry.project.id === group.projectIds[index],
+        )?.project;
+        return (
+          record &&
+          project &&
+          record.key === first.key &&
+          record.nodeVersion === group.node?.version &&
+          record.manifestKey === manifestKey(project.manifest) &&
+          record.lockKey === lockFingerprint(project)
+        );
+      })
+    )
+      group.key = first.key;
+  }
+  return plan;
 }
 
 function unsafeScripts(project: Project): boolean {
@@ -312,13 +343,15 @@ async function writeLinks(root: string, links: LinkRecord[]): Promise<void> {
 }
 
 export interface LinkOptions {
-  /** Move existing node_modules folders to .packman/trash instead of refusing. */
+  /** Delete existing node_modules after the shared installation succeeds. Only manifests/locks are backed up. */
   replaceExisting: boolean;
   /** `packages` links only what each project needs; defaults to `packages` for union stores. */
   linkMode?: 'folder' | 'packages';
   /** Installs dependencies in the store directory; returns the exit code. */
   install: (dir: string, node: InstalledNode, mode: StoreGroup['mode']) => Promise<number>;
   now?: Date;
+  /** Write per-project npm locks from the completed union installation, after a repository upgrade. */
+  syncLocks?: boolean;
 }
 
 export interface LinkResult {
@@ -358,7 +391,7 @@ export async function linkGroup(
   }
   if (blocked.length > 0) {
     throw new Error(
-      `real node_modules folders found (${blocked.map((project) => project.id).join(', ')}); re-run with --replace-existing to move them to ${TRASH_DIR}`,
+      `real node_modules folders found (${blocked.map((project) => project.id).join(', ')}); re-run with --replace-existing to delete them after backing up package.json and lockfiles`,
     );
   }
 
@@ -430,7 +463,8 @@ export async function linkGroup(
     );
   }
 
-  const stamp = (options.now ?? new Date()).toISOString().replace(/[:.]/g, '-');
+  if (options.syncLocks) await syncProjectLocks(root, members, storeDir);
+
   let links = [...previous];
 
   const linkMode = options.linkMode ?? (group.mode === 'union' ? 'packages' : 'folder');
@@ -443,10 +477,27 @@ export async function linkGroup(
       createdAt: new Date().toISOString(),
       manifestKey: manifestKey(project.manifest),
       mode: linkMode,
+      nodeVersion: group.node.version,
     };
+    const currentLock = options.syncLocks
+      ? await readNpmLockfile(
+          project.lockfile?.kind === 'npm'
+            ? project.lockfile.path
+            : path.join(project.dir, 'package-lock.json'),
+        )
+      : project.lockfile;
+    const lockKey = currentLock ? lockFingerprint({ lockfile: currentLock }) : undefined;
+    if (lockKey) record.lockKey = lockKey;
     const state = await linkState(linkPath);
-    const earlier = previous.find((link) => link.projectId === project.id)?.movedTo;
-    if (earlier && state.kind !== 'folder') record.movedTo = earlier;
+    const earlier = previous.find((link) => link.projectId === project.id);
+    const sameSnapshot =
+      earlier !== undefined &&
+      earlier.manifestKey === record.manifestKey &&
+      earlier.lockKey === record.lockKey &&
+      earlier.nodeVersion === record.nodeVersion;
+    record.backupDir =
+      (sameSnapshot ? earlier.backupDir : undefined) ??
+      (await backupFiles(root, projectFiles(project.dir), options.now));
     if (state.kind === 'link') {
       if (linkMode === 'folder' && path.resolve(state.target) === path.resolve(target)) {
         links = links.filter((link) => link.projectId !== project.id);
@@ -459,14 +510,15 @@ export async function linkGroup(
     } else if (state.kind === 'packages') {
       await removeLinkedFolder(linkPath);
     }
-    // A re-link must not forget where the project's own node_modules was moved.
     if (state.kind === 'folder') {
-      const movedTo = path.join(root, TRASH_DIR, stamp, project.id, 'node_modules');
-      await mkdir(path.dirname(movedTo), { recursive: true });
-      await rename(linkPath, movedTo);
-      record.movedTo = movedTo;
+      // Recheck the boundary and type immediately before deletion; junctions are never followed.
+      if (path.resolve(linkPath) !== path.resolve(root, project.id, 'node_modules'))
+        throw new Error('node_modules outside project');
+      const current = await lstat(linkPath);
+      if (current.isSymbolicLink()) await unlink(linkPath);
+      else await rm(linkPath, { recursive: true, force: true, maxRetries: 3 });
     }
-    // Persist recovery information before creating junctions. Earlier members remain tracked
+    // Persist the manifest/lock backup before creating junctions. Earlier members remain tracked
     // if a later link fails (for example because a tool kept a directory open).
     links = links.filter((link) => link.projectId !== project.id);
     links.push(record);
@@ -490,6 +542,93 @@ export async function linkGroup(
   return result;
 }
 
+/** Recreate independent project locks from the shared tree; keep nested and hoisted resolutions. */
+export async function syncProjectLocks(
+  root: string,
+  members: Project[],
+  storeDir: string,
+): Promise<void> {
+  const parsed = await readJsonFile<{
+    lockfileVersion?: number;
+    packages?: Record<string, LockEntry>;
+  }>(path.join(storeDir, 'package-lock.json'));
+  if (!parsed.ok || !parsed.value.packages) throw new Error('shared npm lockfile is missing');
+  await backupFiles(
+    root,
+    members.flatMap((project) => projectFiles(project.dir)),
+  );
+  const source = parsed.value.packages;
+  for (const project of members) {
+    const seen = new Set<string>();
+    const queue = project.dependencies
+      .filter((dep) => dep.section !== 'peerDependencies')
+      .map((dep) => `node_modules/${dep.name}`);
+    while (queue.length > 0) {
+      const location = queue.pop() as string;
+      const entry = source[location];
+      if (seen.has(location) || !entry) continue;
+      seen.add(location);
+      const dependencies = {
+        ...asSpecs(entry.dependencies),
+        ...asSpecs(entry.optionalDependencies),
+        ...asSpecs(entry.peerDependencies),
+      };
+      for (const name of Object.keys(dependencies)) {
+        let parent = location;
+        for (;;) {
+          const candidate = parent ? `${parent}/node_modules/${name}` : `node_modules/${name}`;
+          if (source[candidate]) {
+            queue.push(candidate);
+            break;
+          }
+          if (!parent) break;
+          const index = parent.lastIndexOf('/node_modules/');
+          parent = index < 0 ? '' : parent.slice(0, index);
+        }
+      }
+    }
+    const manifest = project.manifest;
+    const packages: Record<string, unknown> = {
+      '': {
+        name: manifest.name ?? project.name,
+        version: manifest.version ?? '0.0.0',
+        ...(manifest.dependencies ? { dependencies: manifest.dependencies } : {}),
+        ...(manifest.devDependencies ? { devDependencies: manifest.devDependencies } : {}),
+        ...(manifest.optionalDependencies
+          ? { optionalDependencies: manifest.optionalDependencies }
+          : {}),
+        ...(manifest.peerDependencies ? { peerDependencies: manifest.peerDependencies } : {}),
+        ...(manifest.engines ? { engines: manifest.engines } : {}),
+      },
+    };
+    for (const location of [...seen].sort()) packages[location] = source[location];
+    const file =
+      project.lockfile?.kind === 'npm'
+        ? project.lockfile.path
+        : path.join(project.dir, 'package-lock.json');
+    await writeFile(
+      file,
+      JSON.stringify(
+        {
+          name: manifest.name ?? project.name,
+          version: manifest.version ?? '0.0.0',
+          lockfileVersion: 3,
+          requires: true,
+          packages,
+        },
+        null,
+        2,
+      ) + '\n',
+    );
+  }
+}
+
+function asSpecs(value: unknown): Record<string, unknown> {
+  return value && typeof value === 'object' && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : {};
+}
+
 type LinkState =
   { kind: 'absent' } | { kind: 'folder' } | { kind: 'packages' } | { kind: 'link'; target: string };
 
@@ -508,6 +647,17 @@ export interface UnlinkResult {
   unlinked: string[];
   restored: string[];
   skipped: { projectId: string; reason: string }[];
+}
+
+const PROJECT_FILES = [
+  'package.json',
+  'package-lock.json',
+  'npm-shrinkwrap.json',
+  'yarn.lock',
+  'pnpm-lock.yaml',
+];
+function projectFiles(dir: string): string[] {
+  return PROJECT_FILES.map((name) => path.join(dir, name)).filter((file) => existsSync(file));
 }
 
 /** Removes links recorded in .packman/links.json; never deletes a real folder. */
@@ -541,8 +691,12 @@ export async function unlinkProjects(
       await removeLinkedFolder(linkPath);
       result.unlinked.push(link.projectId);
     }
-    if (options.restore && link.movedTo && existsSync(link.movedTo)) {
-      await rename(link.movedTo, linkPath);
+    if (options.restore && link.backupDir) {
+      const dir = path.join(root, link.projectId);
+      for (const name of PROJECT_FILES) {
+        const saved = path.join(link.backupDir, link.projectId, name);
+        if (existsSync(saved)) await copyFile(saved, path.join(dir, name));
+      }
       result.restored.push(link.projectId);
     }
   }

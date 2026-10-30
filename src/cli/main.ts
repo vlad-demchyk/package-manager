@@ -16,6 +16,7 @@ import { allFindings, toJson } from '../report/model.js';
 import { renderText } from '../report/text.js';
 import { openSession, runAnalysis, type CommonOptions } from './context.js';
 import { registerCommands } from './commands.js';
+import { registerUpgrade } from './upgrade.js';
 import {
   commonOptions,
   confirm,
@@ -224,7 +225,10 @@ export function buildProgram(): Command {
   )
     .requiredOption('-g, --group <key>', 'group key from `packman store plan`')
     .option('--union', 'the group comes from `packman store plan --union`')
-    .option('--replace-existing', 'move existing node_modules folders to .packman/trash')
+    .option(
+      '--replace-existing',
+      'delete local node_modules after successful store installation; back up manifests and locks only',
+    )
     .option('-y, --yes', 'do not ask for confirmation')
     .action(
       async (
@@ -294,7 +298,10 @@ export function buildProgram(): Command {
     .argument('[path]', 'workspace root', '.')
     .addOption(langOption())
     .option('-p, --project <ids...>', 'only these project ids')
-    .option('--restore', 'move node_modules folders back from .packman/trash')
+    .option(
+      '--restore',
+      'restore backed-up package.json and lockfiles; run install to recreate local modules',
+    )
     .action(async (root: string, options: { project?: string[]; restore?: boolean }) => {
       const absRoot = path.resolve(root);
       const result = await unlinkProjects(absRoot, options.project, {
@@ -489,6 +496,7 @@ export function buildProgram(): Command {
     });
 
   registerCommands(program);
+  registerUpgrade(program);
   return program;
 }
 

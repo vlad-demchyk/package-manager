@@ -27,6 +27,7 @@ export const ALWAYS_IGNORED_DIRS = [
 
 const groupSchema = z.object({
   name: z.string().min(1),
+  stack: z.string().optional(),
   /** Glob patterns on project ids. */
   projects: z.array(z.string()).min(1),
   /** Node version (exact or range) the group is built with. */
@@ -47,6 +48,7 @@ const groupSchema = z.object({
  * - `tsconfig`: merged leaf by leaf into tsconfig.json (2.x replaced whole top-level keys).
  */
 const profileSchema = z.object({
+  stack: z.string().optional(),
   projects: z.array(z.string()).min(1),
   dependencies: z.record(z.string(), z.string()).default({}),
   devDependencies: z.record(z.string(), z.string()).default({}),
@@ -60,9 +62,28 @@ const profileSchema = z.object({
 
 export type ProfileConfig = z.infer<typeof profileSchema>;
 
+const targetVersion = z
+  .string()
+  .refine((value) => semver.valid(value) !== null, 'target must be an exact version');
+const targetSchema = z.object({
+  spfx: targetVersion.optional(),
+  node: targetVersion.optional(),
+  react: targetVersion.optional(),
+  angular: targetVersion.optional(),
+  next: targetVersion.optional(),
+  electron: targetVersion.optional(),
+  vue: targetVersion.optional(),
+  vite: targetVersion.optional(),
+  typescript: targetVersion.optional(),
+  eslint: targetVersion.optional(),
+  jest: targetVersion.optional(),
+  vitest: targetVersion.optional(),
+});
+
 export const configSchema = z.object({
   $schema: z.string().optional(),
   language: z.enum(['auto', 'en', 'it', 'uk']).default('auto'),
+  target: targetSchema.default({}),
   projects: z
     .object({
       include: z.array(z.string()).default(['**']),

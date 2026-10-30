@@ -1,5 +1,19 @@
 # Changelog
 
+## Unreleased
+
+- `upgrade` plans convergence on the newest framework stack already present in the repository;
+  published releases are selected only with an explicit `--to`. Separate framework families have
+  separate baselines, with target-policy findings, generated stack-filtered profiles and build order.
+- SPFx migration edits cover runtime/build/lint packages, compiler/TypeScript, React/types, Node pins,
+  generator metadata and Heft configs. Known removed APIs, custom Gulp tasks and conflicting profiles
+  are reported as blockers. `--shared --verify` installs once and checks each migrated project.
+- Shared transitions delete local `node_modules` after successful installation. Only manifests and
+  lockfiles are backed up; `unlink --restore` restores those files and never restores installed modules.
+- Per-project npm locks can be synchronized from the shared tree for independent installation later.
+- Migration resolves the ESLint parser/plugin family from the target config's actual dependencies and
+  handles deprecated TypeScript compiler options.
+
 ## 3.0.0-alpha.0
 
 ### Fixed after the integration review

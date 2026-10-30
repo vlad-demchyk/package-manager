@@ -39,6 +39,7 @@ packman fix --risk review --rule spfx/lockstep-mismatch --apply
 packman node            # installed Node versions, support status and CVEs
 packman install         # npm ci in every project with its own Node
 packman init --with-groups   # create packman.config.json from the detected groups
+packman upgrade             # plan convergence on the newest project stack already in this repository
 ```
 
 All commands accept `--project <globs...>`, `--exclude <globs...>`, `--depth <n>`, `--lang en|it|uk`.
@@ -83,6 +84,41 @@ config files and npm scripts (including the executables of installed packages), 
 tools, `@types/*`, peer/optional dependencies, SPFx core packages, and packages that other packages
 require (a top-level declaration then pins a transitive version).
 
+## One target stack for the repository
+
+`upgrade` selects the highest existing framework version in the selected projects, with the matching
+project as its baseline. A repository with SPFx 1.18.2, 1.20.0 and 1.21.1 converges on **1.21.1**;
+it does not select a newer release from npm. Different framework families have separate baselines.
+Node defaults to a compatible Node already used by those baselines, then a compatible installed Node.
+
+```bash
+packman upgrade                         # plan and diffs; no project files changed
+packman upgrade --json                   # machine-readable plan, blockers and build order
+packman upgrade --stack spfx --to 1.21   # explicit override to a supported version line
+packman upgrade --apply --shared --verify -y  # install once, link, then build every member
+```
+
+SPFx migrations update runtime/build/lint packages, compiler/TypeScript, React/types, engines and Node
+pins, generator metadata and tsconfig. A Heft transition creates rig/Sass/TypeScript configs and maps
+standard Gulp scripts. Custom tasks and known removed React/PnPjs APIs are reported as source blockers.
+Major API changes still need code review; build verification is available with `--verify`.
+
+Applied upgrades save `target`, a `packman-<stack>` profile and a matching group. Generated profiles
+and groups use a `stack` filter, so future SPFx projects follow the same policy while an unrelated
+Vite/React project does not receive SPFx packages. Existing conflicting profiles block the migration.
+`check` reports target deviations; `update` enforces the saved versions. Names starting with `packman-`
+are reserved for generated profiles. A filtered `--project` migration saves only the selected scope.
+
+```json
+{ "target": { "spfx": "1.21.1", "node": "22.19.0" } }
+```
+
+`--shared` needs one compatible family with at least two projects and npm locks. It installs once,
+synchronizes standalone project lockfiles from the resulting tree and then links the group. A later
+`upgrade --shared` can replace that shared installation without running npm in each linked project.
+`--verify` records a separate build result for every project in the journal. A failed build returns a
+nonzero status; backups remain available for review.
+
 ## Shared node_modules per group
 
 One installation per group of projects, each project linked only to what it needs, through directory
@@ -94,7 +130,7 @@ packman store link --group <key> --union [--replace-existing]
 packman store verify --script build
 packman store status
 packman store unlink [--restore]
-packman store prune [--trash]   # stores and moved folders nothing links to
+packman store prune [--trash]   # unused stores; --trash also cleans legacy module backups
 packman store plan              # exact mode: identical manifests and lockfiles share one folder junction
 ```
 
@@ -108,8 +144,10 @@ How the union store works:
   packages referenced by config files (`parser`, `extends`, `plugins`, `presets`, `types`, `require`).
   Tools that resolve from the project directory (SPFx Sass `~pkg`, ESLint parsers) find what they need,
   and a project never sees packages only other projects use.
-- npm never runs in linked projects (`packman install` skips them). A real `node_modules` is moved to
-  `.packman/trash/` with `--replace-existing` and brought back by `unlink --restore`, also after re-links.
+- npm never runs in linked projects (`packman install` skips them). With `--replace-existing`, a real
+  local `node_modules` is deleted after the store install succeeds. Only `package.json` and lockfiles
+  are backed up; modules are never moved to trash. `unlink --restore` restores those files, and
+  `packman install` recreates local modules when needed. Unlink without `--restore` keeps current files.
 - If the store install fails, nothing is linked.
 - Completed stores are reused on re-link. Node versions and member lockfiles identify separate stores,
   so a new installation does not rebuild a store that other projects are using.

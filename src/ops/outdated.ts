@@ -9,9 +9,15 @@ import { cacheDir } from '../security/advisories.js';
 const REGISTRY = 'https://registry.npmjs.org/';
 const TTL_MS = 12 * 60 * 60 * 1000;
 
+export interface PackageVersionMetadata {
+  deprecated?: string;
+  dependencies?: Record<string, string>;
+  peerDependencies?: Record<string, string>;
+  engines?: Record<string, string>;
+}
 interface Packument {
   'dist-tags'?: Record<string, string>;
-  versions?: Record<string, { deprecated?: string }>;
+  versions?: Record<string, PackageVersionMetadata>;
 }
 
 export interface OutdatedRow {
@@ -29,7 +35,7 @@ export interface OutdatedRow {
 
 export async function fetchPackuments(
   names: string[],
-  options: { offline: boolean; fetchImpl?: typeof fetch },
+  options: { offline: boolean; fetchImpl?: typeof fetch; metadata?: boolean },
 ): Promise<Map<string, Packument>> {
   const dir = path.join(cacheDir(), 'packuments');
   await mkdir(dir, { recursive: true }).catch(() => undefined);
@@ -38,9 +44,13 @@ export async function fetchPackuments(
   await mapLimit(names, 8, async (name) => {
     const file = path.join(dir, `${encodeURIComponent(name)}.json`);
     const cached = await readFile(file, 'utf8')
-      .then((text) => JSON.parse(text) as { at: number; data: Packument })
+      .then((text) => JSON.parse(text) as { at: number; data: Packument; metadata?: boolean })
       .catch(() => undefined);
-    if (cached && (options.offline || Date.now() - cached.at < TTL_MS)) {
+    if (
+      cached &&
+      (options.offline ||
+        ((!options.metadata || cached.metadata) && Date.now() - cached.at < TTL_MS))
+    ) {
       result.set(name, cached.data);
       return;
     }
@@ -54,10 +64,17 @@ export async function fetchPackuments(
       const data = (await response.json()) as Packument;
       const slim: Packument = { 'dist-tags': data['dist-tags'] ?? {}, versions: {} };
       for (const [version, meta] of Object.entries(data.versions ?? {})) {
-        (slim.versions ??= {})[version] = meta.deprecated ? { deprecated: meta.deprecated } : {};
+        (slim.versions ??= {})[version] = options.metadata
+          ? meta
+          : meta.deprecated
+            ? { deprecated: meta.deprecated }
+            : {};
       }
       result.set(name, slim);
-      await writeFile(file, JSON.stringify({ at: Date.now(), data: slim })).catch(() => undefined);
+      await writeFile(
+        file,
+        JSON.stringify({ at: Date.now(), data: slim, metadata: options.metadata === true }),
+      ).catch(() => undefined);
     } catch {
       // Network errors leave the package without registry data.
     }

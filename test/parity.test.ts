@@ -483,7 +483,7 @@ describe('store regressions found on real repositories', () => {
     expect(requireFrom('@pnp/sp')).toBe('@pnp/sp@4.12.0');
   });
 
-  it('keeps the trash location across re-links so --restore still works', async () => {
+  it('keeps file backups across re-links without retaining local modules', async () => {
     await mkdir(path.join(root, 'spfx-webpart-121', 'node_modules', 'own'), { recursive: true });
     await writeFile(
       path.join(root, 'spfx-webpart-121', 'node_modules', 'own', 'marker.txt'),
@@ -499,16 +499,12 @@ describe('store regressions found on real repositories', () => {
     if (!group) throw new Error('union group expected');
     await linkGroup(root, again, group, { replaceExisting: false, install: installFromLock });
     expect(
-      (await readLinks(root)).find((link) => link.projectId === 'spfx-webpart-121')?.movedTo,
+      (await readLinks(root)).find((link) => link.projectId === 'spfx-webpart-121')?.backupDir,
     ).toBeDefined();
     const result = await unlinkProjects(root, ['spfx-webpart-121'], { restore: true });
     expect(result.restored).toEqual(['spfx-webpart-121']);
-    expect(
-      await readFile(
-        path.join(root, 'spfx-webpart-121', 'node_modules', 'own', 'marker.txt'),
-        'utf8',
-      ),
-    ).toBe('original');
+    expect(existsSync(path.join(root, 'spfx-webpart-121', 'node_modules'))).toBe(false);
+    expect(existsSync(path.join(root, '.packman', 'trash'))).toBe(false);
   });
 
   it('prunes only stores without links', async () => {

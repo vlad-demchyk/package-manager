@@ -141,7 +141,8 @@ export const it: Catalogue = {
   'store.linkPlan': "{count} progetti condivideranno un'installazione con Node {node}:",
   'store.confirmLink': 'Installare lo store e collegare questi progetti?',
   'store.linked': '{count} progetti collegati a {dir}',
-  'store.unlinked': '{count} collegamenti rimossi, {restored} node_modules ripristinati',
+  'store.unlinked':
+    '{count} collegamenti rimossi, {restored} backup manifest/lock ripristinati; eseguire install per ricreare i moduli locali',
   'store.noLinks': 'Nessun progetto collegato.',
   'store.alignFirst': 'allineare prima: {packages}',
   'init.exists': '{file} esiste già; usare --force per sovrascriverlo.',
@@ -200,4 +201,52 @@ export const it: Catalogue = {
   'cli.noFixes': 'Niente da correggere.',
   'cli.confirm': 'Applicare {count} modifiche a {files} file?',
   'cli.aborted': 'Annullato.',
+  'target.node': 'Node {version} differisce dal target del repository {target}',
+  'target.stack': '{stack} {version} differisce dal target del repository {target}',
+  'target.repository':
+    'Il più recente {stack} già nel repository: {version} ({project}); upgrade allinea gli altri',
+  'upgrade.title': 'Piano di migrazione (predefinito: progetto esistente più recente)',
+  'upgrade.fixProject': 'Migrare a {version} e allineare lo stack',
+  'upgrade.fixPolicy': 'Salvare target, profili e gruppi comuni del repository',
+  'upgrade.order': 'Ordine di compilazione: {projects}',
+  'upgrade.blocked': '{count} blocchi richiedono modifiche prima di applicare la migrazione.',
+  'upgrade.noProjects': 'Nessun progetto selezionato da migrare.',
+  'upgrade.jsonReadOnly':
+    '--json mostra un piano senza scritture; usare --apply senza --json per applicarlo.',
+  'upgrade.nodeMissing':
+    'Node {version} non è installato; installarlo prima di eseguire npm o verificare le build.',
+  'upgrade.nodeIncompatible': 'Nessun Node comune soddisfa tutti gli stack target: {ranges}',
+  'upgrade.unknownVersion': 'Impossibile determinare la versione esistente di {stack}.',
+  'upgrade.unknownSpfx': 'SPFx {version} non ha dati di migrazione verificati.',
+  'upgrade.downgrade':
+    'Questo ridurrebbe {from} a {to}; scegliere il progetto esistente più recente.',
+  'upgrade.linked': '{project} è già collegato; scollegarlo prima di cambiare le dipendenze.',
+  'upgrade.controls':
+    '{name}@{version} è compilato per SPFx {built}; nessuna versione verificata selezionata per {target}.',
+  'upgrade.platform': "L'ambiente SharePoint {environment} non supporta SPFx {version}.",
+  'upgrade.reactApi':
+    'React {version} richiede la migrazione di ReactDom.render/unmount alla root API nel codice.',
+  'upgrade.pnpMajor': 'PnPjs {from} -> {to}: verificare le API e la build.',
+  'upgrade.pnpApi':
+    'Il codice usa API/import PnPjs rimossi; migrare getAll/getPaged/Graph paged agli iteratori asincroni e sostituire common/odata.',
+  'upgrade.customGulp':
+    '{file} contiene task Gulp personalizzati; portarli a Heft prima di applicare.',
+  'upgrade.customScript': 'Lo script {name} richiede un equivalente Heft manuale: {command}',
+  'upgrade.customSass':
+    'Le opzioni personalizzate di config/sass.json richiedono la mappatura allo schema Heft Sass.',
+  'upgrade.packageVersion':
+    'Nessuna versione verificata di {name} compatibile con {range} nei lock o nella cache; riprovare online.',
+  'upgrade.frameworkReview':
+    '{stack} {from} -> {to}: verificare codice/configurazioni ed eseguire la build.',
+  'upgrade.profileConflict':
+    'Il profilo {name} dichiara {dependency}@{spec}; il profilo generato imporrà {wanted}. Verificare il vecchio profilo.',
+  'upgrade.cycle':
+    'Il ciclo delle dipendenze locali include {project}; definire manualmente l’ordine di build.',
+  'upgrade.noBuild': '{project} non ha uno script build/test per la verifica.',
+  'upgrade.sharedNotice':
+    'Una sola installazione condivisa; node_modules locali eliminati dopo il successo. Backup solo di manifest e lock.',
+  'upgrade.sharedBlocked':
+    'I progetti non formano un gruppo comune; verificare conflitti, script e percorsi locali o selezionare una famiglia.',
+  'upgrade.sharedNpm':
+    'La migrazione condivisa richiede lock npm; convertire prima i lock yarn/pnpm.',
 };

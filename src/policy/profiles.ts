@@ -7,15 +7,20 @@ import { readJsonFile } from '../core/json.js';
 import type { DependencySection, Edit, Finding, Project } from '../core/types.js';
 import { isExactSpec, minVersionOf, satisfies } from '../core/versions.js';
 import type { ProjectContext } from '../providers/types.js';
+import { primaryStack } from './groups.js';
 
 /** Profiles that apply to a project, merged in declaration order (later profiles win). */
 export function profileFor(
   config: PackmanConfig,
   projectId: string,
+  stack?: string,
 ): { names: string[]; profile: ProfileConfig } | undefined {
-  const matching = Object.entries(config.profiles).filter(([, profile]) =>
-    picomatch(profile.projects)(projectId),
-  );
+  const matching = Object.entries(config.profiles)
+    .filter(
+      ([, profile]) =>
+        picomatch(profile.projects)(projectId) && (!profile.stack || profile.stack === stack),
+    )
+    .sort(([a], [b]) => Number(a.startsWith('packman-')) - Number(b.startsWith('packman-')));
   if (matching.length === 0) return undefined;
   const merged: ProfileConfig = {
     projects: [],
@@ -65,7 +70,11 @@ interface Change {
 /** Compares a project with its profile; every difference becomes a finding with a fix. */
 export async function profileFindings(ctx: ProjectContext): Promise<Finding[]> {
   const { project, config } = ctx;
-  const match = profileFor(config, project.id);
+  const match = profileFor(
+    config,
+    project.id,
+    primaryStack([...ctx.stacks.values()])?.provider ?? 'node',
+  );
   if (!match) return [];
   const { profile, names } = match;
   const scan = await ctx.sources();

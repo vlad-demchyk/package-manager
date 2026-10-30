@@ -11,7 +11,8 @@ export type NodePinSource =
   | '.tool-versions'
   | 'volta'
   | 'engines'
-  | 'policy.groups';
+  | 'policy.groups'
+  | 'target';
 
 export interface NodeRequirement {
   /** Semver range the project accepts (intersection is evaluated by callers). */

@@ -226,10 +226,11 @@ describe('store link and unlink', () => {
     await linkGroup(root, report, group, { replaceExisting: false, install });
     expect(install).toHaveBeenCalledTimes(1);
     expect(
-      (await readLinks(root)).find((link) => link.projectId === 'app-a')?.movedTo,
+      (await readLinks(root)).find((link) => link.projectId === 'app-a')?.backupDir,
     ).toBeDefined();
     await unlinkProjects(root, undefined, { restore: true });
-    expect(await readFile(path.join(root, 'app-a/node_modules/own.txt'), 'utf8')).toBe('original');
+    expect(existsSync(path.join(root, 'app-a/node_modules'))).toBe(false);
+    expect(existsSync(path.join(root, '.packman/trash'))).toBe(false);
   });
 
   it('retains recovery records when unlink encounters a real folder', async () => {
@@ -243,19 +244,19 @@ describe('store link and unlink', () => {
     const result = await unlinkProjects(root, undefined, { restore: true });
     expect(result.skipped.map((item) => item.projectId)).toEqual(['app-a']);
     const record = (await readLinks(root))[0];
-    expect(record?.movedTo).toBeDefined();
+    expect(record?.backupDir).toBeDefined();
     expect(
       (await pruneTargets(root, { trash: true })).some((target) =>
-        record?.movedTo?.startsWith(target + path.sep),
+        record?.backupDir?.startsWith(target + path.sep),
       ),
     ).toBe(false);
   });
 
-  it('tracks earlier members and the moved folder when linking a later member fails', async () => {
+  it('tracks earlier members and file backups when linking a later member fails', async () => {
     const { root, report } = await setup({ 'app-b/node_modules/own.txt': 'original' });
     const group = planStore(report).groups[0];
     if (!group) throw new Error('group expected');
-    // Inject an operation failure after the second member's modules have been moved.
+    // Inject an operation failure after the second member's modules have been deleted.
     group.mode = 'union';
     const second = report.projects.find((entry) => entry.project.id === 'app-b');
     if (!second) throw new Error('member expected');
@@ -283,16 +284,20 @@ describe('store link and unlink', () => {
   });
 
   it('does not link anything when the store install fails', async () => {
-    const { root, report } = await setup();
+    const { root, report } = await setup({
+      'app-a/node_modules/own.txt': 'keep after failed install',
+    });
     const group = planStore(report).groups[0];
     if (!group) throw new Error('group expected');
     await expect(
-      linkGroup(root, report, group, { replaceExisting: false, install: () => Promise.resolve(1) }),
+      linkGroup(root, report, group, { replaceExisting: true, install: () => Promise.resolve(1) }),
     ).rejects.toThrow(/nothing was linked/);
-    expect(existsSync(path.join(root, 'app-a', 'node_modules'))).toBe(false);
+    expect(await readFile(path.join(root, 'app-a/node_modules/own.txt'), 'utf8')).toBe(
+      'keep after failed install',
+    );
   });
 
-  it('links projects to one store and restores them on unlink', async () => {
+  it('deletes local modules, backs up only manifests/locks and restores those files on unlink', async () => {
     const { root, report } = await setup({ 'app-a/node_modules/own.txt': 'original' });
     const group = planStore(report).groups[0];
     if (!group) throw new Error('group expected');
@@ -315,16 +320,20 @@ describe('store link and unlink', () => {
     };
     expect(storeManifest).toMatchObject({ private: true, dependencies: { react: '18.3.1' } });
     const links = await readLinks(root);
-    expect(links.find((link) => link.projectId === 'app-a')?.movedTo).toContain(
-      path.join('.packman', 'trash'),
+    expect(links.find((link) => link.projectId === 'app-a')?.backupDir).toContain(
+      path.join('.packman', 'backups'),
     );
 
     const unlinked = await unlinkProjects(root, undefined, { restore: true });
     expect(unlinked.unlinked).toEqual(['app-a', 'app-b']);
-    expect(unlinked.restored).toEqual(['app-a']);
-    expect(await readFile(path.join(root, 'app-a', 'node_modules', 'own.txt'), 'utf8')).toBe(
-      'original',
-    );
+    expect(unlinked.restored).toEqual(['app-a', 'app-b']);
+    expect(existsSync(path.join(root, 'app-a', 'node_modules'))).toBe(false);
+    expect(existsSync(path.join(root, '.packman', 'trash'))).toBe(false);
+    const backupDir = links.find((link) => link.projectId === 'app-a')?.backupDir;
+    if (!backupDir) throw new Error('backup expected');
+    expect(existsSync(path.join(backupDir, 'app-a', 'package.json'))).toBe(true);
+    expect(existsSync(path.join(backupDir, 'app-a', 'package-lock.json'))).toBe(true);
+    expect(existsSync(path.join(backupDir, 'app-a', 'node_modules'))).toBe(false);
     expect(existsSync(path.join(root, 'app-b', 'node_modules'))).toBe(false);
     expect(existsSync(path.join(result.storeDir, 'node_modules', 'react', 'package.json'))).toBe(
       true,

@@ -6,7 +6,19 @@ import type { Edit, Finding, Project, StackInfo } from '../core/types.js';
 import { resolveVersion } from '../core/versions.js';
 
 /** Stacks that define the shape of a project, in priority order. */
-const PRIMARY_STACKS = ['spfx', 'angular', 'next', 'electron', 'vue', 'vite', 'react'];
+const PRIMARY_STACKS = [
+  'spfx',
+  'angular',
+  'next',
+  'electron',
+  'vue',
+  'vite',
+  'react',
+  'typescript',
+  'eslint',
+  'vitest',
+  'jest',
+];
 
 export interface GroupMember {
   project: Project;
@@ -39,7 +51,11 @@ export function buildGroups(members: GroupMember[], configured: GroupConfig[]): 
   const matchers = configured.map((group) => ({ group, isMatch: picomatch(group.projects) }));
 
   for (const member of members) {
-    const match = matchers.find(({ isMatch }) => isMatch(member.project.id));
+    const match = matchers.find(
+      ({ group, isMatch }) =>
+        isMatch(member.project.id) &&
+        (!group.stack || group.stack === (primaryStack(member.stacks)?.provider ?? 'node')),
+    );
     let group: VersionGroup | undefined;
     if (match) {
       group = groups.get(`config:${match.group.name}`);

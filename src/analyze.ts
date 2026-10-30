@@ -19,10 +19,14 @@ import { listInstalledNodes, type InstalledNode } from './node/toolchain.js';
 import {
   buildGroups,
   groupFindings,
+  primaryStack,
   type GroupMember,
   type VersionGroup,
 } from './policy/groups.js';
 import { profileFindings } from './policy/profiles.js';
+import { targetFindings } from './policy/target.js';
+import { migrationStack, newestProject, stackVersion } from './upgrade/targets.js';
+import { readLinks, type LinkRecord } from './store/store.js';
 import {
   angularProvider,
   electronProvider,
@@ -110,6 +114,7 @@ export interface Report {
   /** Findings that span several projects (group divergence, pins). */
   workspaceFindings: Finding[];
   installedNodes: InstalledNode[];
+  links?: LinkRecord[];
   data: { spfx: string; node: string; nodeVulns: string; advisories: AdvisoryStatus };
 }
 
@@ -158,6 +163,26 @@ export async function analyze(workspace: Workspace, options: AnalyzeOptions): Pr
   });
   const groups = buildGroups(members, options.config.policy.groups);
   const workspaceFindings = groups.flatMap((group) => groupFindings(group, members));
+  for (const stack of new Set(reports.map(migrationStack))) {
+    const baseline = newestProject(reports, stack);
+    const version = baseline ? stackVersion(baseline, stack) : undefined;
+    if (
+      baseline &&
+      version &&
+      reports.some(
+        (entry) => migrationStack(entry) === stack && stackVersion(entry, stack) !== version,
+      )
+    )
+      workspaceFindings.push(
+        finding(
+          'policy/repository-target',
+          'info',
+          undefined,
+          msg('target.repository', { stack, version, project: baseline.project.id }),
+          { tags: ['target', 'upgrade'], evidence: [`packman upgrade --stack ${stack}`] },
+        ),
+      );
+  }
   const distinctNode = new Set(groups.map((group) => group.node?.split('.')[0]).filter(Boolean));
   if (distinctNode.size > 1) {
     workspaceFindings.push(
@@ -175,6 +200,7 @@ export async function analyze(workspace: Workspace, options: AnalyzeOptions): Pr
   }
 
   for (const report of reports) {
+    report.findings.push(...targetFindings(report, options.config));
     report.findings = sortFindings(report.findings.filter((item) => !disabled.has(item.ruleId)));
   }
   return {
@@ -184,6 +210,7 @@ export async function analyze(workspace: Workspace, options: AnalyzeOptions): Pr
     groups,
     workspaceFindings: sortFindings(workspaceFindings.filter((item) => !disabled.has(item.ruleId))),
     installedNodes,
+    links: await readLinks(workspace.root),
     data: {
       spfx: spfxMatrix().verifiedAt,
       node: nodeDataDate(),
@@ -244,8 +271,17 @@ async function analyzeProject(
   }
 
   const findings: Finding[] = [];
-  const configuredGroup = options.config.policy.groups.find((group) =>
-    picomatch(group.projects)(project.id),
+  if (options.config.target.node)
+    ctx.nodeRequirements.push({
+      range: options.config.target.node,
+      source: 'target',
+      file: path.join(workspace.root, 'packman.config.json'),
+      pinned: true,
+    });
+  const configuredGroup = options.config.policy.groups.find(
+    (group) =>
+      picomatch(group.projects)(project.id) &&
+      (!group.stack || group.stack === (primaryStack([...stacks.values()])?.provider ?? 'node')),
   );
   if (configuredGroup?.node) {
     ctx.nodeRequirements.push({

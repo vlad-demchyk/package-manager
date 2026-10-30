@@ -143,7 +143,8 @@ export const en = {
   'store.linkPlan': '{count} projects will share one install built with Node {node}:',
   'store.confirmLink': 'Install the store and link these projects?',
   'store.linked': '{count} projects linked to {dir}',
-  'store.unlinked': '{count} links removed, {restored} node_modules restored',
+  'store.unlinked':
+    '{count} links removed, {restored} manifest/lock backups restored; run install to recreate local modules',
   'store.noLinks': 'No projects are linked.',
   'store.alignFirst': 'align first: {packages}',
   'init.exists': '{file} already exists; use --force to overwrite it.',
@@ -201,6 +202,52 @@ export const en = {
   'cli.noFixes': 'Nothing to fix.',
   'cli.confirm': 'Apply {count} changes to {files} files?',
   'cli.aborted': 'Aborted.',
+  'target.node': 'Node {version} differs from repository target {target}',
+  'target.stack': '{stack} {version} differs from repository target {target}',
+  'target.repository':
+    'Newest {stack} already in this repository: {version} ({project}); run upgrade to converge',
+  'upgrade.title': 'Repository migration plan (default: newest existing project)',
+  'upgrade.fixProject': 'Migrate to {version} and align the project stack',
+  'upgrade.fixPolicy': 'Save repository targets, profiles and unified groups',
+  'upgrade.order': 'Build order: {projects}',
+  'upgrade.blocked': '{count} blockers require changes before this migration can be applied.',
+  'upgrade.noProjects': 'No matching projects to migrate.',
+  'upgrade.jsonReadOnly':
+    '--json prints a read-only migration plan; use --apply without --json to write it.',
+  'upgrade.nodeMissing':
+    'Node {version} is not installed; install it before running npm or verifying builds.',
+  'upgrade.nodeIncompatible': 'No common Node satisfies all target stacks: {ranges}',
+  'upgrade.unknownVersion': 'Cannot determine the existing {stack} version.',
+  'upgrade.unknownSpfx': 'SPFx {version} has no verified migration data.',
+  'upgrade.downgrade':
+    'This would downgrade {from} to {to}; choose the newest existing project instead.',
+  'upgrade.linked': '{project} is already linked; unlink it before changing its dependency set.',
+  'upgrade.controls':
+    '{name}@{version} targets SPFx {built}; no verified matching release selected for {target}.',
+  'upgrade.platform': 'SharePoint environment {environment} does not support SPFx {version}.',
+  'upgrade.reactApi':
+    'React {version} needs migration of ReactDom.render/unmount to the root API in source code.',
+  'upgrade.pnpMajor': 'PnPjs {from} -> {to}: review API changes and verify the build.',
+  'upgrade.pnpApi':
+    'Source uses removed PnPjs APIs/imports; migrate getAll/getPaged/Graph paged to async iterators and replace common/odata imports.',
+  'upgrade.customGulp': '{file} has custom Gulp tasks; port them to Heft before applying.',
+  'upgrade.customScript': 'Script {name} needs a manual Heft equivalent: {command}',
+  'upgrade.customSass': 'Custom config/sass.json options need mapping to the Heft Sass schema.',
+  'upgrade.packageVersion':
+    'No verified version of {name} matching {range} is available in project locks or registry cache; retry online.',
+  'upgrade.frameworkReview':
+    '{stack} {from} -> {to}: review source/config migration and run the build.',
+  'upgrade.profileConflict':
+    'Profile {name} declares {dependency}@{spec}; the generated profile will enforce {wanted}. Review the old profile.',
+  'upgrade.cycle':
+    'Local project dependency cycle includes {project}; resolve the build order manually.',
+  'upgrade.noBuild': '{project} has no build/test script for verification.',
+  'upgrade.sharedNotice':
+    'One shared installation; local node_modules will be deleted after success. Only manifests and locks are backed up.',
+  'upgrade.sharedBlocked':
+    'The selected projects cannot form one shared group; inspect dependency conflicts, scripts and local paths, or select one framework family.',
+  'upgrade.sharedNpm':
+    'Shared migration requires npm lockfiles; convert yarn/pnpm locks before applying.',
 } as const;
 
 export type MessageKey = keyof typeof en;

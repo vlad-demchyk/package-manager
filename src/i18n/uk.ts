@@ -141,7 +141,8 @@ export const uk: Catalogue = {
   'store.linkPlan': '{count} проєктів матимуть одну установку, зібрану з Node {node}:',
   'store.confirmLink': 'Встановити сховище і привʼязати ці проєкти?',
   'store.linked': 'Привʼязано проєктів: {count} до {dir}',
-  'store.unlinked': 'Прибрано посилань: {count}, відновлено node_modules: {restored}',
+  'store.unlinked':
+    'Прибрано посилань: {count}, відновлено маніфести/lock: {restored}; виконайте install для локальної установки',
   'store.noLinks': 'Привʼязаних проєктів немає.',
   'store.alignFirst': 'спершу вирівняйте: {packages}',
   'init.exists': '{file} вже існує; використайте --force, щоб перезаписати.',
@@ -199,4 +200,50 @@ export const uk: Catalogue = {
   'cli.noFixes': 'Нічого виправляти.',
   'cli.confirm': 'Застосувати {count} змін у {files} файлах?',
   'cli.aborted': 'Скасовано.',
+  'target.node': 'Node {version} відрізняється від цілі репозиторію {target}',
+  'target.stack': '{stack} {version} відрізняється від цілі репозиторію {target}',
+  'target.repository':
+    'Найновіший {stack} у цьому репозиторії: {version} ({project}); upgrade вирівняє решту',
+  'upgrade.title': 'План міграції репозиторію (типово: найновіший наявний проєкт)',
+  'upgrade.fixProject': 'Перевести на {version} і вирівняти стек проєкту',
+  'upgrade.fixPolicy': 'Зберегти цілі репозиторію, профілі й спільні групи',
+  'upgrade.order': 'Порядок збірки: {projects}',
+  'upgrade.blocked': 'Блокерів: {count}. Перед застосуванням міграції потрібні виправлення.',
+  'upgrade.noProjects': 'Немає вибраних проєктів для міграції.',
+  'upgrade.jsonReadOnly':
+    '--json показує план без запису; для застосування використайте --apply без --json.',
+  'upgrade.nodeMissing':
+    'Node {version} не встановлено; встановіть його перед запуском npm або перевіркою збірки.',
+  'upgrade.nodeIncompatible': 'Немає спільного Node для всіх цільових стеків: {ranges}',
+  'upgrade.unknownVersion': 'Не вдалося визначити наявну версію {stack}.',
+  'upgrade.unknownSpfx': 'Для SPFx {version} немає перевірених даних міграції.',
+  'upgrade.downgrade': 'Це понизить {from} до {to}; виберіть найновіший наявний проєкт.',
+  'upgrade.linked': '{project} уже підʼєднано; перед зміною залежностей відʼєднайте його.',
+  'upgrade.controls':
+    '{name}@{version} розраховано на SPFx {built}; не вибрано перевіреної сумісної версії для {target}.',
+  'upgrade.platform': 'Середовище SharePoint {environment} не підтримує SPFx {version}.',
+  'upgrade.reactApi':
+    'Для React {version} треба перевести ReactDom.render/unmount у коді на root API.',
+  'upgrade.pnpMajor': 'PnPjs {from} -> {to}: перевірте зміни API й збірку.',
+  'upgrade.pnpApi':
+    'Код використовує прибрані API/імпорти PnPjs; замініть getAll/getPaged/Graph paged на async iterator та імпорти common/odata.',
+  'upgrade.customGulp':
+    '{file} містить власні задачі Gulp; перед застосуванням перенесіть їх у Heft.',
+  'upgrade.customScript': 'Скрипту {name} потрібен ручний еквівалент Heft: {command}',
+  'upgrade.customSass': 'Власні параметри config/sass.json треба перенести на схему Heft Sass.',
+  'upgrade.packageVersion':
+    'Немає перевіреної версії {name}, сумісної з {range}, у lock-файлах чи кеші; повторіть онлайн.',
+  'upgrade.frameworkReview':
+    '{stack} {from} -> {to}: перевірте зміни коду/конфігів і виконайте збірку.',
+  'upgrade.profileConflict':
+    'Профіль {name} задає {dependency}@{spec}; згенерований профіль задаватиме {wanted}. Перевірте старий профіль.',
+  'upgrade.cycle':
+    'Цикл залежностей локальних проєктів охоплює {project}; узгодьте порядок збірки.',
+  'upgrade.noBuild': 'У {project} немає скрипту build/test для перевірки.',
+  'upgrade.sharedNotice':
+    'Одна спільна установка; локальні node_modules видаляться після успіху. Резервуються лише маніфести й lock-файли.',
+  'upgrade.sharedBlocked':
+    'Вибрані проєкти не утворюють одну спільну групу; перевірте конфлікти залежностей, скрипти й локальні шляхи або виберіть одне сімейство.',
+  'upgrade.sharedNpm':
+    'Спільна міграція потребує npm lock-файлів; спочатку перетворіть yarn/pnpm lock.',
 };

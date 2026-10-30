@@ -9,6 +9,14 @@ export type { StackProvider, ProjectContext } from './providers/types.js';
 export { collectEdits, previewEdits, applyPreviews } from './fixes/apply.js';
 export type { FilePreview, ApplyResult } from './fixes/apply.js';
 export { planStore, linkGroup, unlinkProjects } from './store/store.js';
+export { planUpgrade } from './upgrade/plan.js';
+export type { UpgradeOptions } from './upgrade/plan.js';
+export type {
+  UpgradePlan,
+  UpgradeTarget,
+  ProjectMigration,
+  MigrationIssue,
+} from './upgrade/types.js';
 export type {
   StorePlan,
   StoreGroup,

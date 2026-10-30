@@ -17,6 +17,29 @@ export interface ApplyResult {
   backupDir: string;
 }
 
+/** Copies only the named files, preserving their workspace-relative paths. */
+export async function backupFiles(
+  root: string,
+  files: string[],
+  now = new Date(),
+): Promise<string> {
+  const backupRoot = path.join(root, '.packman', 'backups');
+  await mkdir(backupRoot, { recursive: true });
+  const backupDir = await mkdtemp(
+    path.join(backupRoot, `${now.toISOString().replace(/[:.]/g, '-')}-`),
+  );
+  for (const file of new Set(files)) {
+    const relative = path.relative(root, file);
+    if (relative.startsWith('..' + path.sep) || path.isAbsolute(relative))
+      throw new Error(`backup path outside workspace: ${file}`);
+    if (!existsSync(file)) continue;
+    const target = path.join(backupDir, relative);
+    await mkdir(path.dirname(target), { recursive: true });
+    await copyFile(file, target);
+  }
+  return backupDir;
+}
+
 /**
  * Merges edits from several fixes; later edits on the same JSON path win, except that a removal
  * made by one fix is never undone by another fix (a package moved or merged out of a section must
@@ -91,21 +114,16 @@ export async function applyPreviews(
         `file changed since preview: ${path.relative(root, preview.file)}; review the changes again`,
       );
   }
-  const stamp = now.toISOString().replace(/[:.]/g, '-');
-  const backupRoot = path.join(root, '.packman', 'backups');
-  await mkdir(backupRoot, { recursive: true });
-  const backupDir = await mkdtemp(path.join(backupRoot, `${stamp}-`));
-  for (const preview of previews) {
-    if (existsSync(preview.file)) {
-      const target = path.join(backupDir, path.relative(root, preview.file));
-      await mkdir(path.dirname(target), { recursive: true });
-      await copyFile(preview.file, target);
-    }
-  }
+  const backupDir = await backupFiles(
+    root,
+    previews.map((preview) => preview.file),
+    now,
+  );
   for (const preview of previews) {
     if (preview.deleted) {
       await rm(preview.file, { force: true });
     } else {
+      await mkdir(path.dirname(preview.file), { recursive: true });
       await writeFile(preview.file, preview.after, 'utf8');
     }
   }
