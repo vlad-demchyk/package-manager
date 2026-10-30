@@ -230,6 +230,8 @@ export const uk: Catalogue = {
   'upgrade.customGulp':
     '{file} містить власні задачі Gulp; перед застосуванням перенесіть їх у Heft.',
   'upgrade.customScript': 'Скрипту {name} потрібен ручний еквівалент Heft: {command}',
+  'upgrade.customEslint':
+    '{file} має власні налаштування старого ESLint; перед застосуванням перенесіть їх у цільовий flat config.',
   'upgrade.customSass': 'Власні параметри config/sass.json треба перенести на схему Heft Sass.',
   'upgrade.packageVersion':
     'Немає перевіреної версії {name}, сумісної з {range}, у lock-файлах чи кеші; повторіть онлайн.',

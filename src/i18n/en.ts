@@ -232,6 +232,8 @@ export const en = {
     'Source uses removed PnPjs APIs/imports; migrate getAll/getPaged/Graph paged to async iterators and replace common/odata imports.',
   'upgrade.customGulp': '{file} has custom Gulp tasks; port them to Heft before applying.',
   'upgrade.customScript': 'Script {name} needs a manual Heft equivalent: {command}',
+  'upgrade.customEslint':
+    '{file} has custom legacy ESLint settings; port them to the target flat config before applying.',
   'upgrade.customSass': 'Custom config/sass.json options need mapping to the Heft Sass schema.',
   'upgrade.packageVersion':
     'No verified version of {name} matching {range} is available in project locks or registry cache; retry online.',

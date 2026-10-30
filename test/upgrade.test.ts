@@ -414,7 +414,11 @@ describe('explicit SPFx migrations and blockers', () => {
   });
 
   it('generates Heft configuration only for an explicit newer target', async () => {
-    const { root, report } = await setup(spfx('app', '1.21.1'));
+    const { root, report } = await setup({
+      ...spfx('app', '1.21.1'),
+      'app/.eslintrc.js':
+        'require("@rushstack/eslint-config/patch/modern-module-resolution");\nmodule.exports = { extends: ["@microsoft/eslint-config-spfx/lib/profiles/default"], parserOptions: { tsconfigRootDir: __dirname } };\n',
+    });
     const plan = await planUpgrade(report, { config: config(), to: '1.24', fetchImpl: registry });
     expect(plan.targets[0]).toMatchObject({
       version: '1.24.0',
@@ -424,6 +428,10 @@ describe('explicit SPFx migrations and blockers', () => {
     expect(plan.projects[0]?.issues.filter((issue) => issue.level === 'blocker')).toEqual([]);
     await applyPreviews(root, await previewEdits(collectEdits(plan.fixes)));
     expect(existsSync(path.join(root, 'app/gulpfile.js'))).toBe(false);
+    expect(existsSync(path.join(root, 'app/.eslintrc.js'))).toBe(false);
+    expect(await readFile(path.join(root, 'app/eslint.config.cjs'), 'utf8')).toContain(
+      'flat-profiles/default',
+    );
     expect(
       JSON.parse(await readFile(path.join(root, 'app/config/rig.json'), 'utf8')),
     ).toMatchObject({ rigPackageName: '@microsoft/spfx-web-build-rig' });

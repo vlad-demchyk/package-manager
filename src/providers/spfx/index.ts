@@ -606,6 +606,7 @@ function projectCore(ctx: ProjectContext, stack: StackInfo): Promise<CorePackage
       '.eslintrc.json',
       '.eslintrc.cjs',
       'eslint.config.js',
+      'eslint.config.cjs',
       'eslint.config.mjs',
     ].some((file) => existsSync(path.join(ctx.project.dir, file)));
     const toolchain = (stack.details.toolchain ?? 'unknown') as Toolchain;

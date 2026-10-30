@@ -232,6 +232,8 @@ export const it: Catalogue = {
   'upgrade.customGulp':
     '{file} contiene task Gulp personalizzati; portarli a Heft prima di applicare.',
   'upgrade.customScript': 'Lo script {name} richiede un equivalente Heft manuale: {command}',
+  'upgrade.customEslint':
+    '{file} contiene impostazioni ESLint legacy personalizzate; migrarle alla configurazione flat prima di applicare.',
   'upgrade.customSass':
     'Le opzioni personalizzate di config/sass.json richiedono la mappatura allo schema Heft Sass.',
   'upgrade.packageVersion':

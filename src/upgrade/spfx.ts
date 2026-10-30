@@ -200,7 +200,9 @@ export async function spfxMigration(
   if (target.lint === 'eslint') {
     if (existsSync(path.join(project.dir, 'tslint.json')))
       edits.push({ kind: 'file-delete', file: path.join(project.dir, 'tslint.json') });
-    if (
+    const flatLint = (semver.coerce(pins.eslint ?? target.eslint ?? '0')?.major ?? 0) >= 9;
+    if (flatLint) edits.push(...(await flatLintEdits(project, issues)));
+    else if (
       !['.eslintrc.js', '.eslintrc.cjs', '.eslintrc.json'].some((file) =>
         existsSync(path.join(project.dir, file)),
       )
@@ -300,6 +302,40 @@ export async function spfxMigration(
       files: removedPnp.map((source) => path.relative(project.dir, source.file)),
     });
   return { edits, issues };
+}
+
+async function flatLintEdits(project: Project, issues: MigrationIssue[]): Promise<Edit[]> {
+  const edits: Edit[] = [];
+  const canonical =
+    'require(@rushstack/eslint-config/patch/modern-module-resolution)module.exports={extends:[@microsoft/eslint-config-spfx/lib/profiles/default],parserOptions:{tsconfigRootDir:__dirname}}';
+  for (const name of ['.eslintrc.js', '.eslintrc.cjs', '.eslintrc.json']) {
+    const file = path.join(project.dir, name);
+    if (!existsSync(file)) continue;
+    const text = stripComments(await readFile(file, 'utf8'))
+      .replace(/['"]use strict['"];?/g, '')
+      .replace(/[\s'";]/g, '')
+      .replace(/,([}\]])/g, '$1');
+    if (text === canonical) edits.push({ kind: 'file-delete', file });
+    else
+      issues.push({
+        code: 'custom-eslint',
+        level: 'blocker',
+        message: msg('upgrade.customEslint', { file: name }),
+        files: [name],
+      });
+  }
+  if (
+    !['eslint.config.js', 'eslint.config.cjs', 'eslint.config.mjs'].some((name) =>
+      existsSync(path.join(project.dir, name)),
+    )
+  )
+    edits.push({
+      kind: 'file-write',
+      file: path.join(project.dir, 'eslint.config.cjs'),
+      content:
+        "const spfxProfile = require('@microsoft/eslint-config-spfx/lib/flat-profiles/default');\nmodule.exports = [...spfxProfile, { files: ['**/*.ts', '**/*.tsx'], languageOptions: { parserOptions: { tsconfigRootDir: __dirname, project: './tsconfig.json' } } }];\n",
+    });
+  return edits;
 }
 
 function exactScaffoldSpec(
