@@ -1,0 +1,6 @@
+dist/
+coverage/
+legacy/
+data/*.json
+test/fixtures/
+bin/

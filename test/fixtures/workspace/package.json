@@ -1,0 +1,7 @@
+{
+  "name": "fixture-workspace",
+  "private": true,
+  "devDependencies": {
+    "gulp": "^5.0.1"
+  }
+}

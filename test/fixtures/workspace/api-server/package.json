@@ -1,0 +1,16 @@
+{
+  "name": "api-server",
+  "private": true,
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "start": "node src/server.js"
+  },
+  "dependencies": {
+    "express": "4.21.2"
+  },
+  "devDependencies": {
+    "nodemon": "3.1.9"
+  }
+}

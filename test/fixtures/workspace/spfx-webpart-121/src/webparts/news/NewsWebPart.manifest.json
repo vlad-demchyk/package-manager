@@ -1,0 +1,7 @@
+{
+  // SPFx manifests allow comments
+  "id": "00000000-0000-0000-0000-000000000001",
+  "alias": "NewsWebPart",
+  "componentType": "WebPart",
+  "version": "*"
+}

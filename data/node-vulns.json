@@ -1,0 +1,2855 @@
+{
+ "fetchedAt": "2026-10-30",
+ "source": "https://raw.githubusercontent.com/nodejs/security-wg/main/vuln/core/index.json",
+ "vulns": [
+  {
+   "id": "1",
+   "cve": [
+    "CVE-2017-1000381"
+   ],
+   "vulnerable": "8.x || 7.x || 4.x || 6.x || 5.x",
+   "patched": "^8.1.4 || ^7.10.1 || ^4.8.4 || ^6.11.1",
+   "severity": "high",
+   "description": "memory overread when parsing invalid NAPTR responses",
+   "ref": "https://nodejs.org/en/blog/vulnerability/july-2017-security-releases/",
+   "affectedEnvironments": [
+    "all"
+   ]
+  },
+  {
+   "id": "2",
+   "cve": [],
+   "vulnerable": "4.x || 5.x || 6.x || 7.x || 8.x",
+   "patched": "^4.8.4 || ^6.11.1 || ^7.10.1 || ^8.1.4",
+   "severity": "unknown",
+   "description": "DoS possible in V8 object lookup",
+   "ref": null,
+   "affectedEnvironments": [
+    "all"
+   ]
+  },
+  {
+   "id": "3",
+   "cve": [
+    "CVE-2017-3731"
+   ],
+   "vulnerable": "4.x || 5.x || 6.x || 7.x",
+   "patched": "^4.7.3 || ^6.9.5 || ^7.5.0",
+   "severity": "high",
+   "description": "Truncated packet could crash via OOB read",
+   "ref": "https://nodejs.org/en/blog/vulnerability/openssl-january-2017/",
+   "affectedEnvironments": [
+    "all"
+   ]
+  },
+  {
+   "id": "4",
+   "cve": [
+    "CVE-2017-3732"
+   ],
+   "vulnerable": "4.x || 5.x || 6.x || 7.x",
+   "patched": "^4.7.3 || ^6.9.5 || ^7.5.0",
+   "severity": "medium",
+   "description": "BN_mod_exp may produce incorrect results on x86_64",
+   "ref": "https://nodejs.org/en/blog/vulnerability/openssl-january-2017/",
+   "affectedEnvironments": [
+    "all"
+   ]
+  },
+  {
+   "id": "5",
+   "cve": [
+    "CVE-2016-7055"
+   ],
+   "vulnerable": "4.x || 5.x || 6.x || 7.x",
+   "patched": "^4.7.3 || ^6.9.5 || ^7.5.0",
+   "severity": "medium",
+   "description": "Montgomery multiplication may produce incorrect results",
+   "ref": "https://nodejs.org/en/blog/vulnerability/openssl-january-2017/",
+   "affectedEnvironments": [
+    "all"
+   ]
+  },
+  {
+   "id": "6",
+   "cve": [
+    "CVE-2016-9551"
+   ],
+   "vulnerable": "^7.1.0",
+   "patched": "^7.2.0",
+   "severity": "unknown",
+   "description": "potential buffer overflow when writing data to console on Windows 10",
+   "ref": "https://github.com/nodejs/node/pull/9647",
+   "affectedEnvironments": [
+    "all"
+   ]
+  },
+  {
+   "id": "7",
+   "cve": [
+    "CVE-2016-9840",
+    "CVE-2016-9841",
+    "CVE-2016-9842",
+    "CVE-2016-9843"
+   ],
+   "vulnerable": "4.x || 5.x || 6.x || 7.x",
+   "patched": "^4.8.2 || ^6.10.2 || ^7.6.0",
+   "severity": "high",
+   "description": "undefined language constructs that may have security impact",
+   "ref": "https://github.com/madler/zlib/commit/d1d577490c15a0c6862473d7576352a9f18ef811",
+   "affectedEnvironments": [
+    "all"
+   ]
+  },
+  {
+   "id": "8",
+   "cve": [
+    "CVE-2016-5180"
+   ],
+   "vulnerable": "0.10.x || 0.12.x || 4.x",
+   "patched": "^0.10.48 || ^0.12.17 || ^4.6.1",
+   "severity": "critical",
+   "description": "ares_create_query single byte out of buffer write",
+   "ref": "https://c-ares.haxx.se/adv_20160929.html",
+   "affectedEnvironments": [
+    "all"
+   ]
+  },
+  {
+   "id": "9",
+   "cve": [],
+   "vulnerable": "6.x",
+   "patched": "^6.9.0",
+   "severity": "medium",
+   "description": "automatically loading OPENSSL_CONF is unsafe",
+   "ref": "https://nodejs.org/en/blog/vulnerability/october-2016-security-releases/",
+   "affectedEnvironments": [
+    "all"
+   ]
+  },
+  {
+   "id": "10",
+   "cve": [
+    "CVE-2016-5172"
+   ],
+   "vulnerable": "6.x",
+   "patched": "^6.9.0",
+   "severity": "medium",
+   "description": "",
+   "ref": "https://nodejs.org/en/blog/vulnerability/october-2016-security-releases/",
+   "affectedEnvironments": [
+    "all"
+   ]
+  },
+  {
+   "id": "11",
+   "cve": [],
+   "vulnerable": "6.x",
+   "patched": "^6.9.0",
+   "severity": "medium",
+   "description": "unauthorized clients can easily access inspector port",
+   "ref": "https://nodejs.org/en/blog/vulnerability/october-2016-security-releases/",
+   "affectedEnvironments": [
+    "all"
+   ]
+  },
+  {
+   "id": "12",
+   "cve": [
+    "CVE-2016-6304"
+   ],
+   "vulnerable": "6.x || 5.x || 4.x",
+   "patched": "^6.7.0 || ^4.6.0",
+   "severity": "high",
+   "description": "openssl 1.0.2h vulnerabilities",
+   "ref": "https://github.com/nodejs/node/pull/8714",
+   "affectedEnvironments": [
+    "all"
+   ]
+  },
+  {
+   "id": "13",
+   "cve": [
+    "CVE-2016-2183"
+   ],
+   "vulnerable": "6.x || 5.x || 4.x",
+   "patched": "^6.7.0 || ^4.6.0",
+   "severity": "high",
+   "description": "openssl 1.0.2h vulnerabilities",
+   "ref": "https://github.com/nodejs/node/pull/8714",
+   "affectedEnvironments": [
+    "all"
+   ]
+  },
+  {
+   "id": "14",
+   "cve": [
+    "CVE-2016-6303"
+   ],
+   "vulnerable": "6.x || 5.x || 4.x",
+   "patched": "^6.7.0 || ^4.6.0",
+   "severity": "high",
+   "description": "openssl 1.0.2h vulnerabilities",
+   "ref": "https://github.com/nodejs/node/pull/8714",
+   "affectedEnvironments": [
+    "all"
+   ]
+  },
+  {
+   "id": "15",
+   "cve": [
+    "CVE-2016-2178"
+   ],
+   "vulnerable": "6.x || 5.x || 4.x",
+   "patched": "^6.7.0 || ^4.6.0",
+   "severity": "medium",
+   "description": "openssl 1.0.2h vulnerabilities",
+   "ref": "https://github.com/nodejs/node/pull/8714",
+   "affectedEnvironments": [
+    "all"
+   ]
+  },
+  {
+   "id": "16",
+   "cve": [
+    "CVE-2016-6306"
+   ],
+   "vulnerable": "6.x || 5.x || 4.x",
+   "patched": "^6.7.0 || ^4.6.0",
+   "severity": "medium",
+   "description": "openssl 1.0.2h vulnerabilities",
+   "ref": "https://github.com/nodejs/node/pull/8714",
+   "affectedEnvironments": [
+    "all"
+   ]
+  },
+  {
+   "id": "17",
+   "cve": [],
+   "vulnerable": "6.x",
+   "patched": "^6.7.0",
+   "severity": "unknown",
+   "description": "",
+   "ref": "https://github.com/nodejs/node-private/pull/73",
+   "affectedEnvironments": [
+    "all"
+   ]
+  },
+  {
+   "id": "18",
+   "cve": [
+    "CVE-2016-5325"
+   ],
+   "vulnerable": "6.x || 4.x || 5.x",
+   "patched": "^6.7.0 || ^4.6.0",
+   "severity": "medium",
+   "description": "HTTP processing security defect (CVE-2016-5325)",
+   "ref": "https://github.com/nodejs/node-private/pull/60",
+   "affectedEnvironments": [
+    "all"
+   ]
+  },
+  {
+   "id": "19",
+   "cve": [
+    "CVE-2016-7099"
+   ],
+   "vulnerable": "6.x || 4.x || 5.x",
+   "patched": "^6.7.0 || ^4.6.0",
+   "severity": "medium",
+   "description": "invalid wildcard certificate validation check",
+   "ref": "https://github.com/nodejs/node/commit/743f0c9164",
+   "affectedEnvironments": [
+    "all"
+   ]
+  },
+  {
+   "id": "20",
+   "cve": [],
+   "vulnerable": "6.x || 4.x",
+   "patched": "^6.7.0 || ^4.6.0",
+   "severity": "unknown",
+   "description": "**crypto**: don't build hardware engines (Ben Noordhuis)",
+   "ref": "https://github.com/nodejs/node-private/pull/73",
+   "affectedEnvironments": [
+    "all"
+   ]
+  },
+  {
+   "id": "21",
+   "cve": [],
+   "vulnerable": "6.x || 5.x || 4.x",
+   "patched": "^6.2.1 || ^4.5.0",
+   "severity": "unknown",
+   "description": "Ignore negative lengths in calls to `Buffer()` and `Buffer.allocUnsafe()`.",
+   "ref": "https://github.com/nodejs/node/issues/7047#issuecomment-222393982",
+   "affectedEnvironments": [
+    "all"
+   ]
+  },
+  {
+   "id": "22",
+   "cve": [
+    "CVE-2016-2107"
+   ],
+   "vulnerable": "4.x || 5.x || 6.x",
+   "patched": "^4.4.4 || ^5.11.1 || ^6.1.0",
+   "severity": "medium",
+   "description": "Padding oracle in AES-NI CBC MAC check",
+   "ref": "https://nodejs.org/en/blog/vulnerability/openssl-may-2016/#cve-2016-2107-padding-oracle-in-aes-ni-cbc-mac-check",
+   "affectedEnvironments": [
+    "all"
+   ]
+  },
+  {
+   "id": "23",
+   "cve": [
+    "CVE-2016-2105"
+   ],
+   "vulnerable": "4.x || 5.x || 6.x",
+   "patched": "^4.4.4 || ^5.11.1 || ^6.1.0",
+   "severity": "high",
+   "description": "EVP_EncodeUpdate overflow",
+   "ref": "https://nodejs.org/en/blog/vulnerability/openssl-may-2016/#cve-2016-2107-padding-oracle-in-aes-ni-cbc-mac-check",
+   "affectedEnvironments": [
+    "all"
+   ]
+  },
+  {
+   "id": "24",
+   "cve": [
+    "CVE-2016-1669"
+   ],
+   "vulnerable": ">=6.0.0 <6.2.0 || 5.x || 4.x",
+   "patched": "^4.4.6 || ^5.12.0",
+   "severity": "high",
+   "description": "Buffer overflow in V8",
+   "ref": "https://nodejs.org/en/blog/vulnerability/june-2016-security-releases",
+   "affectedEnvironments": [
+    "all"
+   ]
+  },
+  {
+   "id": "25",
+   "cve": [],
+   "vulnerable": "5.x || 4.x || 6.x",
+   "patched": "^5.12.0 || ^4.5.0 || ^6.2.1",
+   "severity": "unknown",
+   "description": "ignore negative allocation lengths",
+   "ref": "https://github.com/nodejs/node/pull/7562",
+   "affectedEnvironments": [
+    "all"
+   ]
+  },
+  {
+   "id": "26",
+   "cve": [],
+   "vulnerable": "5.x || 4.x",
+   "patched": "^5.10.0 || 4.4.2",
+   "severity": "unknown",
+   "description": "security flaw in the use of npm authentication tokens in HTTP requests",
+   "ref": "https://github.com/npm/node/pull/6",
+   "affectedEnvironments": [
+    "all"
+   ]
+  },
+  {
+   "id": "27",
+   "cve": [
+    "CVE-2016-2086"
+   ],
+   "vulnerable": "5.x || 4.x",
+   "patched": "^5.6.0 || ^4.3.0",
+   "severity": "high",
+   "description": "",
+   "ref": null,
+   "affectedEnvironments": [
+    "all"
+   ]
+  },
+  {
+   "id": "28",
+   "cve": [
+    "CVE-2016-2216"
+   ],
+   "vulnerable": "5.x || 4.x",
+   "patched": "^5.6.0 || ^4.3.0",
+   "severity": "high",
+   "description": "",
+   "ref": null,
+   "affectedEnvironments": [
+    "all"
+   ]
+  },
+  {
+   "id": "29",
+   "cve": [],
+   "vulnerable": "4.x || 5.x",
+   "patched": "^5.11.1 || ^4.4.4",
+   "severity": "unknown",
+   "description": "buffer safeguard against accidental kNoZeroFill",
+   "ref": null,
+   "affectedEnvironments": [
+    "all"
+   ]
+  },
+  {
+   "id": "30",
+   "cve": [],
+   "vulnerable": "4.x || 5.x",
+   "patched": "^4.3.2 || ^5.7.1",
+   "severity": "unknown",
+   "description": "",
+   "ref": "https://github.com/nodejs/node/pull/5507",
+   "affectedEnvironments": [
+    "all"
+   ]
+  },
+  {
+   "id": "31",
+   "cve": [
+    "CVE-2016-0797"
+   ],
+   "vulnerable": "4.x || 5.x",
+   "patched": "^4.3.2 || ^5.7.1",
+   "severity": "high",
+   "description": "",
+   "ref": "https://github.com/nodejs/node/pull/5507",
+   "affectedEnvironments": [
+    "all"
+   ]
+  },
+  {
+   "id": "32",
+   "cve": [
+    "CVE-2016-0702"
+   ],
+   "vulnerable": "4.x || 5.x",
+   "patched": "^4.3.2 || ^5.7.1",
+   "severity": "medium",
+   "description": "",
+   "ref": "https://ssrg.nicta.com.au/projects/TS/cachebleed",
+   "affectedEnvironments": [
+    "all"
+   ]
+  },
+  {
+   "id": "33",
+   "cve": [],
+   "vulnerable": "4.x || 5.x",
+   "patched": "^5.6.0 || ^4.3.0",
+   "severity": "unknown",
+   "description": "mitigate against the Logjam attack",
+   "ref": null,
+   "affectedEnvironments": [
+    "all"
+   ]
+  },
+  {
+   "id": "34",
+   "cve": [
+    "CVE-2015-8027"
+   ],
+   "vulnerable": "5.x || 4.x",
+   "patched": "^5.1.1 || ^4.2.3",
+   "severity": "high",
+   "description": "",
+   "ref": null,
+   "affectedEnvironments": [
+    "all"
+   ]
+  },
+  {
+   "id": "35",
+   "cve": [
+    "CVE-2015-6764"
+   ],
+   "vulnerable": "5.x || 4.x",
+   "patched": "^5.1.1 || ^4.2.3",
+   "severity": "high",
+   "description": "",
+   "ref": null,
+   "affectedEnvironments": [
+    "all"
+   ]
+  },
+  {
+   "id": "36",
+   "cve": [
+    "CVE-2015-3193"
+   ],
+   "vulnerable": "5.x || 4.x",
+   "patched": "^5.1.1 || ^4.2.3",
+   "severity": "high",
+   "description": "BN_mod_exp may produce incorrect results on x86_64",
+   "ref": "http://openssl.org/news/secadv/20151203.txt",
+   "affectedEnvironments": [
+    "all"
+   ]
+  },
+  {
+   "id": "37",
+   "cve": [
+    "CVE-2015-3194"
+   ],
+   "vulnerable": "5.x || 4.x",
+   "patched": "^5.1.1 || ^4.2.3",
+   "severity": "high",
+   "description": "Certificate verify crash with missing PSS parameter",
+   "ref": "https://github.com/nodejs/node/pull/4134",
+   "affectedEnvironments": [
+    "all"
+   ]
+  },
+  {
+   "id": "38",
+   "cve": [],
+   "vulnerable": "4.x || 6.x",
+   "patched": "^4.7.2 || ^6.9.4",
+   "severity": "unknown",
+   "description": "no shasum exists to verify downloads",
+   "ref": null,
+   "affectedEnvironments": [
+    "all"
+   ]
+  },
+  {
+   "id": "39",
+   "cve": [],
+   "vulnerable": "4.x",
+   "patched": "^4.1.1",
+   "severity": "unknown",
+   "description": "data leakage via reuse of memory space in TypedArrays",
+   "ref": "https://github.com/nodejs/node/pull/2931",
+   "affectedEnvironments": [
+    "all"
+   ]
+  },
+  {
+   "id": "40",
+   "cve": [
+    "CVE-2015-7384"
+   ],
+   "vulnerable": "4.x",
+   "patched": "^4.1.2",
+   "severity": "high",
+   "description": "out-of-order 'finish' event bug in pipelining can abort execution",
+   "ref": "https://github.com/nodejs/node/pull/3128",
+   "affectedEnvironments": [
+    "all"
+   ]
+  },
+  {
+   "id": "41",
+   "cve": [],
+   "vulnerable": "4.x",
+   "patched": "^4.1.1",
+   "severity": "unknown",
+   "description": "",
+   "ref": "https://github.com/nodejs/node/pull/2945",
+   "affectedEnvironments": [
+    "all"
+   ]
+  },
+  {
+   "id": "42",
+   "cve": [
+    "CVE-2017-14849"
+   ],
+   "vulnerable": "8.5.0",
+   "patched": "^8.6.0",
+   "severity": "high",
+   "description": "",
+   "ref": "https://nodejs.org/en/blog/vulnerability/september-2017-path-validation/",
+   "affectedEnvironments": [
+    "all"
+   ]
+  },
+  {
+   "id": "43",
+   "cve": [
+    "CVE-2017-14919"
+   ],
+   "vulnerable": "^4.8.2 || ^6.10.2  || 8.x",
+   "patched": "^4.8.5 || ^6.11.5 || ^8.8.0",
+   "severity": "high",
+   "description": "",
+   "ref": "https://nodejs.org/en/blog/vulnerability/oct-2017-dos/",
+   "affectedEnvironments": [
+    "all"
+   ]
+  },
+  {
+   "id": "44",
+   "cve": [
+    "CVE-2017-15896"
+   ],
+   "vulnerable": "4.x || 6.x  || 8.x || 9.x",
+   "patched": "^4.8.7 || ^6.12.2 || ^8.9.3 || ^9.2.1",
+   "severity": "critical",
+   "description": "",
+   "ref": "https://nodejs.org/en/blog/vulnerability/december-2017-security-releases/",
+   "affectedEnvironments": [
+    "all"
+   ]
+  },
+  {
+   "id": "45",
+   "cve": [
+    "CVE-2017-15897"
+   ],
+   "vulnerable": "8.x || 9.x",
+   "patched": "^8.9.3 || ^9.2.1",
+   "severity": "low",
+   "description": "",
+   "ref": "https://nodejs.org/en/blog/vulnerability/december-2017-security-releases/",
+   "affectedEnvironments": [
+    "all"
+   ]
+  },
+  {
+   "id": "46",
+   "cve": [
+    "CVE-2018-7158"
+   ],
+   "vulnerable": "4.x",
+   "patched": "^4.9.0",
+   "severity": "high",
+   "description": "",
+   "ref": "https://nodejs.org/en/blog/vulnerability/march-2018-security-releases/",
+   "affectedEnvironments": [
+    "all"
+   ]
+  },
+  {
+   "id": "47",
+   "cve": [
+    "CVE-2018-7159"
+   ],
+   "vulnerable": "4.x || 6.x || 8.x || 9.x",
+   "patched": "^4.9.0 || ^6.14.0 || ^8.11.0 || ^9.10.0",
+   "severity": "medium",
+   "description": "",
+   "ref": "https://nodejs.org/en/blog/vulnerability/march-2018-security-releases/",
+   "affectedEnvironments": [
+    "all"
+   ]
+  },
+  {
+   "id": "48",
+   "cve": [
+    "CVE-2018-7160"
+   ],
+   "vulnerable": "6.x || 8.x || 9.x",
+   "patched": "^6.14.0 || ^8.11.0 || ^9.10.0",
+   "severity": "high",
+   "description": "",
+   "ref": "https://nodejs.org/en/blog/vulnerability/march-2018-security-releases/",
+   "affectedEnvironments": [
+    "all"
+   ]
+  },
+  {
+   "id": "49",
+   "cve": [
+    "CVE-2018-7161"
+   ],
+   "vulnerable": "8.x || 9.x || 10.x",
+   "patched": "^8.11.3 || ^9.11.2 || ^10.4.1",
+   "severity": "high",
+   "description": "",
+   "ref": "https://nodejs.org/en/blog/vulnerability/june-2018-security-releases/",
+   "affectedEnvironments": [
+    "all"
+   ]
+  },
+  {
+   "id": "50",
+   "cve": [
+    "CVE-2018-7162"
+   ],
+   "vulnerable": "9.x || 10.x",
+   "patched": "^9.11.2 || ^10.4.1",
+   "severity": "high",
+   "description": "",
+   "ref": "https://nodejs.org/en/blog/vulnerability/june-2018-security-releases/",
+   "affectedEnvironments": [
+    "all"
+   ]
+  },
+  {
+   "id": "51",
+   "cve": [
+    "CVE-2018-7164"
+   ],
+   "vulnerable": "9.7.x || 10.x",
+   "patched": "^9.11.2 || ^10.4.1",
+   "severity": "high",
+   "description": "",
+   "ref": "https://nodejs.org/en/blog/vulnerability/june-2018-security-releases/",
+   "affectedEnvironments": [
+    "all"
+   ]
+  },
+  {
+   "id": "52",
+   "cve": [
+    "CVE-2018-7167"
+   ],
+   "vulnerable": "6.x || 8.x || 9.x",
+   "patched": "^6.14.3 || ^8.11.3 || ^9.11.2",
+   "severity": "high",
+   "description": "",
+   "ref": "https://nodejs.org/en/blog/vulnerability/june-2018-security-releases/",
+   "affectedEnvironments": [
+    "all"
+   ]
+  },
+  {
+   "id": "53",
+   "cve": [
+    "CVE-2018-7166"
+   ],
+   "vulnerable": "10.x",
+   "patched": ">= 10.9.0",
+   "severity": "high",
+   "description": "",
+   "ref": "https://nodejs.org/en/blog/vulnerability/august-2018-security-releases/",
+   "affectedEnvironments": [
+    "all"
+   ]
+  },
+  {
+   "id": "54",
+   "cve": [
+    "CVE-2018-12115"
+   ],
+   "vulnerable": "<= 10",
+   "patched": "^6.14.4 || ^8.11.4 || >= 10.9.0",
+   "severity": "high",
+   "description": "",
+   "ref": "https://nodejs.org/en/blog/vulnerability/august-2018-security-releases/",
+   "affectedEnvironments": [
+    "all"
+   ]
+  },
+  {
+   "id": "55",
+   "cve": [
+    "CVE-2018-12116"
+   ],
+   "vulnerable": "6.x || 8.x",
+   "patched": "^6.15.0 || ^8.14.0",
+   "severity": "high",
+   "description": "",
+   "ref": "https://nodejs.org/en/blog/vulnerability/november-2018-security-releases/",
+   "affectedEnvironments": [
+    "all"
+   ]
+  },
+  {
+   "id": "56",
+   "cve": [
+    "CVE-2018-12120"
+   ],
+   "vulnerable": "6.x || 8.x",
+   "patched": "^6.15.0 || ^8.14.0",
+   "severity": "high",
+   "description": "",
+   "ref": "https://nodejs.org/en/blog/vulnerability/november-2018-security-releases/",
+   "affectedEnvironments": [
+    "all"
+   ]
+  },
+  {
+   "id": "57",
+   "cve": [
+    "CVE-2018-12121"
+   ],
+   "vulnerable": "6.x || 8.x || 10.x || 11.x",
+   "patched": "^6.15.0 || ^8.14.0 || ^10.14.0 || ^11.3.0",
+   "severity": "high",
+   "description": "",
+   "ref": "https://nodejs.org/en/blog/vulnerability/november-2018-security-releases/",
+   "affectedEnvironments": [
+    "all"
+   ]
+  },
+  {
+   "id": "58",
+   "cve": [
+    "CVE-2018-12122"
+   ],
+   "vulnerable": "6.x || 8.x || 10.x || 11.x",
+   "patched": "^6.15.0 || ^8.14.0 || ^10.14.0 || ^11.3.0",
+   "severity": "high",
+   "description": "",
+   "ref": "https://nodejs.org/en/blog/vulnerability/november-2018-security-releases/",
+   "affectedEnvironments": [
+    "all"
+   ]
+  },
+  {
+   "id": "59",
+   "cve": [
+    "CVE-2018-12123"
+   ],
+   "vulnerable": "6.x || 8.x || 10.x || 11.x",
+   "patched": "^6.15.0 || ^8.14.0 || ^10.14.0 || ^11.3.0",
+   "severity": "medium",
+   "description": "",
+   "ref": "https://nodejs.org/en/blog/vulnerability/november-2018-security-releases/",
+   "affectedEnvironments": [
+    "all"
+   ]
+  },
+  {
+   "id": "60",
+   "cve": [
+    "CVE-2019-5737"
+   ],
+   "vulnerable": "6.x || 8.x || 10.x || 11.x",
+   "patched": "^6.17.0 || ^8.15.1 || ^10.15.2 || ^11.10.1",
+   "severity": "high",
+   "description": "",
+   "ref": "https://nodejs.org/en/blog/vulnerability/february-2019-security-releases/",
+   "affectedEnvironments": [
+    "all"
+   ]
+  },
+  {
+   "id": "61",
+   "cve": [
+    "CVE-2019-5739"
+   ],
+   "vulnerable": "6.x",
+   "patched": "^6.17.0",
+   "severity": "high",
+   "description": "",
+   "ref": "https://nodejs.org/en/blog/vulnerability/february-2019-security-releases/",
+   "affectedEnvironments": [
+    "all"
+   ]
+  },
+  {
+   "id": "62",
+   "cve": [
+    "CVE-2019-9511",
+    "CVE-2019-9512",
+    "CVE-2019-9513",
+    "CVE-2019-9514",
+    "CVE-2019-9515",
+    "CVE-2019-9516",
+    "CVE-2019-9517",
+    "CVE-2019-9518"
+   ],
+   "vulnerable": "8.x || 10.x || 12.x",
+   "patched": "^8.16.1 || ^10.16.3 || ^12.8.1",
+   "severity": "high",
+   "description": "",
+   "ref": "https://nodejs.org/en/blog/vulnerability/aug-2019-security-releases/",
+   "affectedEnvironments": [
+    "all"
+   ]
+  },
+  {
+   "id": "63",
+   "cve": [
+    "CVE-2019-15604"
+   ],
+   "vulnerable": "10.x || 12.x || 13.x",
+   "patched": "^10.19.0 || ^12.15.0 || ^13.8.0",
+   "severity": "high",
+   "description": "",
+   "ref": "https://hackerone.com/reports/746733",
+   "affectedEnvironments": [
+    "all"
+   ]
+  },
+  {
+   "id": "64",
+   "cve": [
+    "CVE-2019-15605"
+   ],
+   "vulnerable": "10.x || 12.x || 13.x",
+   "patched": "^10.19.0 || ^12.15.0 || ^13.8.0",
+   "severity": "critical",
+   "description": "",
+   "ref": "https://hackerone.com/reports/735748",
+   "affectedEnvironments": [
+    "all"
+   ]
+  },
+  {
+   "id": "65",
+   "cve": [
+    "CVE-2019-15606"
+   ],
+   "vulnerable": "10.x || 12.x || 13.x",
+   "patched": "^10.19.0 || ^12.15.0 || ^13.8.0",
+   "severity": "high",
+   "description": "",
+   "ref": "https://hackerone.com/reports/730779",
+   "affectedEnvironments": [
+    "all"
+   ]
+  },
+  {
+   "id": "66",
+   "cve": [
+    "CVE-2020-8201"
+   ],
+   "vulnerable": "12.x || 14.x",
+   "patched": "^12.18.4 || ^14.11.0",
+   "severity": "high",
+   "description": "",
+   "ref": "https://nodejs.org/en/blog/vulnerability/september-2020-security-releases/",
+   "affectedEnvironments": [
+    "all"
+   ]
+  },
+  {
+   "id": "67",
+   "cve": [
+    "CVE-2020-8251"
+   ],
+   "vulnerable": "14.x",
+   "patched": "^14.11.0",
+   "severity": "critical",
+   "description": "",
+   "ref": "https://nodejs.org/en/blog/vulnerability/september-2020-security-releases/",
+   "affectedEnvironments": [
+    "all"
+   ]
+  },
+  {
+   "id": "68",
+   "cve": [
+    "CVE-2020-8252"
+   ],
+   "vulnerable": "10.x || 12.x || 14.x",
+   "patched": "^10.22.1 || ^12.18.4 || ^14.9.0",
+   "severity": "medium",
+   "description": "",
+   "ref": "https://nodejs.org/en/blog/vulnerability/september-2020-security-releases/",
+   "affectedEnvironments": [
+    "all"
+   ]
+  },
+  {
+   "id": "69",
+   "cve": [
+    "CVE-2020-8277"
+   ],
+   "vulnerable": " 12.x || 14.x || 15.x",
+   "patched": " ^12.19.1 || ^14.15.1 || 15.2.1",
+   "severity": "high",
+   "description": "",
+   "ref": "https://nodejs.org/en/blog/vulnerability/november-2020-security-releases/",
+   "affectedEnvironments": [
+    "all"
+   ]
+  },
+  {
+   "id": "70",
+   "cve": [
+    "CVE-2020-8265"
+   ],
+   "vulnerable": "10.x || 12.x || 14.x || 15.x",
+   "patched": "^10.23.1 || ^12.20.1 || ^14.15.4 || ^15.5.1",
+   "severity": "high",
+   "description": "",
+   "ref": "https://nodejs.org/en/blog/vulnerability/january-2021-security-releases/",
+   "affectedEnvironments": [
+    "all"
+   ]
+  },
+  {
+   "id": "71",
+   "cve": [
+    "CVE-2020-8287"
+   ],
+   "vulnerable": "10.x || 12.x || 14.x || 15.x",
+   "patched": "^10.23.1 || ^12.20.1 || ^14.15.4 || ^15.5.1",
+   "severity": "low",
+   "description": "",
+   "ref": "https://nodejs.org/en/blog/vulnerability/january-2021-security-releases/",
+   "affectedEnvironments": [
+    "all"
+   ]
+  },
+  {
+   "id": "72",
+   "cve": [
+    "CVE-2020-1971"
+   ],
+   "vulnerable": "10.x || 12.x || 14.x || 15.x",
+   "patched": "^10.23.1 || ^12.20.1 || ^14.15.4 || ^15.5.0",
+   "severity": "medium",
+   "description": "",
+   "ref": "https://nodejs.org/en/blog/vulnerability/january-2021-security-releases/",
+   "affectedEnvironments": [
+    "all"
+   ]
+  },
+  {
+   "id": "73",
+   "cve": [
+    "CVE-2021-22883"
+   ],
+   "vulnerable": " 10.x || 12.x || 14.x || 15.x",
+   "patched": " ^10.24.0 || ^12.21.0 || ^14.16.0 || ^15.10.0",
+   "severity": "critical",
+   "description": "",
+   "ref": "https://nodejs.org/en/blog/vulnerability/february-2021-security-releases/",
+   "affectedEnvironments": [
+    "all"
+   ]
+  },
+  {
+   "id": "74",
+   "cve": [
+    "CVE-2021-22884"
+   ],
+   "vulnerable": " 10.x || 12.x || 14.x || 15.x",
+   "patched": " ^10.24.0 || ^12.21.0 || ^14.16.0 || ^15.10.0",
+   "severity": "high",
+   "description": "",
+   "ref": "https://nodejs.org/en/blog/vulnerability/february-2021-security-releases/",
+   "affectedEnvironments": [
+    "all"
+   ]
+  },
+  {
+   "id": "75",
+   "cve": [
+    "CVE-2021-23840"
+   ],
+   "vulnerable": " 10.x || 12.x || 14.x || 15.x",
+   "patched": " ^10.24.0 || ^12.21.0 || ^14.16.0 || ^15.10.0",
+   "severity": "high",
+   "description": "",
+   "ref": "https://nodejs.org/en/blog/vulnerability/february-2021-security-releases/",
+   "affectedEnvironments": [
+    "all"
+   ]
+  },
+  {
+   "id": "76",
+   "cve": [
+    "CVE-2021-3450"
+   ],
+   "vulnerable": " 10.x || 12.x || 14.x || 15.x",
+   "patched": " ^10.24.1 || ^12.22.1 || ^14.16.1 || ^15.14.0",
+   "severity": "high",
+   "description": "",
+   "ref": "https://nodejs.org/en/blog/vulnerability/april-2021-security-releases/",
+   "affectedEnvironments": [
+    "all"
+   ]
+  },
+  {
+   "id": "77",
+   "cve": [
+    "CVE-2021-3449"
+   ],
+   "vulnerable": " 10.x || 12.x || 14.x || 15.x",
+   "patched": " ^10.24.1 || ^12.22.1 || ^14.16.1 || ^15.14.0",
+   "severity": "high",
+   "description": "",
+   "ref": "https://nodejs.org/en/blog/vulnerability/april-2021-security-releases/",
+   "affectedEnvironments": [
+    "all"
+   ]
+  },
+  {
+   "id": "78",
+   "cve": [
+    "CVE-2020-7774"
+   ],
+   "vulnerable": " 10.x || 12.x || 14.x",
+   "patched": " ^10.24.1 || ^12.22.1 || ^14.16.1",
+   "severity": "high",
+   "description": "",
+   "ref": "https://nodejs.org/en/blog/vulnerability/april-2021-security-releases/",
+   "affectedEnvironments": [
+    "all"
+   ]
+  },
+  {
+   "id": "79",
+   "cve": [
+    "CVE-2021-22930"
+   ],
+   "vulnerable": " 12.x || 14.x || 16.x",
+   "patched": " ^12.22.4 || ^14.17.4 || ^16.6.0",
+   "severity": "high",
+   "description": "",
+   "ref": "https://nodejs.org/en/blog/vulnerability/july-2021-security-releases-2/",
+   "affectedEnvironments": [
+    "all"
+   ]
+  },
+  {
+   "id": "80",
+   "cve": [
+    "CVE-2021-22921"
+   ],
+   "vulnerable": " 12.x || 14.x || 16.x",
+   "patched": " ^12.22.2 || ^14.17.2 || ^16.4.1",
+   "severity": "medium",
+   "description": "",
+   "ref": "https://nodejs.org/en/blog/vulnerability/july-2021-security-releases/",
+   "affectedEnvironments": [
+    "win32"
+   ]
+  },
+  {
+   "id": "81",
+   "cve": [
+    "CVE-2021-27290"
+   ],
+   "vulnerable": " 12.x",
+   "patched": " ^12.22.2",
+   "severity": "high",
+   "description": "",
+   "ref": "https://nodejs.org/en/blog/vulnerability/july-2021-security-releases/",
+   "affectedEnvironments": [
+    "all"
+   ]
+  },
+  {
+   "id": "82",
+   "cve": [
+    "CVE-2021-23362"
+   ],
+   "vulnerable": " 12.x",
+   "patched": " ^12.22.2",
+   "severity": "medium",
+   "description": "",
+   "ref": "https://nodejs.org/en/blog/vulnerability/july-2021-security-releases/",
+   "affectedEnvironments": [
+    "all"
+   ]
+  },
+  {
+   "id": "83",
+   "cve": [
+    "CVE-2021-22918"
+   ],
+   "vulnerable": " 12.x || 14.x || 16.x",
+   "patched": " ^12.22.2 || ^14.17.2 || ^16.4.1",
+   "severity": "medium",
+   "description": "",
+   "ref": "https://nodejs.org/en/blog/vulnerability/july-2021-security-releases/",
+   "affectedEnvironments": [
+    "all"
+   ]
+  },
+  {
+   "id": "84",
+   "cve": [
+    "CVE-2021-22931"
+   ],
+   "vulnerable": "12.x || 14.x || 16.x",
+   "patched": "^12.22.5 || ^14.17.5 || ^16.6.2",
+   "severity": "high",
+   "description": "",
+   "ref": "https://nodejs.org/en/blog/vulnerability/aug-2021-security-releases/",
+   "affectedEnvironments": [
+    "all"
+   ]
+  },
+  {
+   "id": "85",
+   "cve": [
+    "CVE-2021-22940"
+   ],
+   "vulnerable": "12.x || 14.x || 16.x",
+   "patched": "^12.22.5 || ^14.17.5 || ^16.6.2",
+   "severity": "high",
+   "description": "",
+   "ref": "https://nodejs.org/en/blog/vulnerability/aug-2021-security-releases/",
+   "affectedEnvironments": [
+    "all"
+   ]
+  },
+  {
+   "id": "86",
+   "cve": [
+    "CVE-2021-22939"
+   ],
+   "vulnerable": "12.x || 14.x || 16.x",
+   "patched": "^12.22.5 || ^14.17.5 || ^16.6.2",
+   "severity": "low",
+   "description": "",
+   "ref": "https://nodejs.org/en/blog/vulnerability/aug-2021-security-releases/",
+   "affectedEnvironments": [
+    "all"
+   ]
+  },
+  {
+   "id": "87",
+   "cve": [
+    "CVE-2021-37701",
+    "CVE-2021-37712",
+    "CVE-2021-37713",
+    "CVE-2021-39134",
+    "CVE-2021-39135"
+   ],
+   "vulnerable": " 12.x || 14.x",
+   "patched": " ^12.22.6 || ^14.17.6",
+   "severity": "high",
+   "description": "",
+   "ref": "https://nodejs.org/en/blog/vulnerability/aug-2021-security-releases2/",
+   "affectedEnvironments": [
+    "all"
+   ]
+  },
+  {
+   "id": "88",
+   "cve": [
+    "CVE-2021-22959",
+    "CVE-2021-22960"
+   ],
+   "vulnerable": "12.x || 14.x || 16.x",
+   "patched": " ^12.22.7 || ^14.18.1 || ^16.11.1",
+   "severity": "medium",
+   "description": "",
+   "ref": "https://nodejs.org/en/blog/vulnerability/oct-2021-security-releases/",
+   "affectedEnvironments": [
+    "all"
+   ]
+  },
+  {
+   "id": "89",
+   "cve": [
+    "CVE-2021-44531"
+   ],
+   "vulnerable": "12.x || 14.x || 16.x || 17.x",
+   "patched": "^12.22.9 || ^14.18.3 || ^16.13.2 || ^17.3.1",
+   "severity": "medium",
+   "description": "",
+   "ref": "https://nodejs.org/en/blog/vulnerability/jan-2022-security-releases/",
+   "affectedEnvironments": [
+    "all"
+   ]
+  },
+  {
+   "id": "90",
+   "cve": [
+    "CVE-2021-44532"
+   ],
+   "vulnerable": "12.x || 14.x || 16.x || 17.x",
+   "patched": "^12.22.9 || ^14.18.3 || ^16.13.2 || ^17.3.1",
+   "severity": "medium",
+   "description": "",
+   "ref": "https://nodejs.org/en/blog/vulnerability/jan-2022-security-releases/",
+   "affectedEnvironments": [
+    "all"
+   ]
+  },
+  {
+   "id": "91",
+   "cve": [
+    "CVE-2021-44533"
+   ],
+   "vulnerable": "12.x || 14.x || 16.x || 17.x",
+   "patched": "^12.22.9 || ^14.18.3 || ^16.13.2 || ^17.3.1",
+   "severity": "medium",
+   "description": "",
+   "ref": "https://nodejs.org/en/blog/vulnerability/jan-2022-security-releases/",
+   "affectedEnvironments": [
+    "all"
+   ]
+  },
+  {
+   "id": "92",
+   "cve": [
+    "CVE-2022-21824"
+   ],
+   "vulnerable": "12.x || 14.x || 16.x || 17.x",
+   "patched": "^12.22.9 || ^14.18.3 || ^16.13.2 || ^17.3.1",
+   "severity": "low",
+   "description": "",
+   "ref": "https://nodejs.org/en/blog/vulnerability/jan-2022-security-releases/",
+   "affectedEnvironments": [
+    "all"
+   ]
+  },
+  {
+   "id": "93",
+   "cve": [
+    "CVE-2022-0778"
+   ],
+   "vulnerable": "12.x || 14.x || 16.x || 17.x",
+   "patched": "^12.22.11 || ^14.19.1 || ^16.14.2 || ^17.7.2",
+   "severity": "high",
+   "description": "",
+   "ref": "https://nodejs.org/en/blog/vulnerability/mar-2022-security-releases/",
+   "affectedEnvironments": [
+    "all"
+   ]
+  },
+  {
+   "id": "94",
+   "cve": [
+    "CVE-2022-32215"
+   ],
+   "vulnerable": "14.x || 16.x || 18.x",
+   "patched": "^14.20.1 || ^16.17.1 || ^18.9.1",
+   "severity": "medium",
+   "description": "",
+   "ref": "https://nodejs.org/en/blog/vulnerability/september-2022-security-releases/",
+   "affectedEnvironments": [
+    "all"
+   ]
+  },
+  {
+   "id": "95",
+   "cve": [
+    "CVE-2022-32214"
+   ],
+   "vulnerable": "14.x || 16.x || 18.x",
+   "patched": "^14.20.0 || ^16.20.0 || ^18.5.0",
+   "severity": "medium",
+   "description": "",
+   "ref": "https://nodejs.org/en/blog/vulnerability/july-2022-security-releases/",
+   "affectedEnvironments": [
+    "all"
+   ]
+  },
+  {
+   "id": "96",
+   "cve": [
+    "CVE-2022-32212"
+   ],
+   "vulnerable": "14.x || 16.x || 18.x",
+   "patched": "^14.20.1 || ^16.17.1 || ^18.9.1",
+   "severity": "high",
+   "description": "",
+   "ref": "https://nodejs.org/en/blog/vulnerability/september-2022-security-releases/",
+   "affectedEnvironments": [
+    "all"
+   ]
+  },
+  {
+   "id": "97",
+   "cve": [
+    "CVE-2022-32213"
+   ],
+   "vulnerable": "14.x || 16.x || 18.x",
+   "patched": "^14.20.1 || ^16.17.1 || ^18.9.1",
+   "severity": "medium",
+   "description": "",
+   "ref": "https://nodejs.org/en/blog/vulnerability/september-2022-security-releases/",
+   "affectedEnvironments": [
+    "all"
+   ]
+  },
+  {
+   "id": "98",
+   "cve": [
+    "CVE-2022-32223"
+   ],
+   "vulnerable": "14.x || 16.x || 18.x",
+   "patched": "^14.20.0 || ^16.20.0 || ^18.5.0",
+   "severity": "high",
+   "description": "",
+   "ref": "https://nodejs.org/en/blog/vulnerability/july-2022-security-releases/",
+   "affectedEnvironments": [
+    "win32"
+   ]
+  },
+  {
+   "id": "99",
+   "cve": [
+    "CVE-2022-32222"
+   ],
+   "vulnerable": "14.x || 16.x || 18.x",
+   "patched": "^14.20.0 || ^16.20.0 || ^18.9.1",
+   "severity": "medium",
+   "description": "",
+   "ref": "https://nodejs.org/en/blog/vulnerability/september-2022-security-releases/",
+   "affectedEnvironments": [
+    "linux"
+   ]
+  },
+  {
+   "id": "100",
+   "cve": [
+    "CVE-2022-35256"
+   ],
+   "vulnerable": "14.x || 16.x || 18.x",
+   "patched": "^14.20.1 || ^16.17.1 || ^18.9.1",
+   "severity": "medium",
+   "description": "",
+   "ref": "https://nodejs.org/en/blog/vulnerability/september-2022-security-releases/",
+   "affectedEnvironments": [
+    "all"
+   ]
+  },
+  {
+   "id": "101",
+   "cve": [
+    "CVE-2022-35255"
+   ],
+   "vulnerable": "18.x",
+   "patched": "^18.9.1",
+   "severity": "high",
+   "description": "",
+   "ref": "https://nodejs.org/en/blog/vulnerability/september-2022-security-releases/",
+   "affectedEnvironments": [
+    "all"
+   ]
+  },
+  {
+   "id": "102",
+   "cve": [
+    "CVE-2022-43548"
+   ],
+   "vulnerable": "14.x || 16.x || 18.x || 19.x",
+   "patched": "^14.21.1 || ^16.18.1 || ^18.12.1 || ^19.0.1",
+   "severity": "medium",
+   "description": "",
+   "ref": "https://nodejs.org/en/blog/vulnerability/november-2022-security-releases/",
+   "affectedEnvironments": [
+    "all"
+   ]
+  },
+  {
+   "id": "103",
+   "cve": [
+    "CVE-2023-23918"
+   ],
+   "vulnerable": "14.x || 16.x || 18.x || 19.x",
+   "patched": "^14.21.3 || ^16.19.1 || ^18.14.1 || ^19.6.1",
+   "severity": "high",
+   "description": "",
+   "ref": "https://nodejs.org/en/blog/vulnerability/february-2023-security-releases/",
+   "affectedEnvironments": [
+    "all"
+   ]
+  },
+  {
+   "id": "104",
+   "cve": [
+    "CVE-2023-23919"
+   ],
+   "vulnerable": "14.x || 16.x || 18.x || 19.x",
+   "patched": "^14.21.3 || ^16.19.1 || ^18.14.1 || ^19.2.0",
+   "severity": "medium",
+   "description": "",
+   "ref": "https://nodejs.org/en/blog/vulnerability/february-2023-security-releases/",
+   "affectedEnvironments": [
+    "all"
+   ]
+  },
+  {
+   "id": "105",
+   "cve": [
+    "CVE-2023-23936"
+   ],
+   "vulnerable": "14.x || 16.x || 18.x || 19.x",
+   "patched": "^14.21.3 || ^16.19.1 || ^18.14.1 || ^19.6.1",
+   "severity": "medium",
+   "description": "",
+   "ref": "https://nodejs.org/en/blog/vulnerability/february-2023-security-releases/",
+   "affectedEnvironments": [
+    "all"
+   ]
+  },
+  {
+   "id": "106",
+   "cve": [
+    "CVE-2023-24807"
+   ],
+   "vulnerable": "14.x || 16.x || 18.x || 19.x",
+   "patched": "^14.21.3 || ^16.19.1 || ^18.14.1 || ^19.6.1",
+   "severity": "low",
+   "description": "",
+   "ref": "https://nodejs.org/en/blog/vulnerability/february-2023-security-releases/",
+   "affectedEnvironments": [
+    "all"
+   ]
+  },
+  {
+   "id": "107",
+   "cve": [
+    "CVE-2023-23920"
+   ],
+   "vulnerable": "14.x || 16.x || 18.x || 19.x",
+   "patched": "^14.21.3 || ^16.19.1 || ^18.14.1 || ^19.6.1",
+   "severity": "low",
+   "description": "",
+   "ref": "https://nodejs.org/en/blog/vulnerability/february-2023-security-releases/",
+   "affectedEnvironments": [
+    "all"
+   ]
+  },
+  {
+   "id": "108",
+   "cve": [
+    "CVE-2023-30581"
+   ],
+   "vulnerable": "16.x || 18.x || 20.x",
+   "patched": "^16.20.1 || ^18.16.1 || ^20.3.1",
+   "severity": "high",
+   "description": "",
+   "ref": "https://nodejs.org/en/blog/vulnerability/june-2023-security-releases/",
+   "affectedEnvironments": [
+    "all"
+   ]
+  },
+  {
+   "id": "109",
+   "cve": [
+    "CVE-2023-30582"
+   ],
+   "vulnerable": "20.x",
+   "patched": "^20.3.1",
+   "severity": "medium",
+   "description": "",
+   "ref": "https://nodejs.org/en/blog/vulnerability/june-2023-security-releases/",
+   "affectedEnvironments": [
+    "all"
+   ]
+  },
+  {
+   "id": "110",
+   "cve": [
+    "CVE-2023-30583"
+   ],
+   "vulnerable": "20.x",
+   "patched": "^20.3.1",
+   "severity": "medium",
+   "description": "",
+   "ref": "https://nodejs.org/en/blog/vulnerability/june-2023-security-releases/",
+   "affectedEnvironments": [
+    "all"
+   ]
+  },
+  {
+   "id": "111",
+   "cve": [
+    "CVE-2023-30584"
+   ],
+   "vulnerable": "20.x",
+   "patched": "^20.3.1",
+   "severity": "high",
+   "description": "",
+   "ref": "https://nodejs.org/en/blog/vulnerability/june-2023-security-releases/",
+   "affectedEnvironments": [
+    "all"
+   ]
+  },
+  {
+   "id": "112",
+   "cve": [
+    "CVE-2023-30585"
+   ],
+   "vulnerable": "16.x || 18.x || 20.x",
+   "patched": "^16.20.1 || ^18.16.1 || ^20.3.1",
+   "severity": "medium",
+   "description": "",
+   "ref": "https://nodejs.org/en/blog/vulnerability/june-2023-security-releases/",
+   "affectedEnvironments": [
+    "win32"
+   ]
+  },
+  {
+   "id": "113",
+   "cve": [
+    "CVE-2023-30586"
+   ],
+   "vulnerable": "20.x",
+   "patched": "^20.3.1",
+   "severity": "medium",
+   "description": "",
+   "ref": "https://nodejs.org/en/blog/vulnerability/june-2023-security-releases/",
+   "affectedEnvironments": [
+    "all"
+   ]
+  },
+  {
+   "id": "114",
+   "cve": [
+    "CVE-2023-30587"
+   ],
+   "vulnerable": "20.x",
+   "patched": "^20.3.1",
+   "severity": "high",
+   "description": "",
+   "ref": "https://nodejs.org/en/blog/vulnerability/june-2023-security-releases/",
+   "affectedEnvironments": [
+    "all"
+   ]
+  },
+  {
+   "id": "115",
+   "cve": [
+    "CVE-2023-30589"
+   ],
+   "vulnerable": "16.x || 18.x || 20.x",
+   "patched": "^16.20.1 || ^18.16.1 || ^20.3.1",
+   "severity": "medium",
+   "description": "",
+   "ref": "https://nodejs.org/en/blog/vulnerability/june-2023-security-releases/",
+   "affectedEnvironments": [
+    "all"
+   ]
+  },
+  {
+   "id": "116",
+   "cve": [
+    "CVE-2023-30588"
+   ],
+   "vulnerable": "16.x || 18.x || 20.x",
+   "patched": "^16.20.1 || ^18.16.1 || ^20.3.1",
+   "severity": "medium",
+   "description": "",
+   "ref": "https://nodejs.org/en/blog/vulnerability/june-2023-security-releases/",
+   "affectedEnvironments": [
+    "all"
+   ]
+  },
+  {
+   "id": "117",
+   "cve": [
+    "CVE-2023-30590"
+   ],
+   "vulnerable": "16.x || 18.x || 20.x",
+   "patched": "^16.20.1 || ^18.16.1 || ^20.3.1",
+   "severity": "medium",
+   "description": "",
+   "ref": "https://nodejs.org/en/blog/vulnerability/june-2023-security-releases/",
+   "affectedEnvironments": [
+    "all"
+   ]
+  },
+  {
+   "id": "118",
+   "cve": [
+    "CVE-2023-32002"
+   ],
+   "vulnerable": "16.x || 18.x || 20.x",
+   "patched": "^16.20.2 || ^18.17.1 || ^20.5.1",
+   "severity": "high",
+   "description": "",
+   "ref": "https://nodejs.org/en/blog/vulnerability/august-2023-security-releases/",
+   "affectedEnvironments": [
+    "all"
+   ]
+  },
+  {
+   "id": "119",
+   "cve": [
+    "CVE-2023-32004"
+   ],
+   "vulnerable": "20.x",
+   "patched": "^20.5.1",
+   "severity": "high",
+   "description": "",
+   "ref": "https://nodejs.org/en/blog/vulnerability/august-2023-security-releases/",
+   "affectedEnvironments": [
+    "all"
+   ]
+  },
+  {
+   "id": "120",
+   "cve": [
+    "CVE-2023-32558"
+   ],
+   "vulnerable": "20.x",
+   "patched": "^20.5.1",
+   "severity": "high",
+   "description": "",
+   "ref": "https://nodejs.org/en/blog/vulnerability/august-2023-security-releases/",
+   "affectedEnvironments": [
+    "all"
+   ]
+  },
+  {
+   "id": "121",
+   "cve": [
+    "CVE-2023-32006"
+   ],
+   "vulnerable": "16.x || 18.x || 20.x",
+   "patched": "^16.20.2 || ^18.17.1 || ^20.5.1",
+   "severity": "high",
+   "description": "",
+   "ref": "https://nodejs.org/en/blog/vulnerability/august-2023-security-releases/",
+   "affectedEnvironments": [
+    "all"
+   ]
+  },
+  {
+   "id": "122",
+   "cve": [
+    "CVE-2023-32559"
+   ],
+   "vulnerable": "16.x || 18.x || 20.x",
+   "patched": "^16.20.2 || ^18.17.1 || ^20.5.1",
+   "severity": "high",
+   "description": "",
+   "ref": "https://nodejs.org/en/blog/vulnerability/august-2023-security-releases/",
+   "affectedEnvironments": [
+    "all"
+   ]
+  },
+  {
+   "id": "123",
+   "cve": [
+    "CVE-2023-32005"
+   ],
+   "vulnerable": "20.x",
+   "patched": "^20.5.1",
+   "severity": "medium",
+   "description": "",
+   "ref": "https://nodejs.org/en/blog/vulnerability/august-2023-security-releases/",
+   "affectedEnvironments": [
+    "all"
+   ]
+  },
+  {
+   "id": "124",
+   "cve": [
+    "CVE-2023-32003"
+   ],
+   "vulnerable": "20.x",
+   "patched": "^20.5.1",
+   "severity": "medium",
+   "description": "",
+   "ref": "https://nodejs.org/en/blog/vulnerability/august-2023-security-releases/",
+   "affectedEnvironments": [
+    "all"
+   ]
+  },
+  {
+   "id": "125",
+   "cve": [
+    "CVE-2023-45143"
+   ],
+   "vulnerable": "18.x || 20.x",
+   "patched": "^18.18.2 || ^20.8.1",
+   "severity": "low",
+   "description": "",
+   "ref": "https://nodejs.org/en/blog/vulnerability/october-2023-security-releases/",
+   "affectedEnvironments": [
+    "all"
+   ]
+  },
+  {
+   "id": "126",
+   "cve": [
+    "CVE-2023-44487"
+   ],
+   "vulnerable": "18.x || 20.x",
+   "patched": "^18.18.2 || ^20.8.1",
+   "severity": "high",
+   "description": "",
+   "ref": "https://nodejs.org/en/blog/vulnerability/october-2023-security-releases/",
+   "affectedEnvironments": [
+    "all"
+   ]
+  },
+  {
+   "id": "127",
+   "cve": [
+    "CVE-2023-39331"
+   ],
+   "vulnerable": "20.x",
+   "patched": "^20.8.1",
+   "severity": "high",
+   "description": "",
+   "ref": "https://nodejs.org/en/blog/vulnerability/october-2023-security-releases/",
+   "affectedEnvironments": [
+    "all"
+   ]
+  },
+  {
+   "id": "128",
+   "cve": [
+    "CVE-2023-39332"
+   ],
+   "vulnerable": "20.x",
+   "patched": "^20.8.1",
+   "severity": "high",
+   "description": "",
+   "ref": "https://nodejs.org/en/blog/vulnerability/october-2023-security-releases/",
+   "affectedEnvironments": [
+    "all"
+   ]
+  },
+  {
+   "id": "129",
+   "cve": [
+    "CVE-2023-38552"
+   ],
+   "vulnerable": "18.x || 20.x",
+   "patched": "^18.18.2 || ^20.8.1",
+   "severity": "medium",
+   "description": "",
+   "ref": "https://nodejs.org/en/blog/vulnerability/october-2023-security-releases/",
+   "affectedEnvironments": [
+    "all"
+   ]
+  },
+  {
+   "id": "130",
+   "cve": [
+    "CVE-2023-39333"
+   ],
+   "vulnerable": "18.x || 20.x",
+   "patched": "^18.18.2 || ^20.8.1",
+   "severity": "low",
+   "description": "",
+   "ref": "https://nodejs.org/en/blog/vulnerability/october-2023-security-releases/",
+   "affectedEnvironments": [
+    "all"
+   ]
+  },
+  {
+   "id": "131",
+   "cve": [
+    "CVE-2023-46809"
+   ],
+   "vulnerable": "18.x || 20.x || 21.x",
+   "patched": "^18.19.1 || ^20.11.1 || ^21.6.2",
+   "severity": "medium",
+   "description": "",
+   "ref": "https://nodejs.org/en/blog/vulnerability/february-2024-security-releases/",
+   "affectedEnvironments": [
+    "all"
+   ]
+  },
+  {
+   "id": "132",
+   "cve": [
+    "CVE-2024-21891"
+   ],
+   "vulnerable": "20.x || 21.x",
+   "patched": "^20.11.1 || ^21.6.2",
+   "severity": "medium",
+   "description": "",
+   "ref": "https://nodejs.org/en/blog/vulnerability/february-2024-security-releases/",
+   "affectedEnvironments": [
+    "all"
+   ]
+  },
+  {
+   "id": "133",
+   "cve": [
+    "CVE-2024-21890"
+   ],
+   "vulnerable": "20.x || 21.x",
+   "patched": "^20.11.1 || ^21.6.2",
+   "severity": "medium",
+   "description": "",
+   "ref": "https://nodejs.org/en/blog/vulnerability/february-2024-security-releases/",
+   "affectedEnvironments": [
+    "all"
+   ]
+  },
+  {
+   "id": "134",
+   "cve": [
+    "CVE-2024-21892"
+   ],
+   "vulnerable": "18.x || 20.x || 21.x",
+   "patched": "^18.19.1 || ^20.11.1 || ^21.6.2",
+   "severity": "high",
+   "description": "",
+   "ref": "https://nodejs.org/en/blog/vulnerability/february-2024-security-releases/",
+   "affectedEnvironments": [
+    "all"
+   ]
+  },
+  {
+   "id": "135",
+   "cve": [
+    "CVE-2024-22019"
+   ],
+   "vulnerable": "18.x || 20.x || 21.x",
+   "patched": "^18.19.1 || ^20.11.1 || ^21.6.2",
+   "severity": "high",
+   "description": "",
+   "ref": "https://nodejs.org/en/blog/vulnerability/february-2024-security-releases/",
+   "affectedEnvironments": [
+    "all"
+   ]
+  },
+  {
+   "id": "136",
+   "cve": [
+    "CVE-2024-21896"
+   ],
+   "vulnerable": "20.x || 21.x",
+   "patched": "^20.11.1 || ^21.6.2",
+   "severity": "high",
+   "description": "",
+   "ref": "https://nodejs.org/en/blog/vulnerability/february-2024-security-releases/",
+   "affectedEnvironments": [
+    "all"
+   ]
+  },
+  {
+   "id": "137",
+   "cve": [
+    "CVE-2024-22017"
+   ],
+   "vulnerable": "20.x || 21.x",
+   "patched": "^20.11.1 || ^21.6.2",
+   "severity": "high",
+   "description": "",
+   "ref": "https://nodejs.org/en/blog/vulnerability/february-2024-security-releases/",
+   "affectedEnvironments": [
+    "all"
+   ]
+  },
+  {
+   "id": "138",
+   "cve": [
+    "CVE-2024-22025"
+   ],
+   "vulnerable": "18.x || 20.x || 21.x",
+   "patched": "^18.19.1 || ^20.11.1 || ^21.6.2",
+   "severity": "medium",
+   "description": "",
+   "ref": "https://nodejs.org/en/blog/vulnerability/february-2024-security-releases/",
+   "affectedEnvironments": [
+    "all"
+   ]
+  },
+  {
+   "id": "139",
+   "cve": [
+    "CVE-2024-27983"
+   ],
+   "vulnerable": "18.x || 20.x || 21.x",
+   "patched": "^18.20.1 || ^20.12.1 || ^21.7.2",
+   "severity": "high",
+   "description": "Assertion failed in node::http2::Http2Session::~Http2Session() leads to HTTP/2 server crash",
+   "ref": "https://nodejs.org/en/blog/vulnerability/april-2024-security-releases/",
+   "affectedEnvironments": [
+    "all"
+   ]
+  },
+  {
+   "id": "140",
+   "cve": [
+    "CVE-2024-27982"
+   ],
+   "vulnerable": "18.x || 20.x || 21.x",
+   "patched": "^18.20.1 || ^20.12.1 || ^21.7.2",
+   "severity": "medium",
+   "description": "HTTP Request Smuggling via Content Length Obfuscation",
+   "ref": "https://nodejs.org/en/blog/vulnerability/april-2024-security-releases/",
+   "affectedEnvironments": [
+    "all"
+   ]
+  },
+  {
+   "id": "141",
+   "cve": [
+    "CVE-2024-27980"
+   ],
+   "vulnerable": "18.x || 20.x || 21.x",
+   "patched": "^18.20.2 || ^20.12.2 || ^21.7.3",
+   "severity": "high",
+   "description": "Command injection via args parameter of child_process.spawn without shell option enabled on Windows",
+   "ref": "https://nodejs.org/en/blog/vulnerability/april-2024-security-releases-2",
+   "affectedEnvironments": [
+    "win32"
+   ]
+  },
+  {
+   "id": "142",
+   "cve": [
+    "CVE-2024-36137"
+   ],
+   "vulnerable": "20.x || 22.x",
+   "patched": "^20.15.1 || ^22.4.1",
+   "severity": "low",
+   "description": "fs.fchown/fchmod bypasses permission model",
+   "ref": "https://nodejs.org/en/blog/vulnerability/july-2024-security-releases/",
+   "affectedEnvironments": [
+    "all"
+   ]
+  },
+  {
+   "id": "143",
+   "cve": [
+    "CVE-2024-36138"
+   ],
+   "vulnerable": "18.x || 20.x || 22.x",
+   "patched": "^18.20.4 || ^20.15.1 || ^22.4.1",
+   "severity": "high",
+   "description": "Bypass incomplete fix of CVE-2024-27980",
+   "ref": "https://nodejs.org/en/blog/vulnerability/july-2024-security-releases/",
+   "affectedEnvironments": [
+    "win32"
+   ]
+  },
+  {
+   "id": "144",
+   "cve": [
+    "CVE-2024-22018"
+   ],
+   "vulnerable": "20.x || 22.x",
+   "patched": "^20.15.1 || ^22.4.1",
+   "severity": "low",
+   "description": "fs.lstat bypasses permission model",
+   "ref": "https://nodejs.org/en/blog/vulnerability/july-2024-security-releases/",
+   "affectedEnvironments": [
+    "all"
+   ]
+  },
+  {
+   "id": "145",
+   "cve": [
+    "CVE-2024-22020"
+   ],
+   "vulnerable": "18.x || 20.x || 22.x",
+   "patched": "^18.20.4 || ^20.15.1 || ^22.4.1",
+   "severity": "medium",
+   "description": "Bypass network import restriction via data URL",
+   "ref": "https://nodejs.org/en/blog/vulnerability/july-2024-security-releases/",
+   "affectedEnvironments": [
+    "all"
+   ]
+  },
+  {
+   "id": "146",
+   "cve": [
+    "CVE-2024-37372"
+   ],
+   "vulnerable": "20.x || 22.x",
+   "patched": "^20.15.1 || ^22.4.1",
+   "severity": "low",
+   "description": "Permission model improperly processes UNC paths",
+   "ref": "https://nodejs.org/en/blog/vulnerability/july-2024-security-releases/",
+   "affectedEnvironments": [
+    "all"
+   ]
+  },
+  {
+   "id": "147",
+   "cve": [
+    "CVE-2025-23083"
+   ],
+   "vulnerable": "20.x || 22.x || 23.x",
+   "patched": "^20.18.2 || ^22.13.1 || ^23.6.1",
+   "severity": "high",
+   "description": "Worker permission bypass via InternalWorker leak in diagnostics",
+   "ref": "https://nodejs.org/en/blog/vulnerability/january-2025-security-releases/",
+   "affectedEnvironments": [
+    "all"
+   ]
+  },
+  {
+   "id": "148",
+   "cve": [
+    "CVE-2025-23084"
+   ],
+   "vulnerable": "18.x || 20.x || 22.x || 23.x",
+   "patched": "^18.20.6 || ^20.18.2 || ^22.13.1 || ^23.6.1",
+   "severity": "medium",
+   "description": "Path traversal by drive name in Windows environment",
+   "ref": "https://nodejs.org/en/blog/vulnerability/january-2025-security-releases/",
+   "affectedEnvironments": [
+    "win32"
+   ]
+  },
+  {
+   "id": "149",
+   "cve": [
+    "CVE-2025-23085"
+   ],
+   "vulnerable": "18.x || 20.x || 22.x || 23.x",
+   "patched": "^18.20.6 || ^20.18.2 || ^22.13.1 || ^23.6.1",
+   "severity": "medium",
+   "description": "GOAWAY HTTP/2 frames cause memory leak outside heap",
+   "ref": "https://nodejs.org/en/blog/vulnerability/january-2025-security-releases/",
+   "affectedEnvironments": [
+    "all"
+   ]
+  },
+  {
+   "id": "150",
+   "cve": [
+    "CVE-2024-27980"
+   ],
+   "vulnerable": "18.x || 20.x || 21.x",
+   "patched": "^18.20.2 || ^20.12.2 || ^21.7.3",
+   "severity": "high",
+   "description": "Command injection via args parameter of child_process.spawn without shell option enabled on Windows",
+   "ref": "https://nodejs.org/en/blog/vulnerability/april-2024-security-releases-2",
+   "affectedEnvironments": [
+    "win32"
+   ]
+  },
+  {
+   "id": "151",
+   "cve": [
+    "CVE-2025-23165"
+   ],
+   "vulnerable": "20.x || 22.x",
+   "patched": "^20.19.2 || ^22.15.1",
+   "severity": "low",
+   "description": "Corrupted pointer in node::fs::ReadFileUtf8(const FunctionCallbackInfo<Value>& args) when args[0] is a string.",
+   "ref": "https://nodejs.org/en/blog/vulnerability/may-2025-security-releases/",
+   "affectedEnvironments": [
+    "win32"
+   ]
+  },
+  {
+   "id": "152",
+   "cve": [
+    "CVE-2025-23166"
+   ],
+   "vulnerable": "20.x || 22.x || 23.x || 24.x",
+   "patched": "^20.19.2 || ^22.15.1 || ^23.11.1 || ^24.0.2",
+   "severity": "high",
+   "description": "Improper error handling in async cryptographic operations crashes process",
+   "ref": "https://nodejs.org/en/blog/vulnerability/may-2025-security-releases/",
+   "affectedEnvironments": [
+    "all"
+   ]
+  },
+  {
+   "id": "153",
+   "cve": [
+    "CVE-2025-23167"
+   ],
+   "vulnerable": "20.x",
+   "patched": "^20.19.2",
+   "severity": "medium",
+   "description": "Improper HTTP header block termination in llhttp",
+   "ref": "https://nodejs.org/en/blog/vulnerability/may-2025-security-releases/",
+   "affectedEnvironments": [
+    "all"
+   ]
+  },
+  {
+   "id": "154",
+   "cve": [
+    "CVE-2025-27210"
+   ],
+   "vulnerable": "20.x || 22.x || 24.x",
+   "patched": "^20.19.4 || ^22.17.1 || ^24.4.1",
+   "severity": "high",
+   "description": "Windows Device Names (CON, PRN, AUX) Bypass Path Traversal Protection in path.normalize()",
+   "ref": "https://nodejs.org/en/blog/vulnerability/july-2025-security-releases/",
+   "affectedEnvironments": [
+    "win32"
+   ]
+  },
+  {
+   "id": "155",
+   "cve": [
+    "CVE-2025-27209"
+   ],
+   "vulnerable": "24.x",
+   "patched": "^24.4.1",
+   "severity": "high",
+   "description": "HashDoS in V8",
+   "ref": "https://nodejs.org/en/blog/vulnerability/july-2025-security-releases/",
+   "affectedEnvironments": [
+    "all"
+   ]
+  },
+  {
+   "id": "156",
+   "cve": [
+    "CVE-2025-55130"
+   ],
+   "vulnerable": "20.x || 22.x || 24.x || 25.x",
+   "patched": "^20.20.0 || ^22.22.0 || ^24.13.0 || ^25.3.0",
+   "severity": "high",
+   "description": "FS Permissions Bypass",
+   "ref": "https://nodejs.org/en/blog/vulnerability/december-2025-security-releases",
+   "affectedEnvironments": [
+    "all"
+   ]
+  },
+  {
+   "id": "157",
+   "cve": [
+    "CVE-2025-55131"
+   ],
+   "vulnerable": "20.x || 22.x || 24.x || 25.x",
+   "patched": "^20.20.0 || ^22.22.0 || ^24.13.0 || ^25.3.0",
+   "severity": "high",
+   "description": "Timeout-based race conditions make Uint8Array/Buffer.alloc non-zerofilled",
+   "ref": "https://nodejs.org/en/blog/vulnerability/december-2025-security-releases",
+   "affectedEnvironments": [
+    "all"
+   ]
+  },
+  {
+   "id": "158",
+   "cve": [
+    "CVE-2025-55132"
+   ],
+   "vulnerable": "20.x || 22.x || 24.x || 25.x",
+   "patched": "^20.20.0 || ^22.22.0 || ^24.13.0 || ^25.3.0",
+   "severity": "low",
+   "description": "fs.futimes() Bypasses Read-Only Permission Model",
+   "ref": "https://nodejs.org/en/blog/vulnerability/december-2025-security-releases",
+   "affectedEnvironments": [
+    "all"
+   ]
+  },
+  {
+   "id": "159",
+   "cve": [
+    "CVE-2025-59464"
+   ],
+   "vulnerable": "20.x || 22.x || 24.x",
+   "patched": "^20.20.0 || ^22.22.0 || ^24.13.0",
+   "severity": "medium",
+   "description": "Memory leak that enables remote Denial of Service against applications processing TLS client certificates",
+   "ref": "https://nodejs.org/en/blog/vulnerability/december-2025-security-releases",
+   "affectedEnvironments": [
+    "all"
+   ]
+  },
+  {
+   "id": "160",
+   "cve": [
+    "CVE-2025-59465"
+   ],
+   "vulnerable": "20.x || 22.x || 24.x || 25.x",
+   "patched": "^20.20.0 || ^22.22.0 || ^24.13.0 || ^25.3.0",
+   "severity": "high",
+   "description": "Node.js HTTP/2 server crashes with unhandled error when receiving malformed HEADERS frame",
+   "ref": "https://nodejs.org/en/blog/vulnerability/december-2025-security-releases",
+   "affectedEnvironments": [
+    "all"
+   ]
+  },
+  {
+   "id": "161",
+   "cve": [
+    "CVE-2025-59466"
+   ],
+   "vulnerable": "20.x || 22.x || 24.x || 25.x",
+   "patched": "^20.20.0 || ^22.22.0 || ^24.13.0 || ^25.3.0",
+   "severity": "medium",
+   "description": "Uncatchable \"Maximum call stack size exceeded\" error on Node.js via async_hooks leads to process crashes bypassing error handlers",
+   "ref": "https://nodejs.org/en/blog/vulnerability/december-2025-security-releases",
+   "affectedEnvironments": [
+    "all"
+   ]
+  },
+  {
+   "id": "162",
+   "cve": [
+    "CVE-2026-21636"
+   ],
+   "vulnerable": "25.x",
+   "patched": "^25.3.0",
+   "severity": "medium",
+   "description": "Node.js permission model bypass via unchecked Unix Domain Socket connections (UDS)",
+   "ref": "https://nodejs.org/en/blog/vulnerability/december-2025-security-releases",
+   "affectedEnvironments": [
+    "all"
+   ]
+  },
+  {
+   "id": "163",
+   "cve": [
+    "CVE-2026-21637"
+   ],
+   "vulnerable": "20.x || 22.x || 24.x || 25.x",
+   "patched": "^20.20.2 || ^22.22.2 || ^24.14.1 || ^25.8.2",
+   "severity": "high",
+   "description": "Incomplete fix for CVE-2026-21637: loadSNI() in _tls_wrap.js lacks try/catch leading to Remote DoS",
+   "ref": "https://nodejs.org/en/blog/vulnerability/march-2026-security-releases",
+   "affectedEnvironments": [
+    "all"
+   ]
+  },
+  {
+   "id": "164",
+   "cve": [
+    "CVE-2026-21710"
+   ],
+   "vulnerable": "20.x || 22.x || 24.x || 25.x",
+   "patched": "^20.20.2 || ^22.22.2 || ^24.14.1 || ^25.8.2",
+   "severity": "high",
+   "description": "Denial of Service via `__proto__` header name in `req.headersDistinct` (Uncaught `TypeError` crashes Node.js process)",
+   "ref": "https://nodejs.org/en/blog/vulnerability/march-2026-security-releases",
+   "affectedEnvironments": [
+    "all"
+   ]
+  },
+  {
+   "id": "165",
+   "cve": [
+    "CVE-2026-21711"
+   ],
+   "vulnerable": "25.x",
+   "patched": "^25.8.2",
+   "severity": "medium",
+   "description": "Node.js Permission Model bypass: UDS server bind/listen works without `--allow-net`",
+   "ref": "https://nodejs.org/en/blog/vulnerability/march-2026-security-releases",
+   "affectedEnvironments": [
+    "all"
+   ]
+  },
+  {
+   "id": "166",
+   "cve": [
+    "CVE-2026-21712"
+   ],
+   "vulnerable": "24.x || 25.x",
+   "patched": "^24.14.1 || ^25.8.2",
+   "severity": "medium",
+   "description": "Assertion error in node_url.cc via malformed URL format leads to Node.js crash",
+   "ref": "https://nodejs.org/en/blog/vulnerability/march-2026-security-releases",
+   "affectedEnvironments": [
+    "all"
+   ]
+  },
+  {
+   "id": "167",
+   "cve": [
+    "CVE-2026-21713"
+   ],
+   "vulnerable": "20.x || 22.x || 24.x || 25.x",
+   "patched": "^20.20.2 || ^22.22.2 || ^24.14.1 || ^25.8.2",
+   "severity": "medium",
+   "description": "Timing side-channel in HMAC verification via memcmp() in crypto_hmac.cc leads to potential MAC forgery",
+   "ref": "https://nodejs.org/en/blog/vulnerability/march-2026-security-releases",
+   "affectedEnvironments": [
+    "all"
+   ]
+  },
+  {
+   "id": "168",
+   "cve": [
+    "CVE-2026-21714"
+   ],
+   "vulnerable": "20.x || 22.x || 24.x || 25.x",
+   "patched": "^20.20.2 || ^22.22.2 || ^24.14.1 || ^25.8.2",
+   "severity": "medium",
+   "description": "Memory leak in Node.js HTTP/2 server via WINDOW_UPDATE on stream 0 leads to resource exhaustion",
+   "ref": "https://nodejs.org/en/blog/vulnerability/march-2026-security-releases",
+   "affectedEnvironments": [
+    "all"
+   ]
+  },
+  {
+   "id": "169",
+   "cve": [
+    "CVE-2026-21715"
+   ],
+   "vulnerable": "20.x || 22.x || 24.x || 25.x",
+   "patched": "^20.20.2 || ^22.22.2 || ^24.14.1 || ^25.8.2",
+   "severity": "low",
+   "description": "Permission Model Bypass in realpathSync.native Allows File Existence Disclosure",
+   "ref": "https://nodejs.org/en/blog/vulnerability/march-2026-security-releases",
+   "affectedEnvironments": [
+    "all"
+   ]
+  },
+  {
+   "id": "170",
+   "cve": [
+    "CVE-2026-21716"
+   ],
+   "vulnerable": "20.x || 22.x || 24.x || 25.x",
+   "patched": "^20.20.2 || ^22.22.2 || ^24.14.1 || ^25.8.2",
+   "severity": "low",
+   "description": "CVE-2024-36137 Patch Bypass - FileHandle.chmod/chown",
+   "ref": "https://nodejs.org/en/blog/vulnerability/march-2026-security-releases",
+   "affectedEnvironments": [
+    "all"
+   ]
+  },
+  {
+   "id": "171",
+   "cve": [
+    "CVE-2026-21717"
+   ],
+   "vulnerable": "20.x || 22.x || 24.x || 25.x",
+   "patched": "^20.20.2 || ^22.22.2 || ^24.14.1 || ^25.8.2",
+   "severity": "medium",
+   "description": "HashDoS in V8",
+   "ref": "https://nodejs.org/en/blog/vulnerability/march-2026-security-releases",
+   "affectedEnvironments": [
+    "all"
+   ]
+  },
+  {
+   "id": "172",
+   "cve": [
+    "CVE-2026-48615"
+   ],
+   "vulnerable": "22.x || 24.x || 26.x",
+   "patched": "^22.23.0 || ^24.17.0 || ^26.3.1",
+   "severity": "medium",
+   "description": "Proxy credentials leaked in ERR_PROXY_TUNNEL error message",
+   "ref": "https://nodejs.org/en/blog/vulnerability/june-2026-security-releases",
+   "affectedEnvironments": [
+    "all"
+   ]
+  },
+  {
+   "id": "173",
+   "cve": [
+    "CVE-2026-48617"
+   ],
+   "vulnerable": "22.x || 24.x || 26.x",
+   "patched": "^22.23.0 || ^24.17.0 || ^26.3.1",
+   "severity": "low",
+   "description": "Permission Model Bypass via `process.report.writeReport()` Path Misvalidation",
+   "ref": "https://nodejs.org/en/blog/vulnerability/june-2026-security-releases",
+   "affectedEnvironments": [
+    "all"
+   ]
+  },
+  {
+   "id": "174",
+   "cve": [
+    "CVE-2026-48618"
+   ],
+   "vulnerable": "22.x || 24.x || 26.x",
+   "patched": "^22.23.0 || ^24.17.0 || ^26.3.1",
+   "severity": "high",
+   "description": "Node.js unicode dot separator handling can lead to tls wildcard-depth authentication bypass due to resolver and verifier hostname normalization mismat",
+   "ref": "https://nodejs.org/en/blog/vulnerability/june-2026-security-releases",
+   "affectedEnvironments": [
+    "all"
+   ]
+  },
+  {
+   "id": "175",
+   "cve": [
+    "CVE-2026-48619"
+   ],
+   "vulnerable": "22.x || 24.x || 26.x",
+   "patched": "^22.23.0 || ^24.17.0 || ^26.3.1",
+   "severity": "medium",
+   "description": "Unbounded memory growth in `node:http2` clients via attacker-controlled ORIGIN frames",
+   "ref": "https://nodejs.org/en/blog/vulnerability/june-2026-security-releases",
+   "affectedEnvironments": [
+    "all"
+   ]
+  },
+  {
+   "id": "176",
+   "cve": [
+    "CVE-2026-48937"
+   ],
+   "vulnerable": "22.x || 24.x",
+   "patched": "^22.23.0 || ^24.17.0",
+   "severity": "medium",
+   "description": "HTTP/2 sessions never clean up after GOAWAY on invalid protocol errors",
+   "ref": "https://nodejs.org/en/blog/vulnerability/june-2026-security-releases",
+   "affectedEnvironments": [
+    "all"
+   ]
+  },
+  {
+   "id": "177",
+   "cve": [
+    "CVE-2026-48928"
+   ],
+   "vulnerable": "22.x || 24.x || 26.x",
+   "patched": "^22.23.0 || ^24.17.0 || ^26.3.1",
+   "severity": "medium",
+   "description": "Uppercase sni context matching can lead to mtls authorization bypass due to case-sensitive hostname matching",
+   "ref": "https://nodejs.org/en/blog/vulnerability/june-2026-security-releases",
+   "affectedEnvironments": [
+    "all"
+   ]
+  },
+  {
+   "id": "178",
+   "cve": [
+    "CVE-2026-48930"
+   ],
+   "vulnerable": "22.x || 24.x || 26.x",
+   "patched": "^22.23.0 || ^24.17.0 || ^26.3.1",
+   "severity": "medium",
+   "description": "Embedded-nul hostnames can lead to silent authority rebinding due to c-string truncation in resolver bindings",
+   "ref": "https://nodejs.org/en/blog/vulnerability/june-2026-security-releases",
+   "affectedEnvironments": [
+    "all"
+   ]
+  },
+  {
+   "id": "179",
+   "cve": [
+    "CVE-2026-48934"
+   ],
+   "vulnerable": "22.x || 24.x || 26.x",
+   "patched": "^22.23.0 || ^24.17.0 || ^26.3.1",
+   "severity": "medium",
+   "description": "TLS host identity verification bypass via session reuse with different servername leads to unauthorized connections",
+   "ref": "https://nodejs.org/en/blog/vulnerability/june-2026-security-releases",
+   "affectedEnvironments": [
+    "all"
+   ]
+  },
+  {
+   "id": "180",
+   "cve": [
+    "CVE-2026-48935"
+   ],
+   "vulnerable": "22.x || 24.x || 26.x",
+   "patched": "^22.23.0 || ^24.17.0 || ^26.3.1",
+   "severity": "low",
+   "description": "Permission Model bypass via FileHandle.utimes() in the promises API",
+   "ref": "https://nodejs.org/en/blog/vulnerability/june-2026-security-releases",
+   "affectedEnvironments": [
+    "all"
+   ]
+  },
+  {
+   "id": "181",
+   "cve": [
+    "CVE-2026-48936"
+   ],
+   "vulnerable": "26.x",
+   "patched": "^26.3.1",
+   "severity": "low",
+   "description": "Unix domain socket server bypasses --permission network restrictions (incomplete CVE-2026-21636 fix)",
+   "ref": "https://nodejs.org/en/blog/vulnerability/june-2026-security-releases",
+   "affectedEnvironments": [
+    "aix",
+    "darwin",
+    "freebsd",
+    "linux",
+    "openbsd",
+    "sunos",
+    "android"
+   ]
+  },
+  {
+   "id": "182",
+   "cve": [
+    "CVE-2026-48931"
+   ],
+   "vulnerable": "22.x || 24.x || 26.x",
+   "patched": "^22.23.0 || ^24.17.0 || ^26.3.1",
+   "severity": "low",
+   "description": "HTTP Response Queue Poisoning via TOCTOU Race Condition in `http.Agent`",
+   "ref": "https://nodejs.org/en/blog/vulnerability/june-2026-security-releases",
+   "affectedEnvironments": [
+    "all"
+   ]
+  },
+  {
+   "id": "183",
+   "cve": [
+    "CVE-2026-48933"
+   ],
+   "vulnerable": "22.x || 24.x || 26.x",
+   "patched": "^22.23.0 || ^24.17.0 || ^26.3.1",
+   "severity": "high",
+   "description": "Node.js WebCrypto AES Integer Overflow Leads to Remote Process Abort (DoS)",
+   "ref": "https://nodejs.org/en/blog/vulnerability/june-2026-security-releases",
+   "affectedEnvironments": [
+    "all"
+   ]
+  },
+  {
+   "id": "184",
+   "cve": [
+    "CVE-2026-56846"
+   ],
+   "vulnerable": "22.x || 24.x",
+   "patched": "^22.23.2 || ^24.18.1",
+   "severity": "high",
+   "description": "HTTP/2 retained header blocks evade maxSessionMemory and enable remote memory exhaustion",
+   "ref": "https://nodejs.org/en/blog/vulnerability/july-2026-security-releases",
+   "affectedEnvironments": [
+    "all"
+   ]
+  },
+  {
+   "id": "185",
+   "cve": [
+    "CVE-2026-56847"
+   ],
+   "vulnerable": "22.x || 24.x || 26.x",
+   "patched": "^22.23.2 || ^24.18.1 || ^26.5.1",
+   "severity": "low",
+   "description": "Permission Model Bypass: `trace_events.createTracing().enable()` Writes Trace Logs Outside `--allow-fs-write`",
+   "ref": "https://nodejs.org/en/blog/vulnerability/july-2026-security-releases",
+   "affectedEnvironments": [
+    "all"
+   ]
+  },
+  {
+   "id": "186",
+   "cve": [
+    "CVE-2026-56848"
+   ],
+   "vulnerable": "22.x || 24.x || 26.x",
+   "patched": "^22.23.2 || ^24.18.1 || ^26.5.1",
+   "severity": "high",
+   "description": "Re-entrant `nghttp2_session_mem_send()` during `nghttp2_session_mem_recv()` causes heap-use-after-free in Node.js HTTP/2",
+   "ref": "https://nodejs.org/en/blog/vulnerability/july-2026-security-releases",
+   "affectedEnvironments": [
+    "all"
+   ]
+  },
+  {
+   "id": "187",
+   "cve": [
+    "CVE-2026-56850"
+   ],
+   "vulnerable": "22.x || 24.x || 26.x",
+   "patched": "^22.23.2 || ^24.18.1 || ^26.5.1",
+   "severity": "medium",
+   "description": "HTTPS Agent PFX object-array key collision allows mTLS client identity reuse across different per-request certificates",
+   "ref": "https://nodejs.org/en/blog/vulnerability/july-2026-security-releases",
+   "affectedEnvironments": [
+    "all"
+   ]
+  },
+  {
+   "id": "188",
+   "cve": [
+    "CVE-2026-58039"
+   ],
+   "vulnerable": "22.x || 24.x || 26.x",
+   "patched": "^22.23.2 || ^24.18.1 || ^26.5.1",
+   "severity": "low",
+   "description": "Permission Model bypass: process.report writes (and overwrites) files outside --allow-fs-write paths",
+   "ref": "https://nodejs.org/en/blog/vulnerability/july-2026-security-releases",
+   "affectedEnvironments": [
+    "all"
+   ]
+  },
+  {
+   "id": "189",
+   "cve": [
+    "CVE-2026-58040"
+   ],
+   "vulnerable": "22.x || 24.x || 26.x",
+   "patched": "^22.23.2 || ^24.18.1 || ^26.5.1",
+   "severity": "medium",
+   "description": "HTTPS Agent TLS session reuse skips hostname verification across identity policies (incomplete fix of CVE-2026-48934)",
+   "ref": "https://nodejs.org/en/blog/vulnerability/july-2026-security-releases",
+   "affectedEnvironments": [
+    "all"
+   ]
+  },
+  {
+   "id": "190",
+   "cve": [
+    "CVE-2026-58041"
+   ],
+   "vulnerable": "24.x || 26.x",
+   "patched": "^24.18.1 || ^26.5.1",
+   "severity": "medium",
+   "description": "node:sqlite SQLTagStore Iterator Replay Lets Attacker Re-Execute Victim-Bound Writes Indefinitely",
+   "ref": "https://nodejs.org/en/blog/vulnerability/july-2026-security-releases",
+   "affectedEnvironments": [
+    "all"
+   ]
+  },
+  {
+   "id": "191",
+   "cve": [
+    "CVE-2026-58042"
+   ],
+   "vulnerable": "22.x || 24.x || 26.x",
+   "patched": "^22.23.2 || ^24.18.1 || ^26.5.1",
+   "severity": "medium",
+   "description": "dns.resolveAny() Aborts the Node.js Process When a DNS Response Contains More Than 256 A Records",
+   "ref": "https://nodejs.org/en/blog/vulnerability/july-2026-security-releases",
+   "affectedEnvironments": [
+    "all"
+   ]
+  },
+  {
+   "id": "192",
+   "cve": [
+    "CVE-2026-58043"
+   ],
+   "vulnerable": "22.x || 24.x || 26.x",
+   "patched": "^22.23.2 || ^24.18.1 || ^26.5.1",
+   "severity": "high",
+   "description": "Permission Model: --allow-fs-read/--allow-fs-write radix-tree prefix-boundary over-grant",
+   "ref": "https://nodejs.org/en/blog/vulnerability/july-2026-security-releases",
+   "affectedEnvironments": [
+    "all"
+   ]
+  },
+  {
+   "id": "193",
+   "cve": [
+    "CVE-2026-58044"
+   ],
+   "vulnerable": "22.x || 24.x || 26.x",
+   "patched": "^22.23.2 || ^24.18.1 || ^26.5.1",
+   "severity": "low",
+   "description": "HTTP Request Smuggling via Silent Header Truncation in Node.js HTTP Parser",
+   "ref": "https://nodejs.org/en/blog/vulnerability/july-2026-security-releases",
+   "affectedEnvironments": [
+    "all"
+   ]
+  },
+  {
+   "id": "194",
+   "cve": [
+    "CVE-2026-58045"
+   ],
+   "vulnerable": "22.x || 24.x || 26.x",
+   "patched": "^22.23.2 || ^24.18.1 || ^26.5.1",
+   "severity": "medium",
+   "description": "Reachable assertion in node:zlib sync API crashes the entire process via spoofed TypedArray byteLength (all 11 *Sync functions affected)",
+   "ref": "https://nodejs.org/en/blog/vulnerability/july-2026-security-releases",
+   "affectedEnvironments": [
+    "all"
+   ]
+  },
+  {
+   "id": "195",
+   "cve": [
+    "CVE-2026-105481"
+   ],
+   "vulnerable": "22.x || 24.x || 26.x",
+   "patched": "^22.23.4 || ^24.22.1 || ^26.12.1",
+   "severity": "medium",
+   "description": "Keep-alive socket process a response that was written before the request was sent",
+   "ref": "https://nodejs.org/en/blog/vulnerability/october-2026-security-releases",
+   "affectedEnvironments": [
+    "all"
+   ]
+  },
+  {
+   "id": "196",
+   "cve": [
+    "CVE-2026-105482"
+   ],
+   "vulnerable": "22.x || 24.x || 26.x",
+   "patched": "^22.23.4 || ^24.22.1 || ^26.12.1",
+   "severity": "high",
+   "description": "dns.resolve truncates names containing NUL char",
+   "ref": "https://nodejs.org/en/blog/vulnerability/october-2026-security-releases",
+   "affectedEnvironments": [
+    "all"
+   ]
+  },
+  {
+   "id": "197",
+   "cve": [
+    "CVE-2026-105483"
+   ],
+   "vulnerable": "24.x || 26.x",
+   "patched": "^24.22.1 || ^26.12.1",
+   "severity": "high",
+   "description": "TLS certificate hostname bypass when the IP is written fullwidth digits",
+   "ref": "https://nodejs.org/en/blog/vulnerability/october-2026-security-releases",
+   "affectedEnvironments": [
+    "all"
+   ]
+  },
+  {
+   "id": "198",
+   "cve": [
+    "CVE-2026-106069"
+   ],
+   "vulnerable": "22.x || 24.x || 26.x",
+   "patched": "^22.23.4 || ^24.22.1 || ^26.12.1",
+   "severity": "high",
+   "description": "TLS certificate hostname bypass when the host loosely resolves to an IP address",
+   "ref": "https://nodejs.org/en/blog/vulnerability/october-2026-security-releases",
+   "affectedEnvironments": [
+    "all"
+   ]
+  },
+  {
+   "id": "199",
+   "cve": [
+    "CVE-2026-106070"
+   ],
+   "vulnerable": "26.x",
+   "patched": "^26.12.1",
+   "severity": "low",
+   "description": "Node.js ZipFile returns attacker-controlled prefix bytes after failed ZIP header validation",
+   "ref": "https://nodejs.org/en/blog/vulnerability/october-2026-security-releases",
+   "affectedEnvironments": [
+    "all"
+   ]
+  },
+  {
+   "id": "200",
+   "cve": [
+    "CVE-2026-106071"
+   ],
+   "vulnerable": "26.x",
+   "patched": "^26.12.1",
+   "severity": "low",
+   "description": "Permission Model filesystem over-grant via wildcard radix lookup",
+   "ref": "https://nodejs.org/en/blog/vulnerability/october-2026-security-releases",
+   "affectedEnvironments": [
+    "all"
+   ]
+  },
+  {
+   "id": "201",
+   "cve": [
+    "CVE-2026-106072"
+   ],
+   "vulnerable": "22.x || 24.x || 26.x",
+   "patched": "^22.23.4 || ^24.22.1 || ^26.12.1",
+   "severity": "medium",
+   "description": "Improper certificate validation for non-canonical IPv4 hostnames allows DNS SANs to authenticate IP endpoints",
+   "ref": "https://nodejs.org/en/blog/vulnerability/october-2026-security-releases",
+   "affectedEnvironments": [
+    "all"
+   ]
+  },
+  {
+   "id": "202",
+   "cve": [
+    "CVE-2026-106073"
+   ],
+   "vulnerable": "22.x || 24.x || 26.x",
+   "patched": "^22.23.4 || ^24.22.1 || ^26.12.1",
+   "severity": "low",
+   "description": "Permission Model bypass with fs.realpathSync",
+   "ref": "https://nodejs.org/en/blog/vulnerability/october-2026-security-releases",
+   "affectedEnvironments": [
+    "all"
+   ]
+  },
+  {
+   "id": "203",
+   "cve": [
+    "CVE-2026-106074"
+   ],
+   "vulnerable": "22.x || 24.x || 26.x",
+   "patched": "^22.23.4 || ^24.22.1 || ^26.12.1",
+   "severity": "medium",
+   "description": "crypto.randomUUID() and randomInt() entropy caches are saved into user-land startup snapshots and SEAs, so every process repeats the same values",
+   "ref": "https://nodejs.org/en/blog/vulnerability/october-2026-security-releases",
+   "affectedEnvironments": [
+    "all"
+   ]
+  },
+  {
+   "id": "204",
+   "cve": [
+    "CVE-2026-111497"
+   ],
+   "vulnerable": "22.x || 24.x || 26.x",
+   "patched": "^22.23.4 || ^24.22.1 || ^26.12.1",
+   "severity": "high",
+   "description": "Node.js Brotli decoder out-of-bounds write permits remote code execution",
+   "ref": "https://nodejs.org/en/blog/vulnerability/october-2026-security-releases",
+   "affectedEnvironments": [
+    "all"
+   ]
+  }
+ ]
+}

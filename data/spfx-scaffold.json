@@ -1,0 +1,4389 @@
+{
+ "generatedAt": "2026-10-30",
+ "source": "npm @microsoft/generator-sharepoint tarballs",
+ "versions": {
+  "1.1.0": {
+   "components": {},
+   "toolchains": {
+    "gulp": {
+     "dependencies": {},
+     "devDependencies": {}
+    }
+   },
+   "react": {
+    "dependencies": {
+     "react": "15.4.2",
+     "react-dom": "15.4.2",
+     "@types/react": "0.14.46",
+     "@types/react-dom": "0.14.18",
+     "@types/react-addons-shallow-compare": "0.14.17",
+     "@types/react-addons-update": "0.14.14",
+     "@types/react-addons-test-utils": "0.14.15"
+    },
+    "devDependencies": {}
+   }
+  },
+  "1.2.0": {
+   "components": {},
+   "toolchains": {
+    "gulp": {
+     "dependencies": {
+      "@types/webpack-env": ">=1.12.1 <1.14.0"
+     },
+     "devDependencies": {
+      "gulp": "~3.9.1",
+      "@types/chai": ">=3.4.34 <3.6.0",
+      "@types/mocha": ">=2.2.33 <2.6.0"
+     }
+    }
+   },
+   "react": {
+    "dependencies": {
+     "react": "15.4.2",
+     "react-dom": "15.4.2",
+     "@types/react": "15.0.38",
+     "@types/react-dom": "0.14.18",
+     "@types/react-addons-shallow-compare": "0.14.17",
+     "@types/react-addons-update": "0.14.14",
+     "@types/react-addons-test-utils": "0.14.15"
+    },
+    "devDependencies": {}
+   }
+  },
+  "1.3.0": {
+   "components": {
+    "webpart": {
+     "dependencies": {
+      "@microsoft/sp-core-library": "~1.3.0",
+      "@microsoft/sp-webpart-base": "~1.3.0",
+      "@microsoft/sp-lodash-subset": "~1.3.0"
+     },
+     "devDependencies": {
+      "@microsoft/sp-build-web": "~1.3.0",
+      "@microsoft/sp-module-interfaces": "~1.3.0",
+      "@microsoft/sp-webpart-workbench": "~1.3.0"
+     }
+    },
+    "extension": {
+     "dependencies": {
+      "@microsoft/sp-core-library": "~1.3.0",
+      "@microsoft/decorators": "~1.3.0"
+     },
+     "devDependencies": {
+      "@microsoft/sp-build-web": "~1.3.0",
+      "@microsoft/sp-module-interfaces": "~1.3.0",
+      "@microsoft/sp-webpart-workbench": "~1.3.0"
+     }
+    },
+    "applicationCustomizer": {
+     "dependencies": {
+      "@microsoft/sp-dialog": "1.3.0",
+      "@microsoft/sp-application-base": "1.3.0"
+     },
+     "devDependencies": {}
+    },
+    "commandSet": {
+     "dependencies": {
+      "@microsoft/sp-listview-extensibility": "1.3.0",
+      "@microsoft/sp-dialog": "1.3.0"
+     },
+     "devDependencies": {}
+    },
+    "fieldCustomizer": {
+     "dependencies": {
+      "@microsoft/sp-listview-extensibility": "1.3.0"
+     },
+     "devDependencies": {}
+    }
+   },
+   "toolchains": {
+    "gulp": {
+     "dependencies": {
+      "@types/webpack-env": ">=1.12.1 <1.14.0"
+     },
+     "devDependencies": {
+      "gulp": "~3.9.1",
+      "@types/chai": ">=3.4.34 <3.6.0",
+      "@types/mocha": ">=2.2.33 <2.6.0",
+      "@microsoft/sp-build-web": "~1.3.0",
+      "@microsoft/sp-webpart-workbench": "~1.3.0"
+     }
+    }
+   },
+   "react": {
+    "dependencies": {
+     "react": "15.4.2",
+     "react-dom": "15.4.2",
+     "@types/react": "15.0.38",
+     "@types/react-dom": "0.14.18",
+     "@types/react-addons-shallow-compare": "0.14.17",
+     "@types/react-addons-update": "0.14.14",
+     "@types/react-addons-test-utils": "0.14.15"
+    },
+    "devDependencies": {}
+   }
+  },
+  "1.3.4": {
+   "components": {
+    "webpart": {
+     "dependencies": {
+      "@microsoft/sp-core-library": "~1.3.4",
+      "@microsoft/sp-webpart-base": "~1.3.4",
+      "@microsoft/sp-lodash-subset": "~1.3.4",
+      "@microsoft/sp-office-ui-fabric-core": "~1.3.4"
+     },
+     "devDependencies": {
+      "@microsoft/sp-build-web": "~1.3.4",
+      "@microsoft/sp-module-interfaces": "~1.3.4",
+      "@microsoft/sp-webpart-workbench": "~1.3.4"
+     }
+    },
+    "extension": {
+     "dependencies": {
+      "@microsoft/sp-core-library": "~1.3.4",
+      "@microsoft/decorators": "~1.3.4"
+     },
+     "devDependencies": {
+      "@microsoft/sp-build-web": "~1.3.4",
+      "@microsoft/sp-module-interfaces": "~1.3.4",
+      "@microsoft/sp-webpart-workbench": "~1.3.4"
+     }
+    },
+    "applicationCustomizer": {
+     "dependencies": {
+      "@microsoft/sp-dialog": "~1.3.4",
+      "@microsoft/sp-application-base": "~1.3.4"
+     },
+     "devDependencies": {}
+    },
+    "commandSet": {
+     "dependencies": {
+      "@microsoft/sp-listview-extensibility": "~1.3.4",
+      "@microsoft/sp-dialog": "~1.3.4"
+     },
+     "devDependencies": {}
+    },
+    "fieldCustomizer": {
+     "dependencies": {
+      "@microsoft/sp-listview-extensibility": "~1.3.4"
+     },
+     "devDependencies": {}
+    }
+   },
+   "toolchains": {
+    "gulp": {
+     "dependencies": {
+      "@types/webpack-env": ">=1.12.1 <1.14.0"
+     },
+     "devDependencies": {
+      "gulp": "~3.9.1",
+      "@types/chai": ">=3.4.34 <3.6.0",
+      "@types/mocha": ">=2.2.33 <2.6.0",
+      "ajv": "~5.2.2",
+      "@microsoft/sp-build-web": "~1.3.4",
+      "@microsoft/sp-webpart-workbench": "~1.3.4"
+     }
+    }
+   },
+   "react": {
+    "dependencies": {
+     "react": "15.4.2",
+     "react-dom": "15.4.2",
+     "@types/react": "15.0.38",
+     "@types/react-dom": "0.14.18",
+     "@types/react-addons-shallow-compare": "0.14.17",
+     "@types/react-addons-update": "0.14.14",
+     "@types/react-addons-test-utils": "0.14.15"
+    },
+    "devDependencies": {}
+   }
+  },
+  "1.4.0": {
+   "components": {
+    "webpart": {
+     "dependencies": {
+      "@microsoft/sp-core-library": "~1.4.0",
+      "@microsoft/sp-webpart-base": "~1.4.0",
+      "@microsoft/sp-lodash-subset": "~1.4.0",
+      "@microsoft/sp-office-ui-fabric-core": "~1.4.0"
+     },
+     "devDependencies": {
+      "@microsoft/sp-build-web": "~1.4.0",
+      "@microsoft/sp-module-interfaces": "~1.4.0",
+      "@microsoft/sp-webpart-workbench": "~1.4.0"
+     }
+    },
+    "extension": {
+     "dependencies": {
+      "@microsoft/sp-core-library": "~1.4.0",
+      "@microsoft/decorators": "~1.4.0"
+     },
+     "devDependencies": {
+      "@microsoft/sp-build-web": "~1.4.0",
+      "@microsoft/sp-module-interfaces": "~1.4.0",
+      "@microsoft/sp-webpart-workbench": "~1.4.0"
+     }
+    },
+    "applicationCustomizer": {
+     "dependencies": {
+      "@microsoft/sp-dialog": "~1.4.0",
+      "@microsoft/sp-application-base": "~1.4.0"
+     },
+     "devDependencies": {}
+    },
+    "commandSet": {
+     "dependencies": {
+      "@microsoft/sp-listview-extensibility": "~1.4.0",
+      "@microsoft/sp-dialog": "~1.4.0"
+     },
+     "devDependencies": {}
+    },
+    "fieldCustomizer": {
+     "dependencies": {
+      "@microsoft/sp-listview-extensibility": "~1.4.0"
+     },
+     "devDependencies": {}
+    }
+   },
+   "toolchains": {
+    "gulp": {
+     "dependencies": {
+      "@types/webpack-env": ">=1.12.1 <1.14.0"
+     },
+     "devDependencies": {
+      "gulp": "~3.9.1",
+      "@types/chai": ">=3.4.34 <3.6.0",
+      "@types/mocha": ">=2.2.33 <2.6.0",
+      "ajv": "~5.2.2",
+      "@microsoft/sp-build-web": "~1.4.0",
+      "@microsoft/sp-webpart-workbench": "~1.4.0"
+     }
+    }
+   },
+   "react": {
+    "dependencies": {
+     "react": "15.6.2",
+     "react-dom": "15.6.2",
+     "@types/react": "15.6.6",
+     "@types/react-dom": "15.5.6"
+    },
+    "devDependencies": {}
+   }
+  },
+  "1.4.1": {
+   "components": {
+    "webpart": {
+     "dependencies": {
+      "@microsoft/sp-core-library": "~1.4.1",
+      "@microsoft/sp-webpart-base": "~1.4.1",
+      "@microsoft/sp-lodash-subset": "~1.4.1",
+      "@microsoft/sp-office-ui-fabric-core": "~1.4.1"
+     },
+     "devDependencies": {
+      "@microsoft/sp-build-web": "~1.4.1",
+      "@microsoft/sp-module-interfaces": "~1.4.1",
+      "@microsoft/sp-webpart-workbench": "~1.4.1"
+     }
+    },
+    "extension": {
+     "dependencies": {
+      "@microsoft/sp-core-library": "~1.4.1",
+      "@microsoft/decorators": "~1.4.1"
+     },
+     "devDependencies": {
+      "@microsoft/sp-build-web": "~1.4.1",
+      "@microsoft/sp-module-interfaces": "~1.4.1",
+      "@microsoft/sp-webpart-workbench": "~1.4.1"
+     }
+    },
+    "applicationCustomizer": {
+     "dependencies": {
+      "@microsoft/sp-dialog": "~1.4.1",
+      "@microsoft/sp-application-base": "~1.4.1"
+     },
+     "devDependencies": {}
+    },
+    "commandSet": {
+     "dependencies": {
+      "@microsoft/sp-listview-extensibility": "~1.4.1",
+      "@microsoft/sp-dialog": "~1.4.1"
+     },
+     "devDependencies": {}
+    },
+    "fieldCustomizer": {
+     "dependencies": {
+      "@microsoft/sp-listview-extensibility": "~1.4.1"
+     },
+     "devDependencies": {}
+    }
+   },
+   "toolchains": {
+    "gulp": {
+     "dependencies": {
+      "@types/webpack-env": ">=1.12.1 <1.14.0"
+     },
+     "devDependencies": {
+      "gulp": "~3.9.1",
+      "@types/chai": ">=3.4.34 <3.6.0",
+      "@types/mocha": ">=2.2.33 <2.6.0",
+      "ajv": "~5.2.2",
+      "@microsoft/sp-build-web": "~1.4.1",
+      "@microsoft/sp-webpart-workbench": "~1.4.1"
+     }
+    }
+   },
+   "react": {
+    "dependencies": {
+     "react": "15.6.2",
+     "react-dom": "15.6.2",
+     "@types/react": "15.6.6",
+     "@types/react-dom": "15.5.6"
+    },
+    "devDependencies": {}
+   }
+  },
+  "1.5.0": {
+   "components": {
+    "webpart": {
+     "dependencies": {
+      "@microsoft/sp-core-library": "1.5.0",
+      "@microsoft/sp-webpart-base": "1.5.0",
+      "@microsoft/sp-lodash-subset": "1.5.0",
+      "@microsoft/sp-office-ui-fabric-core": "1.5.0"
+     },
+     "devDependencies": {
+      "@microsoft/sp-build-web": "1.5.0",
+      "@microsoft/sp-module-interfaces": "1.5.0",
+      "@microsoft/sp-webpart-workbench": "1.5.0"
+     }
+    },
+    "extension": {
+     "dependencies": {
+      "@microsoft/sp-core-library": "1.5.0",
+      "@microsoft/decorators": "1.5.0"
+     },
+     "devDependencies": {
+      "@microsoft/sp-build-web": "1.5.0",
+      "@microsoft/sp-module-interfaces": "1.5.0",
+      "@microsoft/sp-webpart-workbench": "1.5.0"
+     }
+    },
+    "applicationCustomizer": {
+     "dependencies": {
+      "@microsoft/sp-dialog": "1.5.0",
+      "@microsoft/sp-application-base": "1.5.0"
+     },
+     "devDependencies": {}
+    },
+    "commandSet": {
+     "dependencies": {
+      "@microsoft/sp-listview-extensibility": "1.5.0",
+      "@microsoft/sp-dialog": "1.5.0"
+     },
+     "devDependencies": {}
+    },
+    "fieldCustomizer": {
+     "dependencies": {
+      "@microsoft/sp-listview-extensibility": "1.5.0"
+     },
+     "devDependencies": {}
+    }
+   },
+   "toolchains": {
+    "gulp": {
+     "dependencies": {
+      "@types/webpack-env": "1.13.1",
+      "@types/es6-promise": "0.0.33"
+     },
+     "devDependencies": {
+      "gulp": "~3.9.1",
+      "@types/chai": "3.4.34",
+      "@types/mocha": "2.2.38",
+      "ajv": "~5.2.2",
+      "@microsoft/sp-build-web": "1.5.0",
+      "@microsoft/sp-webpart-workbench": "1.5.0"
+     }
+    }
+   },
+   "react": {
+    "dependencies": {
+     "react": "15.6.2",
+     "react-dom": "15.6.2",
+     "@types/react": "15.6.6",
+     "@types/react-dom": "15.5.6"
+    },
+    "devDependencies": {}
+   }
+  },
+  "1.5.1": {
+   "components": {
+    "webpart": {
+     "dependencies": {
+      "@microsoft/sp-core-library": "1.5.1",
+      "@microsoft/sp-webpart-base": "1.5.1",
+      "@microsoft/sp-lodash-subset": "1.5.1",
+      "@microsoft/sp-office-ui-fabric-core": "1.5.1"
+     },
+     "devDependencies": {
+      "@microsoft/sp-build-web": "1.5.1",
+      "@microsoft/sp-module-interfaces": "1.5.1",
+      "@microsoft/sp-webpart-workbench": "1.5.1"
+     }
+    },
+    "extension": {
+     "dependencies": {
+      "@microsoft/sp-core-library": "1.5.1",
+      "@microsoft/decorators": "1.5.1"
+     },
+     "devDependencies": {
+      "@microsoft/sp-build-web": "1.5.1",
+      "@microsoft/sp-module-interfaces": "1.5.1",
+      "@microsoft/sp-webpart-workbench": "1.5.1"
+     }
+    },
+    "applicationCustomizer": {
+     "dependencies": {
+      "@microsoft/sp-dialog": "1.5.1",
+      "@microsoft/sp-application-base": "1.5.1"
+     },
+     "devDependencies": {}
+    },
+    "commandSet": {
+     "dependencies": {
+      "@microsoft/sp-listview-extensibility": "1.5.1",
+      "@microsoft/sp-dialog": "1.5.1"
+     },
+     "devDependencies": {}
+    },
+    "fieldCustomizer": {
+     "dependencies": {
+      "@microsoft/sp-listview-extensibility": "1.5.1"
+     },
+     "devDependencies": {}
+    }
+   },
+   "toolchains": {
+    "gulp": {
+     "dependencies": {
+      "@types/webpack-env": "1.13.1",
+      "@types/es6-promise": "0.0.33"
+     },
+     "devDependencies": {
+      "gulp": "~3.9.1",
+      "@types/chai": "3.4.34",
+      "@types/mocha": "2.2.38",
+      "ajv": "~5.2.2",
+      "@microsoft/sp-build-web": "1.5.1",
+      "@microsoft/sp-webpart-workbench": "1.5.1"
+     }
+    }
+   },
+   "react": {
+    "dependencies": {
+     "react": "15.6.2",
+     "react-dom": "15.6.2",
+     "@types/react": "15.6.6",
+     "@types/react-dom": "15.5.6"
+    },
+    "devDependencies": {}
+   }
+  },
+  "1.6.0": {
+   "components": {
+    "webpart": {
+     "dependencies": {
+      "@microsoft/sp-core-library": "1.6.0",
+      "@microsoft/sp-webpart-base": "1.6.0",
+      "@microsoft/sp-lodash-subset": "1.6.0",
+      "@microsoft/sp-office-ui-fabric-core": "1.6.0"
+     },
+     "devDependencies": {
+      "@microsoft/sp-build-web": "1.6.0",
+      "@microsoft/sp-module-interfaces": "1.6.0",
+      "@microsoft/sp-webpart-workbench": "1.6.0"
+     }
+    },
+    "extension": {
+     "dependencies": {
+      "@microsoft/sp-core-library": "1.6.0",
+      "@microsoft/decorators": "1.6.0"
+     },
+     "devDependencies": {
+      "@microsoft/sp-build-web": "1.6.0",
+      "@microsoft/sp-module-interfaces": "1.6.0",
+      "@microsoft/sp-webpart-workbench": "1.6.0"
+     }
+    },
+    "applicationCustomizer": {
+     "dependencies": {
+      "@microsoft/sp-dialog": "1.6.0",
+      "@microsoft/sp-application-base": "1.6.0"
+     },
+     "devDependencies": {}
+    },
+    "commandSet": {
+     "dependencies": {
+      "@microsoft/sp-listview-extensibility": "1.6.0",
+      "@microsoft/sp-dialog": "1.6.0"
+     },
+     "devDependencies": {}
+    },
+    "fieldCustomizer": {
+     "dependencies": {
+      "@microsoft/sp-listview-extensibility": "1.6.0"
+     },
+     "devDependencies": {}
+    }
+   },
+   "toolchains": {
+    "gulp": {
+     "dependencies": {
+      "@types/webpack-env": "1.13.1",
+      "@types/es6-promise": "0.0.33"
+     },
+     "devDependencies": {
+      "tslint-microsoft-contrib": "~5.0.0",
+      "gulp": "~3.9.1",
+      "@types/chai": "3.4.34",
+      "@types/mocha": "2.2.38",
+      "ajv": "~5.2.2",
+      "@microsoft/sp-build-web": "1.6.0",
+      "@microsoft/sp-webpart-workbench": "1.6.0"
+     }
+    }
+   },
+   "react": {
+    "dependencies": {
+     "react": "15.6.2",
+     "react-dom": "15.6.2",
+     "@types/react": "15.6.6",
+     "@types/react-dom": "15.5.6"
+    },
+    "devDependencies": {}
+   }
+  },
+  "1.7.0": {
+   "components": {
+    "webpart": {
+     "dependencies": {
+      "@microsoft/sp-core-library": "1.7.0",
+      "@microsoft/sp-webpart-base": "1.7.0",
+      "@microsoft/sp-lodash-subset": "1.7.0",
+      "@microsoft/sp-office-ui-fabric-core": "1.7.0"
+     },
+     "devDependencies": {
+      "@microsoft/sp-build-web": "1.7.0",
+      "@microsoft/sp-tslint-rules": "1.7.0",
+      "@microsoft/sp-module-interfaces": "1.7.0",
+      "@microsoft/sp-webpart-workbench": "1.7.0"
+     }
+    },
+    "extension": {
+     "dependencies": {
+      "@microsoft/sp-core-library": "1.7.0",
+      "@microsoft/decorators": "1.7.0"
+     },
+     "devDependencies": {
+      "@microsoft/sp-build-web": "1.7.0",
+      "@microsoft/sp-tslint-rules": "1.7.0",
+      "@microsoft/sp-module-interfaces": "1.7.0",
+      "@microsoft/sp-webpart-workbench": "1.7.0"
+     }
+    },
+    "applicationCustomizer": {
+     "dependencies": {
+      "@microsoft/sp-dialog": "1.7.0",
+      "@microsoft/sp-application-base": "1.7.0"
+     },
+     "devDependencies": {}
+    },
+    "commandSet": {
+     "dependencies": {
+      "@microsoft/sp-listview-extensibility": "1.7.0",
+      "@microsoft/sp-dialog": "1.7.0"
+     },
+     "devDependencies": {}
+    },
+    "fieldCustomizer": {
+     "dependencies": {
+      "@microsoft/sp-listview-extensibility": "1.7.0"
+     },
+     "devDependencies": {}
+    }
+   },
+   "toolchains": {
+    "gulp": {
+     "dependencies": {
+      "@types/webpack-env": "1.13.1",
+      "@types/es6-promise": "0.0.33"
+     },
+     "devDependencies": {
+      "gulp": "~3.9.1",
+      "@types/chai": "3.4.34",
+      "@types/mocha": "2.2.38",
+      "ajv": "~5.2.2",
+      "@microsoft/sp-build-web": "1.7.0",
+      "@microsoft/sp-tslint-rules": "1.7.0",
+      "@microsoft/sp-webpart-workbench": "1.7.0"
+     }
+    }
+   },
+   "react": {
+    "dependencies": {
+     "react": "16.3.2",
+     "react-dom": "16.3.2",
+     "@types/react": "16.4.2",
+     "@types/react-dom": "16.0.5"
+    },
+    "devDependencies": {}
+   }
+  },
+  "1.7.1": {
+   "components": {
+    "webpart": {
+     "dependencies": {
+      "@microsoft/sp-core-library": "1.7.1",
+      "@microsoft/sp-webpart-base": "1.7.1",
+      "@microsoft/sp-lodash-subset": "1.7.1",
+      "@microsoft/sp-office-ui-fabric-core": "1.7.1"
+     },
+     "devDependencies": {
+      "@microsoft/sp-build-web": "1.7.1",
+      "@microsoft/sp-tslint-rules": "1.7.1",
+      "@microsoft/sp-module-interfaces": "1.7.1",
+      "@microsoft/sp-webpart-workbench": "1.7.1"
+     }
+    },
+    "extension": {
+     "dependencies": {
+      "@microsoft/sp-core-library": "1.7.1",
+      "@microsoft/decorators": "1.7.1"
+     },
+     "devDependencies": {
+      "@microsoft/sp-build-web": "1.7.1",
+      "@microsoft/sp-tslint-rules": "1.7.1",
+      "@microsoft/sp-module-interfaces": "1.7.1",
+      "@microsoft/sp-webpart-workbench": "1.7.1"
+     }
+    },
+    "applicationCustomizer": {
+     "dependencies": {
+      "@microsoft/sp-dialog": "1.7.1",
+      "@microsoft/sp-application-base": "1.7.1"
+     },
+     "devDependencies": {}
+    },
+    "commandSet": {
+     "dependencies": {
+      "@microsoft/sp-listview-extensibility": "1.7.1",
+      "@microsoft/sp-dialog": "1.7.1"
+     },
+     "devDependencies": {}
+    },
+    "fieldCustomizer": {
+     "dependencies": {
+      "@microsoft/sp-listview-extensibility": "1.7.1"
+     },
+     "devDependencies": {}
+    }
+   },
+   "toolchains": {
+    "gulp": {
+     "dependencies": {
+      "@types/webpack-env": "1.13.1",
+      "@types/es6-promise": "0.0.33"
+     },
+     "devDependencies": {
+      "gulp": "~3.9.1",
+      "@types/chai": "3.4.34",
+      "@types/mocha": "2.2.38",
+      "ajv": "~5.2.2",
+      "@microsoft/sp-build-web": "1.7.1",
+      "@microsoft/sp-tslint-rules": "1.7.1",
+      "@microsoft/sp-webpart-workbench": "1.7.1"
+     }
+    }
+   },
+   "react": {
+    "dependencies": {
+     "react": "16.3.2",
+     "react-dom": "16.3.2",
+     "@types/react": "16.4.2",
+     "@types/react-dom": "16.0.5"
+    },
+    "devDependencies": {}
+   }
+  },
+  "1.8.0": {
+   "components": {
+    "webpart": {
+     "dependencies": {
+      "@microsoft/sp-core-library": "1.8.0",
+      "@microsoft/sp-property-pane": "1.8.0",
+      "@microsoft/sp-webpart-base": "1.8.0",
+      "@microsoft/sp-lodash-subset": "1.8.0",
+      "@microsoft/sp-office-ui-fabric-core": "1.8.0"
+     },
+     "devDependencies": {
+      "@microsoft/sp-build-web": "1.8.0",
+      "@microsoft/sp-tslint-rules": "1.8.0",
+      "@microsoft/sp-module-interfaces": "1.8.0",
+      "@microsoft/sp-webpart-workbench": "1.8.0",
+      "@microsoft/rush-stack-compiler-2.7": "0.4.0"
+     }
+    },
+    "extension": {
+     "dependencies": {
+      "@microsoft/sp-core-library": "1.8.0",
+      "@microsoft/decorators": "1.8.0"
+     },
+     "devDependencies": {
+      "@microsoft/sp-build-web": "1.8.0",
+      "@microsoft/sp-tslint-rules": "1.8.0",
+      "@microsoft/sp-module-interfaces": "1.8.0",
+      "@microsoft/sp-webpart-workbench": "1.8.0",
+      "@microsoft/rush-stack-compiler-2.7": "0.4.0"
+     }
+    },
+    "applicationCustomizer": {
+     "dependencies": {
+      "@microsoft/sp-dialog": "1.8.0",
+      "@microsoft/sp-application-base": "1.8.0"
+     },
+     "devDependencies": {}
+    },
+    "commandSet": {
+     "dependencies": {
+      "@microsoft/sp-listview-extensibility": "1.8.0",
+      "@microsoft/sp-dialog": "1.8.0"
+     },
+     "devDependencies": {}
+    },
+    "fieldCustomizer": {
+     "dependencies": {
+      "@microsoft/sp-listview-extensibility": "1.8.0"
+     },
+     "devDependencies": {}
+    }
+   },
+   "toolchains": {
+    "gulp": {
+     "dependencies": {
+      "@types/webpack-env": "1.13.1",
+      "@types/es6-promise": "0.0.33"
+     },
+     "devDependencies": {
+      "gulp": "~3.9.1",
+      "@types/chai": "3.4.34",
+      "@types/mocha": "2.2.38",
+      "ajv": "~5.2.2",
+      "@microsoft/sp-build-web": "1.8.0",
+      "@microsoft/sp-tslint-rules": "1.8.0",
+      "@microsoft/sp-webpart-workbench": "1.8.0",
+      "@microsoft/rush-stack-compiler-2.7": "0.4.0"
+     }
+    }
+   },
+   "react": {
+    "dependencies": {
+     "react": "16.7.0",
+     "react-dom": "16.7.0",
+     "@types/react": "16.4.2",
+     "@types/react-dom": "16.0.5"
+    },
+    "devDependencies": {}
+   }
+  },
+  "1.8.1": {
+   "components": {
+    "webpart": {
+     "dependencies": {
+      "@microsoft/sp-core-library": "1.8.1",
+      "@microsoft/sp-property-pane": "1.8.1",
+      "@microsoft/sp-webpart-base": "1.8.1",
+      "@microsoft/sp-lodash-subset": "1.8.1",
+      "@microsoft/sp-office-ui-fabric-core": "1.8.1"
+     },
+     "devDependencies": {
+      "@microsoft/sp-build-web": "1.8.1",
+      "@microsoft/sp-tslint-rules": "1.8.1",
+      "@microsoft/sp-module-interfaces": "1.8.1",
+      "@microsoft/sp-webpart-workbench": "1.8.1",
+      "@microsoft/rush-stack-compiler-2.7": "0.4.0"
+     }
+    },
+    "extension": {
+     "dependencies": {
+      "@microsoft/sp-core-library": "1.8.1",
+      "@microsoft/decorators": "1.8.1"
+     },
+     "devDependencies": {
+      "@microsoft/sp-build-web": "1.8.1",
+      "@microsoft/sp-tslint-rules": "1.8.1",
+      "@microsoft/sp-module-interfaces": "1.8.1",
+      "@microsoft/sp-webpart-workbench": "1.8.1",
+      "@microsoft/rush-stack-compiler-2.7": "0.4.0"
+     }
+    },
+    "applicationCustomizer": {
+     "dependencies": {
+      "@microsoft/sp-dialog": "1.8.1",
+      "@microsoft/sp-application-base": "1.8.1"
+     },
+     "devDependencies": {}
+    },
+    "commandSet": {
+     "dependencies": {
+      "@microsoft/sp-listview-extensibility": "1.8.1",
+      "@microsoft/sp-dialog": "1.8.1"
+     },
+     "devDependencies": {}
+    },
+    "fieldCustomizer": {
+     "dependencies": {
+      "@microsoft/sp-listview-extensibility": "1.8.1"
+     },
+     "devDependencies": {}
+    }
+   },
+   "toolchains": {
+    "gulp": {
+     "dependencies": {
+      "@types/webpack-env": "1.13.1",
+      "@types/es6-promise": "0.0.33"
+     },
+     "devDependencies": {
+      "gulp": "~3.9.1",
+      "@types/chai": "3.4.34",
+      "@types/mocha": "2.2.38",
+      "ajv": "~5.2.2",
+      "@microsoft/sp-build-web": "1.8.1",
+      "@microsoft/sp-tslint-rules": "1.8.1",
+      "@microsoft/sp-webpart-workbench": "1.8.1",
+      "@microsoft/rush-stack-compiler-2.7": "0.4.0"
+     }
+    }
+   },
+   "react": {
+    "dependencies": {
+     "react": "16.7.0",
+     "react-dom": "16.7.0",
+     "@types/react": "16.4.2",
+     "@types/react-dom": "16.0.5"
+    },
+    "devDependencies": {}
+   }
+  },
+  "1.8.2": {
+   "components": {
+    "webpart": {
+     "dependencies": {
+      "@microsoft/sp-core-library": "1.8.2",
+      "@microsoft/sp-property-pane": "1.8.2",
+      "@microsoft/sp-webpart-base": "1.8.2",
+      "@microsoft/sp-lodash-subset": "1.8.2",
+      "@microsoft/sp-office-ui-fabric-core": "1.8.2"
+     },
+     "devDependencies": {
+      "@microsoft/sp-build-web": "1.8.2",
+      "@microsoft/sp-tslint-rules": "1.8.2",
+      "@microsoft/sp-module-interfaces": "1.8.2",
+      "@microsoft/sp-webpart-workbench": "1.8.2",
+      "@microsoft/rush-stack-compiler-2.9": "0.7.7"
+     }
+    },
+    "extension": {
+     "dependencies": {
+      "@microsoft/sp-core-library": "1.8.2",
+      "@microsoft/decorators": "1.8.2"
+     },
+     "devDependencies": {
+      "@microsoft/sp-build-web": "1.8.2",
+      "@microsoft/sp-tslint-rules": "1.8.2",
+      "@microsoft/sp-module-interfaces": "1.8.2",
+      "@microsoft/sp-webpart-workbench": "1.8.2",
+      "@microsoft/rush-stack-compiler-2.9": "0.7.7"
+     }
+    },
+    "applicationCustomizer": {
+     "dependencies": {
+      "@microsoft/sp-dialog": "1.8.2",
+      "@microsoft/sp-application-base": "1.8.2"
+     },
+     "devDependencies": {}
+    },
+    "commandSet": {
+     "dependencies": {
+      "@microsoft/sp-listview-extensibility": "1.8.2",
+      "@microsoft/sp-dialog": "1.8.2"
+     },
+     "devDependencies": {}
+    },
+    "fieldCustomizer": {
+     "dependencies": {
+      "@microsoft/sp-listview-extensibility": "1.8.2"
+     },
+     "devDependencies": {}
+    }
+   },
+   "toolchains": {
+    "gulp": {
+     "dependencies": {
+      "@types/webpack-env": "1.13.1",
+      "@types/es6-promise": "0.0.33"
+     },
+     "devDependencies": {
+      "gulp": "~3.9.1",
+      "@types/chai": "3.4.34",
+      "@types/mocha": "2.2.38",
+      "ajv": "~5.2.2",
+      "@microsoft/sp-build-web": "1.8.2",
+      "@microsoft/sp-tslint-rules": "1.8.2",
+      "@microsoft/sp-webpart-workbench": "1.8.2",
+      "@microsoft/rush-stack-compiler-2.9": "0.7.7"
+     }
+    }
+   },
+   "react": {
+    "dependencies": {
+     "react": "16.7.0",
+     "react-dom": "16.7.0",
+     "@types/react": "16.7.22",
+     "@types/react-dom": "16.8.0",
+     "office-ui-fabric-react": "6.143.0"
+    },
+    "devDependencies": {}
+   }
+  },
+  "1.9.1": {
+   "components": {
+    "webpart": {
+     "dependencies": {
+      "@microsoft/sp-core-library": "1.9.1",
+      "@microsoft/sp-webpart-base": "1.9.1",
+      "@microsoft/sp-lodash-subset": "1.9.1",
+      "@microsoft/sp-office-ui-fabric-core": "1.9.1"
+     },
+     "devDependencies": {
+      "@microsoft/sp-build-web": "1.9.1",
+      "@microsoft/sp-tslint-rules": "1.9.1",
+      "@microsoft/sp-module-interfaces": "1.9.1",
+      "@microsoft/sp-webpart-workbench": "1.9.1",
+      "@microsoft/rush-stack-compiler-2.9": "0.7.16"
+     }
+    },
+    "extension": {
+     "dependencies": {
+      "@microsoft/sp-core-library": "1.9.1",
+      "@microsoft/decorators": "1.9.1"
+     },
+     "devDependencies": {
+      "@microsoft/sp-build-web": "1.9.1",
+      "@microsoft/sp-tslint-rules": "1.9.1",
+      "@microsoft/sp-module-interfaces": "1.9.1",
+      "@microsoft/sp-webpart-workbench": "1.9.1",
+      "@microsoft/rush-stack-compiler-2.9": "0.7.16"
+     }
+    },
+    "applicationCustomizer": {
+     "dependencies": {
+      "@microsoft/sp-dialog": "1.9.1",
+      "@microsoft/sp-application-base": "1.9.1"
+     },
+     "devDependencies": {}
+    },
+    "commandSet": {
+     "dependencies": {
+      "@microsoft/sp-listview-extensibility": "1.9.1",
+      "@microsoft/sp-dialog": "1.9.1"
+     },
+     "devDependencies": {}
+    },
+    "fieldCustomizer": {
+     "dependencies": {
+      "@microsoft/sp-listview-extensibility": "1.9.1"
+     },
+     "devDependencies": {}
+    },
+    "library": {
+     "dependencies": {},
+     "devDependencies": {
+      "@microsoft/sp-build-web": "1.9.1",
+      "@microsoft/sp-tslint-rules": "1.9.1",
+      "@microsoft/sp-module-interfaces": "1.9.1",
+      "@microsoft/sp-webpart-workbench": "1.9.1",
+      "@microsoft/rush-stack-compiler-2.9": "0.7.16"
+     }
+    }
+   },
+   "toolchains": {
+    "gulp": {
+     "dependencies": {
+      "@types/webpack-env": "1.13.1",
+      "@types/es6-promise": "0.0.33"
+     },
+     "devDependencies": {
+      "gulp": "~3.9.1",
+      "@types/chai": "3.4.34",
+      "@types/mocha": "2.2.38",
+      "ajv": "~5.2.2",
+      "@microsoft/sp-build-web": "1.9.1",
+      "@microsoft/sp-tslint-rules": "1.9.1",
+      "@microsoft/sp-webpart-workbench": "1.9.1",
+      "@microsoft/rush-stack-compiler-2.9": "0.7.16"
+     }
+    }
+   },
+   "react": {
+    "dependencies": {
+     "react": "16.8.5",
+     "react-dom": "16.8.5",
+     "@types/react": "16.8.8",
+     "@types/react-dom": "16.8.3",
+     "office-ui-fabric-react": "6.189.2"
+    },
+    "devDependencies": {}
+   }
+  },
+  "1.10.0": {
+   "components": {
+    "webpart": {
+     "dependencies": {
+      "@microsoft/sp-core-library": "1.10.0",
+      "@microsoft/sp-property-pane": "1.10.0",
+      "@microsoft/sp-webpart-base": "1.10.0",
+      "@microsoft/sp-lodash-subset": "1.10.0",
+      "@microsoft/sp-office-ui-fabric-core": "1.10.0"
+     },
+     "devDependencies": {
+      "@microsoft/sp-build-web": "1.10.0",
+      "@microsoft/sp-tslint-rules": "1.10.0",
+      "@microsoft/sp-module-interfaces": "1.10.0",
+      "@microsoft/sp-webpart-workbench": "1.10.0",
+      "@microsoft/rush-stack-compiler-3.3": "0.3.5"
+     }
+    },
+    "extension": {
+     "dependencies": {
+      "@microsoft/sp-core-library": "1.10.0",
+      "@microsoft/decorators": "1.10.0"
+     },
+     "devDependencies": {
+      "@microsoft/sp-build-web": "1.10.0",
+      "@microsoft/sp-tslint-rules": "1.10.0",
+      "@microsoft/sp-module-interfaces": "1.10.0",
+      "@microsoft/sp-webpart-workbench": "1.10.0",
+      "@microsoft/rush-stack-compiler-3.3": "0.3.5"
+     }
+    },
+    "applicationCustomizer": {
+     "dependencies": {
+      "@microsoft/sp-dialog": "1.10.0",
+      "@microsoft/sp-application-base": "1.10.0"
+     },
+     "devDependencies": {}
+    },
+    "commandSet": {
+     "dependencies": {
+      "@microsoft/sp-listview-extensibility": "1.10.0",
+      "@microsoft/sp-dialog": "1.10.0"
+     },
+     "devDependencies": {}
+    },
+    "fieldCustomizer": {
+     "dependencies": {
+      "@microsoft/sp-listview-extensibility": "1.10.0"
+     },
+     "devDependencies": {}
+    },
+    "searchQueryModifier": {
+     "dependencies": {
+      "@microsoft/sp-search-extensibility": "1.10.0"
+     },
+     "devDependencies": {}
+    },
+    "library": {
+     "dependencies": {},
+     "devDependencies": {
+      "@microsoft/sp-build-web": "1.10.0",
+      "@microsoft/sp-tslint-rules": "1.10.0",
+      "@microsoft/sp-module-interfaces": "1.10.0",
+      "@microsoft/sp-webpart-workbench": "1.10.0",
+      "@microsoft/rush-stack-compiler-3.3": "0.3.5"
+     }
+    }
+   },
+   "toolchains": {
+    "gulp": {
+     "dependencies": {
+      "@types/webpack-env": "1.13.1",
+      "@types/es6-promise": "0.0.33"
+     },
+     "devDependencies": {
+      "gulp": "~3.9.1",
+      "@types/chai": "3.4.34",
+      "@types/mocha": "2.2.38",
+      "ajv": "~5.2.2",
+      "@microsoft/sp-build-web": "1.10.0",
+      "@microsoft/sp-tslint-rules": "1.10.0",
+      "@microsoft/sp-webpart-workbench": "1.10.0",
+      "@microsoft/rush-stack-compiler-3.3": "0.3.5"
+     }
+    }
+   },
+   "react": {
+    "dependencies": {
+     "react": "16.8.5",
+     "react-dom": "16.8.5",
+     "@types/react": "16.8.8",
+     "@types/react-dom": "16.8.3",
+     "office-ui-fabric-react": "6.189.2"
+    },
+    "devDependencies": {}
+   }
+  },
+  "1.11.0": {
+   "components": {
+    "webpart": {
+     "dependencies": {
+      "@microsoft/sp-core-library": "1.11.0",
+      "@microsoft/sp-property-pane": "1.11.0",
+      "@microsoft/sp-webpart-base": "1.11.0",
+      "@microsoft/sp-lodash-subset": "1.11.0",
+      "@microsoft/sp-office-ui-fabric-core": "1.11.0"
+     },
+     "devDependencies": {
+      "@microsoft/sp-build-web": "1.11.0",
+      "@microsoft/sp-tslint-rules": "1.11.0",
+      "@microsoft/sp-module-interfaces": "1.11.0",
+      "@microsoft/sp-webpart-workbench": "1.11.0",
+      "@microsoft/rush-stack-compiler-3.3": "0.3.5"
+     }
+    },
+    "extension": {
+     "dependencies": {
+      "@microsoft/sp-core-library": "1.11.0",
+      "@microsoft/decorators": "1.11.0"
+     },
+     "devDependencies": {
+      "@microsoft/sp-build-web": "1.11.0",
+      "@microsoft/sp-tslint-rules": "1.11.0",
+      "@microsoft/sp-module-interfaces": "1.11.0",
+      "@microsoft/sp-webpart-workbench": "1.11.0",
+      "@microsoft/rush-stack-compiler-3.3": "0.3.5"
+     }
+    },
+    "applicationCustomizer": {
+     "dependencies": {
+      "@microsoft/sp-dialog": "1.11.0",
+      "@microsoft/sp-application-base": "1.11.0"
+     },
+     "devDependencies": {}
+    },
+    "commandSet": {
+     "dependencies": {
+      "@microsoft/sp-listview-extensibility": "1.11.0",
+      "@microsoft/sp-dialog": "1.11.0"
+     },
+     "devDependencies": {}
+    },
+    "fieldCustomizer": {
+     "dependencies": {
+      "@microsoft/sp-listview-extensibility": "1.11.0"
+     },
+     "devDependencies": {}
+    },
+    "searchQueryModifier": {
+     "dependencies": {
+      "@microsoft/sp-search-extensibility": "1.11.0"
+     },
+     "devDependencies": {}
+    },
+    "library": {
+     "dependencies": {},
+     "devDependencies": {
+      "@microsoft/sp-build-web": "1.11.0",
+      "@microsoft/sp-tslint-rules": "1.11.0",
+      "@microsoft/sp-module-interfaces": "1.11.0",
+      "@microsoft/sp-webpart-workbench": "1.11.0",
+      "@microsoft/rush-stack-compiler-3.3": "0.3.5"
+     }
+    }
+   },
+   "toolchains": {
+    "gulp": {
+     "dependencies": {},
+     "devDependencies": {
+      "gulp": "~3.9.1",
+      "@types/chai": "3.4.34",
+      "@types/mocha": "2.2.38",
+      "ajv": "~5.2.2",
+      "@types/webpack-env": "1.13.1",
+      "@types/es6-promise": "0.0.33",
+      "@microsoft/sp-build-web": "1.11.0",
+      "@microsoft/sp-tslint-rules": "1.11.0",
+      "@microsoft/sp-webpart-workbench": "1.11.0",
+      "@microsoft/rush-stack-compiler-3.3": "0.3.5"
+     }
+    }
+   },
+   "react": {
+    "dependencies": {
+     "react": "16.8.5",
+     "react-dom": "16.8.5",
+     "office-ui-fabric-react": "6.214.0"
+    },
+    "devDependencies": {
+     "@types/react": "16.8.8",
+     "@types/react-dom": "16.8.3"
+    }
+   }
+  },
+  "1.12.1": {
+   "components": {
+    "webpart": {
+     "dependencies": {
+      "@microsoft/sp-core-library": "1.12.1",
+      "@microsoft/sp-property-pane": "1.12.1",
+      "@microsoft/sp-webpart-base": "1.12.1",
+      "@microsoft/sp-lodash-subset": "1.12.1",
+      "@microsoft/sp-office-ui-fabric-core": "1.12.1"
+     },
+     "devDependencies": {
+      "@microsoft/sp-build-web": "1.12.1",
+      "@microsoft/sp-tslint-rules": "1.12.1",
+      "@microsoft/sp-module-interfaces": "1.12.1",
+      "@microsoft/sp-webpart-workbench": "1.12.1",
+      "@microsoft/rush-stack-compiler-3.7": "0.2.3"
+     }
+    },
+    "extension": {
+     "dependencies": {
+      "@microsoft/sp-core-library": "1.12.1",
+      "@microsoft/decorators": "1.12.1"
+     },
+     "devDependencies": {
+      "@microsoft/sp-build-web": "1.12.1",
+      "@microsoft/sp-tslint-rules": "1.12.1",
+      "@microsoft/sp-module-interfaces": "1.12.1",
+      "@microsoft/sp-webpart-workbench": "1.12.1",
+      "@microsoft/rush-stack-compiler-3.7": "0.2.3"
+     }
+    },
+    "applicationCustomizer": {
+     "dependencies": {
+      "@microsoft/sp-dialog": "1.12.1",
+      "@microsoft/sp-application-base": "1.12.1"
+     },
+     "devDependencies": {}
+    },
+    "commandSet": {
+     "dependencies": {
+      "@microsoft/sp-listview-extensibility": "1.12.1",
+      "@microsoft/sp-dialog": "1.12.1"
+     },
+     "devDependencies": {}
+    },
+    "fieldCustomizer": {
+     "dependencies": {
+      "@microsoft/sp-listview-extensibility": "1.12.1"
+     },
+     "devDependencies": {}
+    },
+    "searchQueryModifier": {
+     "dependencies": {
+      "@microsoft/sp-search-extensibility": "1.12.1"
+     },
+     "devDependencies": {}
+    },
+    "library": {
+     "dependencies": {},
+     "devDependencies": {
+      "@microsoft/sp-build-web": "1.12.1",
+      "@microsoft/sp-tslint-rules": "1.12.1",
+      "@microsoft/sp-module-interfaces": "1.12.1",
+      "@microsoft/sp-webpart-workbench": "1.12.1",
+      "@microsoft/rush-stack-compiler-3.7": "0.2.3"
+     }
+    }
+   },
+   "toolchains": {
+    "gulp": {
+     "dependencies": {},
+     "devDependencies": {
+      "gulp": "~4.0.2",
+      "ajv": "~5.2.2",
+      "@types/webpack-env": "1.13.1",
+      "@microsoft/sp-build-web": "1.12.1",
+      "@microsoft/sp-tslint-rules": "1.12.1",
+      "@microsoft/sp-webpart-workbench": "1.12.1",
+      "@microsoft/rush-stack-compiler-3.7": "0.2.3"
+     }
+    }
+   },
+   "react": {
+    "dependencies": {
+     "react": "16.9.0",
+     "react-dom": "16.9.0",
+     "office-ui-fabric-react": "7.156.0"
+    },
+    "devDependencies": {
+     "@types/react": "16.9.36",
+     "@types/react-dom": "16.9.8"
+    }
+   }
+  },
+  "1.13.0": {
+   "components": {
+    "webpart": {
+     "dependencies": {
+      "@microsoft/sp-core-library": "1.13.0",
+      "@microsoft/sp-property-pane": "1.13.0",
+      "@microsoft/sp-webpart-base": "1.13.0",
+      "@microsoft/sp-lodash-subset": "1.13.0",
+      "@microsoft/sp-office-ui-fabric-core": "1.13.0"
+     },
+     "devDependencies": {
+      "@microsoft/sp-build-web": "1.13.0",
+      "@microsoft/sp-tslint-rules": "1.13.0",
+      "@microsoft/sp-module-interfaces": "1.13.0",
+      "@microsoft/rush-stack-compiler-3.9": "0.4.47"
+     }
+    },
+    "extension": {
+     "dependencies": {
+      "@microsoft/sp-core-library": "1.13.0",
+      "@microsoft/decorators": "1.13.0"
+     },
+     "devDependencies": {
+      "@microsoft/sp-build-web": "1.13.0",
+      "@microsoft/sp-tslint-rules": "1.13.0",
+      "@microsoft/sp-module-interfaces": "1.13.0",
+      "@microsoft/rush-stack-compiler-3.9": "0.4.47"
+     }
+    },
+    "applicationCustomizer": {
+     "dependencies": {
+      "@microsoft/sp-dialog": "1.13.0",
+      "@microsoft/sp-application-base": "1.13.0"
+     },
+     "devDependencies": {}
+    },
+    "commandSet": {
+     "dependencies": {
+      "@microsoft/sp-listview-extensibility": "1.13.0",
+      "@microsoft/sp-dialog": "1.13.0"
+     },
+     "devDependencies": {}
+    },
+    "fieldCustomizer": {
+     "dependencies": {
+      "@microsoft/sp-listview-extensibility": "1.13.0"
+     },
+     "devDependencies": {}
+    },
+    "searchQueryModifier": {
+     "dependencies": {
+      "@microsoft/sp-search-extensibility": "1.13.0"
+     },
+     "devDependencies": {}
+    },
+    "library": {
+     "dependencies": {},
+     "devDependencies": {
+      "@microsoft/sp-build-web": "1.13.0",
+      "@microsoft/sp-tslint-rules": "1.13.0",
+      "@microsoft/sp-module-interfaces": "1.13.0",
+      "@microsoft/rush-stack-compiler-3.9": "0.4.47"
+     }
+    }
+   },
+   "toolchains": {
+    "gulp": {
+     "dependencies": {},
+     "devDependencies": {
+      "gulp": "~4.0.2",
+      "ajv": "~5.2.2",
+      "@types/webpack-env": "1.13.1",
+      "@microsoft/sp-build-web": "1.13.0",
+      "@microsoft/sp-tslint-rules": "1.13.0",
+      "@microsoft/rush-stack-compiler-3.9": "0.4.47"
+     }
+    }
+   },
+   "react": {
+    "dependencies": {
+     "react": "16.13.1",
+     "react-dom": "16.13.1",
+     "office-ui-fabric-react": "7.174.1"
+    },
+    "devDependencies": {
+     "@types/react": "16.9.51",
+     "@types/react-dom": "16.9.8"
+    }
+   }
+  },
+  "1.13.1": {
+   "components": {
+    "webpart": {
+     "dependencies": {
+      "@microsoft/sp-core-library": "1.13.1",
+      "@microsoft/sp-property-pane": "1.13.1",
+      "@microsoft/sp-webpart-base": "1.13.1",
+      "@microsoft/sp-lodash-subset": "1.13.1",
+      "@microsoft/sp-office-ui-fabric-core": "1.13.1"
+     },
+     "devDependencies": {
+      "@microsoft/sp-build-web": "1.13.1",
+      "@microsoft/sp-tslint-rules": "1.13.1",
+      "@microsoft/sp-module-interfaces": "1.13.1",
+      "@microsoft/rush-stack-compiler-3.9": "0.4.47"
+     }
+    },
+    "extension": {
+     "dependencies": {
+      "@microsoft/sp-core-library": "1.13.1",
+      "@microsoft/decorators": "1.13.1"
+     },
+     "devDependencies": {
+      "@microsoft/sp-build-web": "1.13.1",
+      "@microsoft/sp-tslint-rules": "1.13.1",
+      "@microsoft/sp-module-interfaces": "1.13.1",
+      "@microsoft/rush-stack-compiler-3.9": "0.4.47"
+     }
+    },
+    "applicationCustomizer": {
+     "dependencies": {
+      "@microsoft/sp-dialog": "1.13.1",
+      "@microsoft/sp-application-base": "1.13.1"
+     },
+     "devDependencies": {}
+    },
+    "commandSet": {
+     "dependencies": {
+      "@microsoft/sp-listview-extensibility": "1.13.1",
+      "@microsoft/sp-dialog": "1.13.1"
+     },
+     "devDependencies": {}
+    },
+    "fieldCustomizer": {
+     "dependencies": {
+      "@microsoft/sp-listview-extensibility": "1.13.1"
+     },
+     "devDependencies": {}
+    },
+    "searchQueryModifier": {
+     "dependencies": {
+      "@microsoft/sp-search-extensibility": "1.13.1"
+     },
+     "devDependencies": {}
+    },
+    "library": {
+     "dependencies": {},
+     "devDependencies": {
+      "@microsoft/sp-build-web": "1.13.1",
+      "@microsoft/sp-tslint-rules": "1.13.1",
+      "@microsoft/sp-module-interfaces": "1.13.1",
+      "@microsoft/rush-stack-compiler-3.9": "0.4.47"
+     }
+    }
+   },
+   "toolchains": {
+    "gulp": {
+     "dependencies": {},
+     "devDependencies": {
+      "gulp": "~4.0.2",
+      "ajv": "~5.2.2",
+      "@types/webpack-env": "1.13.1",
+      "@microsoft/sp-build-web": "1.13.1",
+      "@microsoft/sp-tslint-rules": "1.13.1",
+      "@microsoft/rush-stack-compiler-3.9": "0.4.47"
+     }
+    }
+   },
+   "react": {
+    "dependencies": {
+     "react": "16.13.1",
+     "react-dom": "16.13.1",
+     "office-ui-fabric-react": "7.174.1"
+    },
+    "devDependencies": {
+     "@types/react": "16.9.51",
+     "@types/react-dom": "16.9.8"
+    }
+   }
+  },
+  "1.14.0": {
+   "components": {
+    "webpart": {
+     "dependencies": {
+      "@microsoft/sp-core-library": "1.14.0",
+      "@microsoft/sp-property-pane": "1.14.0",
+      "@microsoft/sp-webpart-base": "1.14.0",
+      "@microsoft/sp-lodash-subset": "1.14.0",
+      "@microsoft/sp-office-ui-fabric-core": "1.14.0"
+     },
+     "devDependencies": {
+      "@microsoft/sp-build-web": "1.14.0",
+      "@microsoft/sp-tslint-rules": "1.14.0",
+      "@microsoft/sp-module-interfaces": "1.14.0",
+      "@microsoft/rush-stack-compiler-3.9": "0.4.47"
+     }
+    },
+    "extension": {
+     "dependencies": {
+      "@microsoft/sp-core-library": "1.14.0",
+      "@microsoft/decorators": "1.14.0"
+     },
+     "devDependencies": {
+      "@microsoft/sp-build-web": "1.14.0",
+      "@microsoft/sp-tslint-rules": "1.14.0",
+      "@microsoft/sp-module-interfaces": "1.14.0",
+      "@microsoft/rush-stack-compiler-3.9": "0.4.47"
+     }
+    },
+    "applicationCustomizer": {
+     "dependencies": {
+      "@microsoft/sp-dialog": "1.14.0",
+      "@microsoft/sp-application-base": "1.14.0"
+     },
+     "devDependencies": {}
+    },
+    "commandSet": {
+     "dependencies": {
+      "@microsoft/sp-listview-extensibility": "1.14.0",
+      "@microsoft/sp-dialog": "1.14.0"
+     },
+     "devDependencies": {}
+    },
+    "fieldCustomizer": {
+     "dependencies": {
+      "@microsoft/sp-listview-extensibility": "1.14.0"
+     },
+     "devDependencies": {}
+    },
+    "searchQueryModifier": {
+     "dependencies": {
+      "@microsoft/sp-search-extensibility": "1.14.0"
+     },
+     "devDependencies": {}
+    },
+    "library": {
+     "dependencies": {},
+     "devDependencies": {
+      "@microsoft/sp-build-web": "1.14.0",
+      "@microsoft/sp-tslint-rules": "1.14.0",
+      "@microsoft/sp-module-interfaces": "1.14.0",
+      "@microsoft/rush-stack-compiler-3.9": "0.4.47"
+     }
+    }
+   },
+   "toolchains": {
+    "gulp": {
+     "dependencies": {},
+     "devDependencies": {
+      "gulp": "~4.0.2",
+      "ajv": "~5.2.2",
+      "@types/webpack-env": "1.13.1",
+      "@microsoft/sp-build-web": "1.14.0",
+      "@microsoft/sp-tslint-rules": "1.14.0",
+      "@microsoft/rush-stack-compiler-3.9": "0.4.47"
+     }
+    }
+   },
+   "react": {
+    "dependencies": {
+     "react": "16.13.1",
+     "react-dom": "16.13.1",
+     "office-ui-fabric-react": "7.174.1"
+    },
+    "devDependencies": {
+     "@types/react": "16.9.51",
+     "@types/react-dom": "16.9.8"
+    }
+   }
+  },
+  "1.15.0": {
+   "components": {
+    "webpart": {
+     "dependencies": {
+      "@microsoft/sp-core-library": "1.15.0",
+      "@microsoft/sp-property-pane": "1.15.0",
+      "@microsoft/sp-webpart-base": "1.15.0",
+      "@microsoft/sp-lodash-subset": "1.15.0",
+      "@microsoft/sp-office-ui-fabric-core": "1.15.0"
+     },
+     "devDependencies": {
+      "@microsoft/sp-module-interfaces": "1.15.0"
+     }
+    },
+    "extension": {
+     "dependencies": {
+      "@microsoft/sp-core-library": "1.15.0",
+      "@microsoft/decorators": "1.15.0"
+     },
+     "devDependencies": {
+      "@microsoft/sp-module-interfaces": "1.15.0"
+     }
+    },
+    "applicationCustomizer": {
+     "dependencies": {
+      "@microsoft/sp-dialog": "1.15.0",
+      "@microsoft/sp-application-base": "1.15.0"
+     },
+     "devDependencies": {}
+    },
+    "commandSet": {
+     "dependencies": {
+      "@microsoft/sp-listview-extensibility": "1.15.0",
+      "@microsoft/sp-dialog": "1.15.0"
+     },
+     "devDependencies": {}
+    },
+    "fieldCustomizer": {
+     "dependencies": {
+      "@microsoft/sp-listview-extensibility": "1.15.0"
+     },
+     "devDependencies": {}
+    },
+    "formCustomizer": {
+     "dependencies": {
+      "@microsoft/sp-core-library": "1.15.0",
+      "@microsoft/sp-listview-extensibility": "1.15.0",
+      "@microsoft/sp-lodash-subset": "1.15.0",
+      "@microsoft/sp-office-ui-fabric-core": "1.15.0"
+     },
+     "devDependencies": {
+      "@microsoft/sp-module-interfaces": "1.15.0"
+     }
+    },
+    "searchQueryModifier": {
+     "dependencies": {
+      "@microsoft/sp-search-extensibility": "1.15.0"
+     },
+     "devDependencies": {}
+    },
+    "adaptiveCardExtension": {
+     "dependencies": {
+      "@microsoft/sp-core-library": "1.15.0",
+      "@microsoft/sp-property-pane": "1.15.0",
+      "@microsoft/sp-adaptive-card-extension-base": "1.15.0"
+     },
+     "devDependencies": {
+      "@microsoft/sp-module-interfaces": "1.15.0"
+     }
+    },
+    "library": {
+     "dependencies": {},
+     "devDependencies": {
+      "@microsoft/sp-module-interfaces": "1.15.0"
+     }
+    }
+   },
+   "toolchains": {
+    "gulp": {
+     "dependencies": {
+      "tslib": "2.3.1"
+     },
+     "devDependencies": {
+      "@microsoft/rush-stack-compiler-4.5": "0.2.2",
+      "@rushstack/eslint-config": "2.5.1",
+      "@microsoft/eslint-plugin-spfx": "1.15.0",
+      "@microsoft/eslint-config-spfx": "1.15.0",
+      "@microsoft/sp-build-web": "1.15.0",
+      "@types/webpack-env": "~1.15.2",
+      "ajv": "^6.12.5",
+      "gulp": "4.0.2"
+     }
+    },
+    "heft": {
+     "dependencies": {
+      "tslib": "2.3.1"
+     },
+     "devDependencies": {
+      "@microsoft/rush-stack-compiler-4.5": "0.2.2",
+      "@rushstack/eslint-config": "2.5.1",
+      "@microsoft/eslint-plugin-spfx": "1.15.0",
+      "@microsoft/eslint-config-spfx": "1.15.0",
+      "@microsoft/spfx-web-build-rig": "1.15.0",
+      "@rushstack/heft": "0.45.4",
+      "@types/webpack-env": "~1.15.2",
+      "eslint": "8.7.0"
+     }
+    }
+   },
+   "react": {
+    "dependencies": {
+     "react": "16.13.1",
+     "react-dom": "16.13.1",
+     "office-ui-fabric-react": "7.185.7"
+    },
+    "devDependencies": {
+     "@types/react": "16.9.51",
+     "@types/react-dom": "16.9.8",
+     "eslint-plugin-react-hooks": "4.3.0"
+    }
+   }
+  },
+  "1.15.2": {
+   "components": {
+    "webpart": {
+     "dependencies": {
+      "@microsoft/sp-core-library": "1.15.2",
+      "@microsoft/sp-property-pane": "1.15.2",
+      "@microsoft/sp-webpart-base": "1.15.2",
+      "@microsoft/sp-lodash-subset": "1.15.2",
+      "@microsoft/sp-office-ui-fabric-core": "1.15.2"
+     },
+     "devDependencies": {
+      "@microsoft/sp-module-interfaces": "1.15.2"
+     }
+    },
+    "extension": {
+     "dependencies": {
+      "@microsoft/sp-core-library": "1.15.2",
+      "@microsoft/decorators": "1.15.2"
+     },
+     "devDependencies": {
+      "@microsoft/sp-module-interfaces": "1.15.2"
+     }
+    },
+    "applicationCustomizer": {
+     "dependencies": {
+      "@microsoft/sp-dialog": "1.15.2",
+      "@microsoft/sp-application-base": "1.15.2"
+     },
+     "devDependencies": {}
+    },
+    "commandSet": {
+     "dependencies": {
+      "@microsoft/sp-listview-extensibility": "1.15.2",
+      "@microsoft/sp-dialog": "1.15.2"
+     },
+     "devDependencies": {}
+    },
+    "fieldCustomizer": {
+     "dependencies": {
+      "@microsoft/sp-listview-extensibility": "1.15.2"
+     },
+     "devDependencies": {}
+    },
+    "formCustomizer": {
+     "dependencies": {
+      "@microsoft/sp-core-library": "1.15.2",
+      "@microsoft/sp-listview-extensibility": "1.15.2",
+      "@microsoft/sp-lodash-subset": "1.15.2",
+      "@microsoft/sp-office-ui-fabric-core": "1.15.2"
+     },
+     "devDependencies": {
+      "@microsoft/sp-module-interfaces": "1.15.2"
+     }
+    },
+    "searchQueryModifier": {
+     "dependencies": {
+      "@microsoft/sp-search-extensibility": "1.15.2"
+     },
+     "devDependencies": {}
+    },
+    "adaptiveCardExtension": {
+     "dependencies": {
+      "@microsoft/sp-core-library": "1.15.2",
+      "@microsoft/sp-property-pane": "1.15.2",
+      "@microsoft/sp-adaptive-card-extension-base": "1.15.2"
+     },
+     "devDependencies": {
+      "@microsoft/sp-module-interfaces": "1.15.2"
+     }
+    },
+    "library": {
+     "dependencies": {},
+     "devDependencies": {
+      "@microsoft/sp-module-interfaces": "1.15.2"
+     }
+    }
+   },
+   "toolchains": {
+    "gulp": {
+     "dependencies": {
+      "tslib": "2.3.1"
+     },
+     "devDependencies": {
+      "@microsoft/rush-stack-compiler-4.5": "0.2.2",
+      "@rushstack/eslint-config": "2.5.1",
+      "@microsoft/eslint-plugin-spfx": "1.15.2",
+      "@microsoft/eslint-config-spfx": "1.15.2",
+      "@microsoft/sp-build-web": "1.15.2",
+      "@types/webpack-env": "~1.15.2",
+      "ajv": "^6.12.5",
+      "gulp": "4.0.2",
+      "typescript": "4.5.5"
+     }
+    },
+    "heft": {
+     "dependencies": {
+      "tslib": "2.3.1"
+     },
+     "devDependencies": {
+      "@microsoft/rush-stack-compiler-4.5": "0.2.2",
+      "@rushstack/eslint-config": "2.5.1",
+      "@microsoft/eslint-plugin-spfx": "1.15.2",
+      "@microsoft/eslint-config-spfx": "1.15.2",
+      "@microsoft/spfx-web-build-rig": "1.15.2",
+      "@rushstack/heft": "0.45.4",
+      "@types/webpack-env": "~1.15.2",
+      "eslint": "8.7.0"
+     }
+    }
+   },
+   "react": {
+    "dependencies": {
+     "react": "16.13.1",
+     "react-dom": "16.13.1",
+     "office-ui-fabric-react": "7.185.7"
+    },
+    "devDependencies": {
+     "@types/react": "16.9.51",
+     "@types/react-dom": "16.9.8",
+     "eslint-plugin-react-hooks": "4.3.0"
+    }
+   }
+  },
+  "1.16.0": {
+   "components": {
+    "webpart": {
+     "dependencies": {
+      "@microsoft/sp-core-library": "1.16.0",
+      "@microsoft/sp-property-pane": "1.16.0",
+      "@microsoft/sp-webpart-base": "1.16.0",
+      "@microsoft/sp-lodash-subset": "1.16.0",
+      "@microsoft/sp-office-ui-fabric-core": "1.16.0"
+     },
+     "devDependencies": {
+      "@microsoft/sp-module-interfaces": "1.16.0"
+     }
+    },
+    "extension": {
+     "dependencies": {
+      "@microsoft/sp-core-library": "1.16.0",
+      "@microsoft/decorators": "1.16.0"
+     },
+     "devDependencies": {
+      "@microsoft/sp-module-interfaces": "1.16.0"
+     }
+    },
+    "applicationCustomizer": {
+     "dependencies": {
+      "@microsoft/sp-dialog": "1.16.0",
+      "@microsoft/sp-application-base": "1.16.0"
+     },
+     "devDependencies": {}
+    },
+    "commandSet": {
+     "dependencies": {
+      "@microsoft/sp-listview-extensibility": "1.16.0",
+      "@microsoft/sp-dialog": "1.16.0"
+     },
+     "devDependencies": {}
+    },
+    "fieldCustomizer": {
+     "dependencies": {
+      "@microsoft/sp-listview-extensibility": "1.16.0"
+     },
+     "devDependencies": {}
+    },
+    "formCustomizer": {
+     "dependencies": {
+      "@microsoft/sp-core-library": "1.16.0",
+      "@microsoft/sp-listview-extensibility": "1.16.0",
+      "@microsoft/sp-lodash-subset": "1.16.0",
+      "@microsoft/sp-office-ui-fabric-core": "1.16.0"
+     },
+     "devDependencies": {
+      "@microsoft/sp-module-interfaces": "1.16.0"
+     }
+    },
+    "searchQueryModifier": {
+     "dependencies": {
+      "@microsoft/sp-search-extensibility": "1.16.0"
+     },
+     "devDependencies": {}
+    },
+    "adaptiveCardExtension": {
+     "dependencies": {
+      "@microsoft/sp-core-library": "1.16.0",
+      "@microsoft/sp-property-pane": "1.16.0",
+      "@microsoft/sp-adaptive-card-extension-base": "1.16.0"
+     },
+     "devDependencies": {
+      "@microsoft/sp-module-interfaces": "1.16.0"
+     }
+    },
+    "library": {
+     "dependencies": {},
+     "devDependencies": {
+      "@microsoft/sp-module-interfaces": "1.16.0"
+     }
+    }
+   },
+   "toolchains": {
+    "gulp": {
+     "dependencies": {
+      "tslib": "2.3.1"
+     },
+     "devDependencies": {
+      "@microsoft/rush-stack-compiler-4.5": "0.2.2",
+      "@rushstack/eslint-config": "2.5.1",
+      "@microsoft/eslint-plugin-spfx": "1.16.0",
+      "@microsoft/eslint-config-spfx": "1.16.0",
+      "@microsoft/sp-build-web": "1.16.0",
+      "@types/webpack-env": "~1.15.2",
+      "ajv": "^6.12.5",
+      "gulp": "4.0.2",
+      "typescript": "4.5.5"
+     }
+    },
+    "heft": {
+     "dependencies": {
+      "tslib": "2.3.1"
+     },
+     "devDependencies": {
+      "@microsoft/rush-stack-compiler-4.5": "0.2.2",
+      "@rushstack/eslint-config": "2.5.1",
+      "@microsoft/eslint-plugin-spfx": "1.16.0",
+      "@microsoft/eslint-config-spfx": "1.16.0",
+      "@microsoft/spfx-web-build-rig": "1.16.0",
+      "@rushstack/heft": "0.47.11",
+      "@types/webpack-env": "~1.15.2",
+      "eslint": "8.7.0"
+     }
+    }
+   },
+   "react": {
+    "dependencies": {
+     "react": "17.0.1",
+     "react-dom": "17.0.1",
+     "office-ui-fabric-react": "^7.199.1"
+    },
+    "devDependencies": {
+     "@types/react": "17.0.45",
+     "@types/react-dom": "17.0.17",
+     "eslint-plugin-react-hooks": "4.3.0"
+    }
+   }
+  },
+  "1.16.1": {
+   "components": {
+    "webpart": {
+     "dependencies": {
+      "@microsoft/sp-core-library": "1.16.1",
+      "@microsoft/sp-property-pane": "1.16.1",
+      "@microsoft/sp-webpart-base": "1.16.1",
+      "@microsoft/sp-lodash-subset": "1.16.1",
+      "@microsoft/sp-office-ui-fabric-core": "1.16.1"
+     },
+     "devDependencies": {
+      "@microsoft/sp-module-interfaces": "1.16.1"
+     }
+    },
+    "extension": {
+     "dependencies": {
+      "@microsoft/sp-core-library": "1.16.1",
+      "@microsoft/decorators": "1.16.1"
+     },
+     "devDependencies": {
+      "@microsoft/sp-module-interfaces": "1.16.1"
+     }
+    },
+    "applicationCustomizer": {
+     "dependencies": {
+      "@microsoft/sp-dialog": "1.16.1",
+      "@microsoft/sp-application-base": "1.16.1"
+     },
+     "devDependencies": {}
+    },
+    "commandSet": {
+     "dependencies": {
+      "@microsoft/sp-listview-extensibility": "1.16.1",
+      "@microsoft/sp-dialog": "1.16.1"
+     },
+     "devDependencies": {}
+    },
+    "fieldCustomizer": {
+     "dependencies": {
+      "@microsoft/sp-listview-extensibility": "1.16.1"
+     },
+     "devDependencies": {}
+    },
+    "formCustomizer": {
+     "dependencies": {
+      "@microsoft/sp-core-library": "1.16.1",
+      "@microsoft/sp-listview-extensibility": "1.16.1",
+      "@microsoft/sp-lodash-subset": "1.16.1",
+      "@microsoft/sp-office-ui-fabric-core": "1.16.1"
+     },
+     "devDependencies": {
+      "@microsoft/sp-module-interfaces": "1.16.1"
+     }
+    },
+    "searchQueryModifier": {
+     "dependencies": {
+      "@microsoft/sp-search-extensibility": "1.16.1"
+     },
+     "devDependencies": {}
+    },
+    "adaptiveCardExtension": {
+     "dependencies": {
+      "@microsoft/sp-core-library": "1.16.1",
+      "@microsoft/sp-property-pane": "1.16.1",
+      "@microsoft/sp-adaptive-card-extension-base": "1.16.1"
+     },
+     "devDependencies": {
+      "@microsoft/sp-module-interfaces": "1.16.1"
+     }
+    },
+    "library": {
+     "dependencies": {},
+     "devDependencies": {
+      "@microsoft/sp-module-interfaces": "1.16.1"
+     }
+    }
+   },
+   "toolchains": {
+    "gulp": {
+     "dependencies": {
+      "tslib": "2.3.1"
+     },
+     "devDependencies": {
+      "@microsoft/rush-stack-compiler-4.5": "0.2.2",
+      "@rushstack/eslint-config": "2.5.1",
+      "@microsoft/eslint-plugin-spfx": "1.16.1",
+      "@microsoft/eslint-config-spfx": "1.16.1",
+      "@microsoft/sp-build-web": "1.16.1",
+      "@types/webpack-env": "~1.15.2",
+      "ajv": "^6.12.5",
+      "gulp": "4.0.2",
+      "typescript": "4.5.5"
+     }
+    },
+    "heft": {
+     "dependencies": {
+      "tslib": "2.3.1"
+     },
+     "devDependencies": {
+      "@microsoft/rush-stack-compiler-4.5": "0.2.2",
+      "@rushstack/eslint-config": "2.5.1",
+      "@microsoft/eslint-plugin-spfx": "1.16.1",
+      "@microsoft/eslint-config-spfx": "1.16.1",
+      "@microsoft/spfx-web-build-rig": "1.16.1",
+      "@rushstack/heft": "0.47.11",
+      "@types/webpack-env": "~1.15.2",
+      "eslint": "8.7.0"
+     }
+    }
+   },
+   "react": {
+    "dependencies": {
+     "react": "17.0.1",
+     "react-dom": "17.0.1",
+     "office-ui-fabric-react": "^7.199.1"
+    },
+    "devDependencies": {
+     "@types/react": "17.0.45",
+     "@types/react-dom": "17.0.17",
+     "eslint-plugin-react-hooks": "4.3.0"
+    }
+   }
+  },
+  "1.17.0": {
+   "components": {
+    "webpart": {
+     "dependencies": {
+      "@microsoft/sp-core-library": "1.17.0",
+      "@microsoft/sp-property-pane": "1.17.0",
+      "@microsoft/sp-webpart-base": "1.17.0",
+      "@microsoft/sp-lodash-subset": "1.17.0",
+      "@microsoft/sp-office-ui-fabric-core": "1.17.0"
+     },
+     "devDependencies": {
+      "@microsoft/sp-module-interfaces": "1.17.0"
+     }
+    },
+    "extension": {
+     "dependencies": {
+      "@microsoft/sp-core-library": "1.17.0",
+      "@microsoft/decorators": "1.17.0"
+     },
+     "devDependencies": {
+      "@microsoft/sp-module-interfaces": "1.17.0"
+     }
+    },
+    "applicationCustomizer": {
+     "dependencies": {
+      "@microsoft/sp-dialog": "1.17.0",
+      "@microsoft/sp-application-base": "1.17.0"
+     },
+     "devDependencies": {}
+    },
+    "commandSet": {
+     "dependencies": {
+      "@microsoft/sp-listview-extensibility": "1.17.0",
+      "@microsoft/sp-dialog": "1.17.0"
+     },
+     "devDependencies": {}
+    },
+    "fieldCustomizer": {
+     "dependencies": {
+      "@microsoft/sp-listview-extensibility": "1.17.0"
+     },
+     "devDependencies": {}
+    },
+    "formCustomizer": {
+     "dependencies": {
+      "@microsoft/sp-core-library": "1.17.0",
+      "@microsoft/sp-listview-extensibility": "1.17.0",
+      "@microsoft/sp-lodash-subset": "1.17.0",
+      "@microsoft/sp-office-ui-fabric-core": "1.17.0"
+     },
+     "devDependencies": {
+      "@microsoft/sp-module-interfaces": "1.17.0"
+     }
+    },
+    "searchQueryModifier": {
+     "dependencies": {
+      "@microsoft/sp-search-extensibility": "1.17.0"
+     },
+     "devDependencies": {}
+    },
+    "adaptiveCardExtension": {
+     "dependencies": {
+      "@microsoft/sp-core-library": "1.17.0",
+      "@microsoft/sp-property-pane": "1.17.0",
+      "@microsoft/sp-adaptive-card-extension-base": "1.17.0"
+     },
+     "devDependencies": {
+      "@microsoft/sp-module-interfaces": "1.17.0"
+     }
+    },
+    "library": {
+     "dependencies": {},
+     "devDependencies": {
+      "@microsoft/sp-module-interfaces": "1.17.0"
+     }
+    }
+   },
+   "toolchains": {
+    "gulp": {
+     "dependencies": {
+      "tslib": "2.3.1"
+     },
+     "devDependencies": {
+      "@microsoft/rush-stack-compiler-4.5": "0.4.0",
+      "@rushstack/eslint-config": "2.5.1",
+      "@microsoft/eslint-plugin-spfx": "1.17.0",
+      "@microsoft/eslint-config-spfx": "1.17.0",
+      "@microsoft/sp-build-web": "1.17.0",
+      "@types/webpack-env": "~1.15.2",
+      "ajv": "^6.12.5",
+      "eslint": "8.7.0",
+      "gulp": "4.0.2",
+      "typescript": "4.5.5"
+     }
+    },
+    "heft": {
+     "dependencies": {
+      "tslib": "2.3.1"
+     },
+     "devDependencies": {
+      "@microsoft/rush-stack-compiler-4.5": "0.4.0",
+      "@rushstack/eslint-config": "2.5.1",
+      "@microsoft/eslint-plugin-spfx": "1.17.0",
+      "@microsoft/eslint-config-spfx": "1.17.0",
+      "@microsoft/spfx-web-build-rig": "1.17.0",
+      "@rushstack/heft": "0.49.7",
+      "@types/webpack-env": "~1.15.2",
+      "eslint": "8.7.0"
+     }
+    }
+   },
+   "react": {
+    "dependencies": {
+     "react": "17.0.1",
+     "react-dom": "17.0.1",
+     "office-ui-fabric-react": "^7.199.1"
+    },
+    "devDependencies": {
+     "@types/react": "17.0.45",
+     "@types/react-dom": "17.0.17",
+     "eslint-plugin-react-hooks": "4.3.0"
+    }
+   }
+  },
+  "1.17.1": {
+   "components": {
+    "webpart": {
+     "dependencies": {
+      "@microsoft/sp-core-library": "1.17.1",
+      "@microsoft/sp-property-pane": "1.17.1",
+      "@microsoft/sp-webpart-base": "1.17.1",
+      "@microsoft/sp-lodash-subset": "1.17.1",
+      "@microsoft/sp-office-ui-fabric-core": "1.17.1"
+     },
+     "devDependencies": {
+      "@microsoft/sp-module-interfaces": "1.17.1"
+     }
+    },
+    "extension": {
+     "dependencies": {
+      "@microsoft/sp-core-library": "1.17.1",
+      "@microsoft/decorators": "1.17.1"
+     },
+     "devDependencies": {
+      "@microsoft/sp-module-interfaces": "1.17.1"
+     }
+    },
+    "applicationCustomizer": {
+     "dependencies": {
+      "@microsoft/sp-dialog": "1.17.1",
+      "@microsoft/sp-application-base": "1.17.1"
+     },
+     "devDependencies": {}
+    },
+    "commandSet": {
+     "dependencies": {
+      "@microsoft/sp-listview-extensibility": "1.17.1",
+      "@microsoft/sp-dialog": "1.17.1"
+     },
+     "devDependencies": {}
+    },
+    "fieldCustomizer": {
+     "dependencies": {
+      "@microsoft/sp-listview-extensibility": "1.17.1"
+     },
+     "devDependencies": {}
+    },
+    "formCustomizer": {
+     "dependencies": {
+      "@microsoft/sp-core-library": "1.17.1",
+      "@microsoft/sp-listview-extensibility": "1.17.1",
+      "@microsoft/sp-lodash-subset": "1.17.1",
+      "@microsoft/sp-office-ui-fabric-core": "1.17.1"
+     },
+     "devDependencies": {
+      "@microsoft/sp-module-interfaces": "1.17.1"
+     }
+    },
+    "searchQueryModifier": {
+     "dependencies": {
+      "@microsoft/sp-search-extensibility": "1.17.1"
+     },
+     "devDependencies": {}
+    },
+    "adaptiveCardExtension": {
+     "dependencies": {
+      "@microsoft/sp-core-library": "1.17.1",
+      "@microsoft/sp-property-pane": "1.17.1",
+      "@microsoft/sp-adaptive-card-extension-base": "1.17.1"
+     },
+     "devDependencies": {
+      "@microsoft/sp-module-interfaces": "1.17.1"
+     }
+    },
+    "library": {
+     "dependencies": {},
+     "devDependencies": {
+      "@microsoft/sp-module-interfaces": "1.17.1"
+     }
+    }
+   },
+   "toolchains": {
+    "gulp": {
+     "dependencies": {
+      "tslib": "2.3.1"
+     },
+     "devDependencies": {
+      "@microsoft/rush-stack-compiler-4.5": "0.4.0",
+      "@rushstack/eslint-config": "2.5.1",
+      "@microsoft/eslint-plugin-spfx": "1.17.1",
+      "@microsoft/eslint-config-spfx": "1.17.1",
+      "@microsoft/sp-build-web": "1.17.1",
+      "@types/webpack-env": "~1.15.2",
+      "ajv": "^6.12.5",
+      "eslint": "8.7.0",
+      "gulp": "4.0.2",
+      "typescript": "4.5.5"
+     }
+    },
+    "heft": {
+     "dependencies": {
+      "tslib": "2.3.1"
+     },
+     "devDependencies": {
+      "@microsoft/rush-stack-compiler-4.5": "0.4.0",
+      "@rushstack/eslint-config": "2.5.1",
+      "@microsoft/eslint-plugin-spfx": "1.17.1",
+      "@microsoft/eslint-config-spfx": "1.17.1",
+      "@microsoft/spfx-web-build-rig": "1.17.1",
+      "@rushstack/heft": "0.49.7",
+      "@types/webpack-env": "~1.15.2",
+      "eslint": "8.7.0"
+     }
+    }
+   },
+   "react": {
+    "dependencies": {
+     "react": "17.0.1",
+     "react-dom": "17.0.1",
+     "office-ui-fabric-react": "^7.199.1"
+    },
+    "devDependencies": {
+     "@types/react": "17.0.45",
+     "@types/react-dom": "17.0.17",
+     "eslint-plugin-react-hooks": "4.3.0"
+    }
+   }
+  },
+  "1.17.2": {
+   "components": {
+    "webpart": {
+     "dependencies": {
+      "@microsoft/sp-core-library": "1.17.2",
+      "@microsoft/sp-component-base": "1.17.2",
+      "@microsoft/sp-property-pane": "1.17.2",
+      "@microsoft/sp-webpart-base": "1.17.2",
+      "@microsoft/sp-lodash-subset": "1.17.2",
+      "@microsoft/sp-office-ui-fabric-core": "1.17.2"
+     },
+     "devDependencies": {
+      "@microsoft/sp-module-interfaces": "1.17.2",
+      "@fluentui/react": "^7.199.1"
+     }
+    },
+    "extension": {
+     "dependencies": {
+      "@microsoft/sp-core-library": "1.17.2",
+      "@microsoft/decorators": "1.17.2"
+     },
+     "devDependencies": {
+      "@microsoft/sp-module-interfaces": "1.17.2"
+     }
+    },
+    "applicationCustomizer": {
+     "dependencies": {
+      "@microsoft/sp-dialog": "1.17.2",
+      "@microsoft/sp-application-base": "1.17.2"
+     },
+     "devDependencies": {}
+    },
+    "commandSet": {
+     "dependencies": {
+      "@microsoft/sp-listview-extensibility": "1.17.2",
+      "@microsoft/sp-dialog": "1.17.2"
+     },
+     "devDependencies": {}
+    },
+    "fieldCustomizer": {
+     "dependencies": {
+      "@microsoft/sp-listview-extensibility": "1.17.2"
+     },
+     "devDependencies": {}
+    },
+    "formCustomizer": {
+     "dependencies": {
+      "@microsoft/sp-core-library": "1.17.2",
+      "@microsoft/sp-listview-extensibility": "1.17.2",
+      "@microsoft/sp-lodash-subset": "1.17.2",
+      "@microsoft/sp-office-ui-fabric-core": "1.17.2"
+     },
+     "devDependencies": {
+      "@microsoft/sp-module-interfaces": "1.17.2"
+     }
+    },
+    "searchQueryModifier": {
+     "dependencies": {
+      "@microsoft/sp-search-extensibility": "1.17.2"
+     },
+     "devDependencies": {}
+    },
+    "adaptiveCardExtension": {
+     "dependencies": {
+      "@microsoft/sp-core-library": "1.17.2",
+      "@microsoft/sp-property-pane": "1.17.2",
+      "@microsoft/sp-adaptive-card-extension-base": "1.17.2"
+     },
+     "devDependencies": {
+      "@microsoft/sp-module-interfaces": "1.17.2"
+     }
+    },
+    "library": {
+     "dependencies": {},
+     "devDependencies": {
+      "@microsoft/sp-module-interfaces": "1.17.2"
+     }
+    }
+   },
+   "toolchains": {
+    "gulp": {
+     "dependencies": {
+      "tslib": "2.3.1"
+     },
+     "devDependencies": {
+      "@microsoft/rush-stack-compiler-4.5": "0.5.0",
+      "@rushstack/eslint-config": "2.5.1",
+      "@microsoft/eslint-plugin-spfx": "1.17.2",
+      "@microsoft/eslint-config-spfx": "1.17.2",
+      "@microsoft/sp-build-web": "1.17.2",
+      "@types/webpack-env": "~1.15.2",
+      "ajv": "^6.12.5",
+      "eslint": "8.7.0",
+      "gulp": "4.0.2",
+      "typescript": "4.5.5"
+     }
+    },
+    "heft": {
+     "dependencies": {
+      "tslib": "2.3.1"
+     },
+     "devDependencies": {
+      "@microsoft/rush-stack-compiler-4.5": "0.5.0",
+      "@rushstack/eslint-config": "2.5.1",
+      "@microsoft/eslint-plugin-spfx": "1.17.2",
+      "@microsoft/eslint-config-spfx": "1.17.2",
+      "@microsoft/spfx-web-build-rig": "1.17.2",
+      "@rushstack/heft": "0.49.7",
+      "@types/webpack-env": "~1.15.2",
+      "eslint": "8.7.0"
+     }
+    }
+   },
+   "react": {
+    "dependencies": {
+     "react": "17.0.1",
+     "react-dom": "17.0.1",
+     "office-ui-fabric-react": "^7.199.1",
+     "@fluentui/react": "^7.199.1"
+    },
+    "devDependencies": {
+     "@types/react": "17.0.45",
+     "@types/react-dom": "17.0.17",
+     "eslint-plugin-react-hooks": "4.3.0"
+    }
+   }
+  },
+  "1.17.3": {
+   "components": {
+    "webpart": {
+     "dependencies": {
+      "@microsoft/sp-core-library": "1.17.3",
+      "@microsoft/sp-component-base": "1.17.3",
+      "@microsoft/sp-property-pane": "1.17.3",
+      "@microsoft/sp-webpart-base": "1.17.3",
+      "@microsoft/sp-lodash-subset": "1.17.3",
+      "@microsoft/sp-office-ui-fabric-core": "1.17.3"
+     },
+     "devDependencies": {
+      "@microsoft/sp-module-interfaces": "1.17.3",
+      "@fluentui/react": "^7.199.1"
+     }
+    },
+    "extension": {
+     "dependencies": {
+      "@microsoft/sp-core-library": "1.17.3",
+      "@microsoft/decorators": "1.17.3"
+     },
+     "devDependencies": {
+      "@microsoft/sp-module-interfaces": "1.17.3"
+     }
+    },
+    "applicationCustomizer": {
+     "dependencies": {
+      "@microsoft/sp-dialog": "1.17.3",
+      "@microsoft/sp-application-base": "1.17.3"
+     },
+     "devDependencies": {}
+    },
+    "commandSet": {
+     "dependencies": {
+      "@microsoft/sp-listview-extensibility": "1.17.3",
+      "@microsoft/sp-dialog": "1.17.3"
+     },
+     "devDependencies": {}
+    },
+    "fieldCustomizer": {
+     "dependencies": {
+      "@microsoft/sp-listview-extensibility": "1.17.3"
+     },
+     "devDependencies": {}
+    },
+    "formCustomizer": {
+     "dependencies": {
+      "@microsoft/sp-core-library": "1.17.3",
+      "@microsoft/sp-listview-extensibility": "1.17.3",
+      "@microsoft/sp-lodash-subset": "1.17.3",
+      "@microsoft/sp-office-ui-fabric-core": "1.17.3"
+     },
+     "devDependencies": {
+      "@microsoft/sp-module-interfaces": "1.17.3"
+     }
+    },
+    "searchQueryModifier": {
+     "dependencies": {
+      "@microsoft/sp-search-extensibility": "1.17.3"
+     },
+     "devDependencies": {}
+    },
+    "adaptiveCardExtension": {
+     "dependencies": {
+      "@microsoft/sp-core-library": "1.17.3",
+      "@microsoft/sp-property-pane": "1.17.3",
+      "@microsoft/sp-adaptive-card-extension-base": "1.17.3"
+     },
+     "devDependencies": {
+      "@microsoft/sp-module-interfaces": "1.17.3"
+     }
+    },
+    "library": {
+     "dependencies": {},
+     "devDependencies": {
+      "@microsoft/sp-module-interfaces": "1.17.3"
+     }
+    }
+   },
+   "toolchains": {
+    "gulp": {
+     "dependencies": {
+      "tslib": "2.3.1"
+     },
+     "devDependencies": {
+      "@microsoft/rush-stack-compiler-4.5": "0.5.0",
+      "@rushstack/eslint-config": "2.5.1",
+      "@microsoft/eslint-plugin-spfx": "1.17.3",
+      "@microsoft/eslint-config-spfx": "1.17.3",
+      "@microsoft/sp-build-web": "1.17.3",
+      "@types/webpack-env": "~1.15.2",
+      "ajv": "^6.12.5",
+      "eslint": "8.7.0",
+      "gulp": "4.0.2",
+      "typescript": "4.5.5"
+     }
+    },
+    "heft": {
+     "dependencies": {
+      "tslib": "2.3.1"
+     },
+     "devDependencies": {
+      "@microsoft/rush-stack-compiler-4.5": "0.5.0",
+      "@rushstack/eslint-config": "2.5.1",
+      "@microsoft/eslint-plugin-spfx": "1.17.3",
+      "@microsoft/eslint-config-spfx": "1.17.3",
+      "@microsoft/spfx-web-build-rig": "1.17.3",
+      "@rushstack/heft": "0.49.7",
+      "@types/webpack-env": "~1.15.2",
+      "eslint": "8.7.0"
+     }
+    }
+   },
+   "react": {
+    "dependencies": {
+     "react": "17.0.1",
+     "react-dom": "17.0.1",
+     "office-ui-fabric-react": "^7.199.1",
+     "@fluentui/react": "^7.199.1"
+    },
+    "devDependencies": {
+     "@types/react": "17.0.45",
+     "@types/react-dom": "17.0.17",
+     "eslint-plugin-react-hooks": "4.3.0"
+    }
+   }
+  },
+  "1.17.4": {
+   "components": {
+    "webpart": {
+     "dependencies": {
+      "@microsoft/sp-core-library": "1.17.4",
+      "@microsoft/sp-component-base": "1.17.4",
+      "@microsoft/sp-property-pane": "1.17.4",
+      "@microsoft/sp-webpart-base": "1.17.4",
+      "@microsoft/sp-lodash-subset": "1.17.4",
+      "@microsoft/sp-office-ui-fabric-core": "1.17.4"
+     },
+     "devDependencies": {
+      "@microsoft/sp-module-interfaces": "1.17.4",
+      "@fluentui/react": "^7.199.1"
+     }
+    },
+    "extension": {
+     "dependencies": {
+      "@microsoft/sp-core-library": "1.17.4",
+      "@microsoft/decorators": "1.17.4"
+     },
+     "devDependencies": {
+      "@microsoft/sp-module-interfaces": "1.17.4"
+     }
+    },
+    "applicationCustomizer": {
+     "dependencies": {
+      "@microsoft/sp-dialog": "1.17.4",
+      "@microsoft/sp-application-base": "1.17.4"
+     },
+     "devDependencies": {}
+    },
+    "commandSet": {
+     "dependencies": {
+      "@microsoft/sp-listview-extensibility": "1.17.4",
+      "@microsoft/sp-dialog": "1.17.4"
+     },
+     "devDependencies": {}
+    },
+    "fieldCustomizer": {
+     "dependencies": {
+      "@microsoft/sp-listview-extensibility": "1.17.4"
+     },
+     "devDependencies": {}
+    },
+    "formCustomizer": {
+     "dependencies": {
+      "@microsoft/sp-core-library": "1.17.4",
+      "@microsoft/sp-listview-extensibility": "1.17.4",
+      "@microsoft/sp-lodash-subset": "1.17.4",
+      "@microsoft/sp-office-ui-fabric-core": "1.17.4"
+     },
+     "devDependencies": {
+      "@microsoft/sp-module-interfaces": "1.17.4"
+     }
+    },
+    "searchQueryModifier": {
+     "dependencies": {
+      "@microsoft/sp-search-extensibility": "1.17.4"
+     },
+     "devDependencies": {}
+    },
+    "adaptiveCardExtension": {
+     "dependencies": {
+      "@microsoft/sp-core-library": "1.17.4",
+      "@microsoft/sp-property-pane": "1.17.4",
+      "@microsoft/sp-adaptive-card-extension-base": "1.17.4"
+     },
+     "devDependencies": {
+      "@microsoft/sp-module-interfaces": "1.17.4"
+     }
+    },
+    "library": {
+     "dependencies": {},
+     "devDependencies": {
+      "@microsoft/sp-module-interfaces": "1.17.4"
+     }
+    }
+   },
+   "toolchains": {
+    "gulp": {
+     "dependencies": {
+      "tslib": "2.3.1"
+     },
+     "devDependencies": {
+      "@microsoft/rush-stack-compiler-4.5": "0.5.0",
+      "@rushstack/eslint-config": "2.5.1",
+      "@microsoft/eslint-plugin-spfx": "1.17.4",
+      "@microsoft/eslint-config-spfx": "1.17.4",
+      "@microsoft/sp-build-web": "1.17.4",
+      "@types/webpack-env": "~1.15.2",
+      "ajv": "^6.12.5",
+      "eslint": "8.7.0",
+      "gulp": "4.0.2",
+      "typescript": "4.5.5"
+     }
+    },
+    "heft": {
+     "dependencies": {
+      "tslib": "2.3.1"
+     },
+     "devDependencies": {
+      "@microsoft/rush-stack-compiler-4.5": "0.5.0",
+      "@rushstack/eslint-config": "2.5.1",
+      "@microsoft/eslint-plugin-spfx": "1.17.4",
+      "@microsoft/eslint-config-spfx": "1.17.4",
+      "@microsoft/spfx-web-build-rig": "1.17.4",
+      "@rushstack/heft": "0.49.7",
+      "@types/webpack-env": "~1.15.2",
+      "eslint": "8.7.0"
+     }
+    }
+   },
+   "react": {
+    "dependencies": {
+     "react": "17.0.1",
+     "react-dom": "17.0.1",
+     "office-ui-fabric-react": "^7.199.1",
+     "@fluentui/react": "^7.199.1"
+    },
+    "devDependencies": {
+     "@types/react": "17.0.45",
+     "@types/react-dom": "17.0.17",
+     "eslint-plugin-react-hooks": "4.3.0"
+    }
+   }
+  },
+  "1.18.0": {
+   "components": {
+    "webpart": {
+     "dependencies": {
+      "@microsoft/sp-core-library": "1.18.0",
+      "@microsoft/sp-component-base": "1.18.0",
+      "@microsoft/sp-property-pane": "1.18.0",
+      "@microsoft/sp-webpart-base": "1.18.0",
+      "@microsoft/sp-lodash-subset": "1.18.0",
+      "@microsoft/sp-office-ui-fabric-core": "1.18.0"
+     },
+     "devDependencies": {
+      "@microsoft/sp-module-interfaces": "1.18.0",
+      "@fluentui/react": "^8.106.4"
+     }
+    },
+    "extension": {
+     "dependencies": {
+      "@microsoft/sp-core-library": "1.18.0",
+      "@microsoft/decorators": "1.18.0"
+     },
+     "devDependencies": {
+      "@microsoft/sp-module-interfaces": "1.18.0"
+     }
+    },
+    "applicationCustomizer": {
+     "dependencies": {
+      "@microsoft/sp-dialog": "1.18.0",
+      "@microsoft/sp-application-base": "1.18.0"
+     },
+     "devDependencies": {}
+    },
+    "commandSet": {
+     "dependencies": {
+      "@microsoft/sp-listview-extensibility": "1.18.0",
+      "@microsoft/sp-dialog": "1.18.0"
+     },
+     "devDependencies": {}
+    },
+    "fieldCustomizer": {
+     "dependencies": {
+      "@microsoft/sp-listview-extensibility": "1.18.0"
+     },
+     "devDependencies": {}
+    },
+    "formCustomizer": {
+     "dependencies": {
+      "@microsoft/sp-core-library": "1.18.0",
+      "@microsoft/sp-listview-extensibility": "1.18.0",
+      "@microsoft/sp-lodash-subset": "1.18.0",
+      "@microsoft/sp-office-ui-fabric-core": "1.18.0"
+     },
+     "devDependencies": {
+      "@microsoft/sp-module-interfaces": "1.18.0"
+     }
+    },
+    "searchQueryModifier": {
+     "dependencies": {
+      "@microsoft/sp-search-extensibility": "1.18.0"
+     },
+     "devDependencies": {}
+    },
+    "adaptiveCardExtension": {
+     "dependencies": {
+      "@microsoft/sp-core-library": "1.18.0",
+      "@microsoft/sp-property-pane": "1.18.0",
+      "@microsoft/sp-adaptive-card-extension-base": "1.18.0"
+     },
+     "devDependencies": {
+      "@microsoft/sp-module-interfaces": "1.18.0"
+     }
+    },
+    "library": {
+     "dependencies": {},
+     "devDependencies": {
+      "@microsoft/sp-module-interfaces": "1.18.0"
+     }
+    }
+   },
+   "toolchains": {
+    "gulp": {
+     "dependencies": {
+      "tslib": "2.3.1"
+     },
+     "devDependencies": {
+      "@microsoft/rush-stack-compiler-4.7": "0.1.0",
+      "@rushstack/eslint-config": "2.5.1",
+      "@microsoft/eslint-plugin-spfx": "1.18.0",
+      "@microsoft/eslint-config-spfx": "1.18.0",
+      "@microsoft/sp-build-web": "1.18.0",
+      "@types/webpack-env": "~1.15.2",
+      "ajv": "^6.12.5",
+      "eslint": "8.7.0",
+      "gulp": "4.0.2",
+      "typescript": "4.7.4"
+     }
+    },
+    "heft": {
+     "dependencies": {
+      "tslib": "2.3.1"
+     },
+     "devDependencies": {
+      "@microsoft/rush-stack-compiler-4.7": "0.1.0",
+      "@rushstack/eslint-config": "2.5.1",
+      "@microsoft/eslint-plugin-spfx": "1.18.0",
+      "@microsoft/eslint-config-spfx": "1.18.0",
+      "@microsoft/spfx-web-build-rig": "1.18.0",
+      "@rushstack/heft": "0.58.1",
+      "@types/webpack-env": "~1.15.2",
+      "eslint": "8.7.0"
+     }
+    }
+   },
+   "react": {
+    "dependencies": {
+     "react": "17.0.1",
+     "react-dom": "17.0.1",
+     "@fluentui/react": "^8.106.4"
+    },
+    "devDependencies": {
+     "@types/react": "17.0.45",
+     "@types/react-dom": "17.0.17",
+     "eslint-plugin-react-hooks": "4.3.0"
+    }
+   }
+  },
+  "1.18.1": {
+   "components": {
+    "webpart": {
+     "dependencies": {
+      "@microsoft/sp-core-library": "1.18.1",
+      "@microsoft/sp-component-base": "1.18.1",
+      "@microsoft/sp-property-pane": "1.18.1",
+      "@microsoft/sp-webpart-base": "1.18.1",
+      "@microsoft/sp-lodash-subset": "1.18.1",
+      "@microsoft/sp-office-ui-fabric-core": "1.18.1"
+     },
+     "devDependencies": {
+      "@microsoft/sp-module-interfaces": "1.18.1",
+      "@fluentui/react": "^8.106.4"
+     }
+    },
+    "extension": {
+     "dependencies": {
+      "@microsoft/sp-core-library": "1.18.1",
+      "@microsoft/decorators": "1.18.1"
+     },
+     "devDependencies": {
+      "@microsoft/sp-module-interfaces": "1.18.1"
+     }
+    },
+    "applicationCustomizer": {
+     "dependencies": {
+      "@microsoft/sp-dialog": "1.18.1",
+      "@microsoft/sp-application-base": "1.18.1"
+     },
+     "devDependencies": {}
+    },
+    "commandSet": {
+     "dependencies": {
+      "@microsoft/sp-listview-extensibility": "1.18.1",
+      "@microsoft/sp-dialog": "1.18.1"
+     },
+     "devDependencies": {}
+    },
+    "fieldCustomizer": {
+     "dependencies": {
+      "@microsoft/sp-listview-extensibility": "1.18.1"
+     },
+     "devDependencies": {}
+    },
+    "formCustomizer": {
+     "dependencies": {
+      "@microsoft/sp-core-library": "1.18.1",
+      "@microsoft/sp-listview-extensibility": "1.18.1",
+      "@microsoft/sp-lodash-subset": "1.18.1",
+      "@microsoft/sp-office-ui-fabric-core": "1.18.1"
+     },
+     "devDependencies": {
+      "@microsoft/sp-module-interfaces": "1.18.1"
+     }
+    },
+    "searchQueryModifier": {
+     "dependencies": {
+      "@microsoft/sp-search-extensibility": "1.18.1"
+     },
+     "devDependencies": {}
+    },
+    "adaptiveCardExtension": {
+     "dependencies": {
+      "@microsoft/sp-core-library": "1.18.1",
+      "@microsoft/sp-property-pane": "1.18.1",
+      "@microsoft/sp-adaptive-card-extension-base": "1.18.1"
+     },
+     "devDependencies": {
+      "@microsoft/sp-module-interfaces": "1.18.1"
+     }
+    },
+    "library": {
+     "dependencies": {},
+     "devDependencies": {
+      "@microsoft/sp-module-interfaces": "1.18.1"
+     }
+    }
+   },
+   "toolchains": {
+    "gulp": {
+     "dependencies": {
+      "tslib": "2.3.1"
+     },
+     "devDependencies": {
+      "@microsoft/rush-stack-compiler-4.7": "0.1.0",
+      "@rushstack/eslint-config": "2.5.1",
+      "@microsoft/eslint-plugin-spfx": "1.18.1",
+      "@microsoft/eslint-config-spfx": "1.18.1",
+      "@microsoft/sp-build-web": "1.18.1",
+      "@types/webpack-env": "~1.15.2",
+      "ajv": "^6.12.5",
+      "eslint": "8.7.0",
+      "gulp": "4.0.2",
+      "typescript": "4.7.4"
+     }
+    },
+    "heft": {
+     "dependencies": {
+      "tslib": "2.3.1"
+     },
+     "devDependencies": {
+      "@microsoft/rush-stack-compiler-4.7": "0.1.0",
+      "@rushstack/eslint-config": "2.5.1",
+      "@microsoft/eslint-plugin-spfx": "1.18.1",
+      "@microsoft/eslint-config-spfx": "1.18.1",
+      "@microsoft/spfx-web-build-rig": "1.18.1",
+      "@rushstack/heft": "0.62.1",
+      "@types/webpack-env": "~1.15.2",
+      "eslint": "8.7.0"
+     }
+    }
+   },
+   "react": {
+    "dependencies": {
+     "react": "17.0.1",
+     "react-dom": "17.0.1",
+     "@fluentui/react": "^8.106.4"
+    },
+    "devDependencies": {
+     "@types/react": "17.0.45",
+     "@types/react-dom": "17.0.17",
+     "eslint-plugin-react-hooks": "4.3.0"
+    }
+   }
+  },
+  "1.18.2": {
+   "components": {
+    "webpart": {
+     "dependencies": {
+      "@microsoft/sp-core-library": "1.18.2",
+      "@microsoft/sp-component-base": "1.18.2",
+      "@microsoft/sp-property-pane": "1.18.2",
+      "@microsoft/sp-webpart-base": "1.18.2",
+      "@microsoft/sp-lodash-subset": "1.18.2",
+      "@microsoft/sp-office-ui-fabric-core": "1.18.2"
+     },
+     "devDependencies": {
+      "@microsoft/sp-module-interfaces": "1.18.2",
+      "@fluentui/react": "^8.106.4"
+     }
+    },
+    "extension": {
+     "dependencies": {
+      "@microsoft/sp-core-library": "1.18.2",
+      "@microsoft/decorators": "1.18.2"
+     },
+     "devDependencies": {
+      "@microsoft/sp-module-interfaces": "1.18.2"
+     }
+    },
+    "applicationCustomizer": {
+     "dependencies": {
+      "@microsoft/sp-dialog": "1.18.2",
+      "@microsoft/sp-application-base": "1.18.2"
+     },
+     "devDependencies": {}
+    },
+    "commandSet": {
+     "dependencies": {
+      "@microsoft/sp-listview-extensibility": "1.18.2",
+      "@microsoft/sp-dialog": "1.18.2"
+     },
+     "devDependencies": {}
+    },
+    "fieldCustomizer": {
+     "dependencies": {
+      "@microsoft/sp-listview-extensibility": "1.18.2"
+     },
+     "devDependencies": {}
+    },
+    "formCustomizer": {
+     "dependencies": {
+      "@microsoft/sp-core-library": "1.18.2",
+      "@microsoft/sp-listview-extensibility": "1.18.2",
+      "@microsoft/sp-lodash-subset": "1.18.2",
+      "@microsoft/sp-office-ui-fabric-core": "1.18.2"
+     },
+     "devDependencies": {
+      "@microsoft/sp-module-interfaces": "1.18.2"
+     }
+    },
+    "searchQueryModifier": {
+     "dependencies": {
+      "@microsoft/sp-search-extensibility": "1.18.2"
+     },
+     "devDependencies": {}
+    },
+    "adaptiveCardExtension": {
+     "dependencies": {
+      "@microsoft/sp-core-library": "1.18.2",
+      "@microsoft/sp-property-pane": "1.18.2",
+      "@microsoft/sp-adaptive-card-extension-base": "1.18.2"
+     },
+     "devDependencies": {
+      "@microsoft/sp-module-interfaces": "1.18.2"
+     }
+    },
+    "library": {
+     "dependencies": {},
+     "devDependencies": {
+      "@microsoft/sp-module-interfaces": "1.18.2"
+     }
+    }
+   },
+   "toolchains": {
+    "gulp": {
+     "dependencies": {
+      "tslib": "2.3.1"
+     },
+     "devDependencies": {
+      "@microsoft/rush-stack-compiler-4.7": "0.1.0",
+      "@rushstack/eslint-config": "2.5.1",
+      "@microsoft/eslint-plugin-spfx": "1.18.2",
+      "@microsoft/eslint-config-spfx": "1.18.2",
+      "@microsoft/sp-build-web": "1.18.2",
+      "@types/webpack-env": "~1.15.2",
+      "ajv": "^6.12.5",
+      "eslint": "8.7.0",
+      "gulp": "4.0.2",
+      "typescript": "4.7.4"
+     }
+    },
+    "heft": {
+     "dependencies": {
+      "tslib": "2.3.1"
+     },
+     "devDependencies": {
+      "@microsoft/rush-stack-compiler-4.7": "0.1.0",
+      "@rushstack/eslint-config": "2.5.1",
+      "@microsoft/eslint-plugin-spfx": "1.18.2",
+      "@microsoft/eslint-config-spfx": "1.18.2",
+      "@microsoft/spfx-web-build-rig": "1.18.2",
+      "@rushstack/heft": "0.62.1",
+      "@types/webpack-env": "~1.15.2",
+      "eslint": "8.7.0"
+     }
+    }
+   },
+   "react": {
+    "dependencies": {
+     "react": "17.0.1",
+     "react-dom": "17.0.1",
+     "@fluentui/react": "^8.106.4"
+    },
+    "devDependencies": {
+     "@types/react": "17.0.45",
+     "@types/react-dom": "17.0.17",
+     "eslint-plugin-react-hooks": "4.3.0"
+    }
+   }
+  },
+  "1.19.0": {
+   "components": {
+    "webpart": {
+     "dependencies": {
+      "@microsoft/sp-core-library": "1.19.0",
+      "@microsoft/sp-component-base": "1.19.0",
+      "@microsoft/sp-property-pane": "1.19.0",
+      "@microsoft/sp-webpart-base": "1.19.0",
+      "@microsoft/sp-lodash-subset": "1.19.0",
+      "@microsoft/sp-office-ui-fabric-core": "1.19.0"
+     },
+     "devDependencies": {
+      "@microsoft/sp-module-interfaces": "1.20.1",
+      "@fluentui/react": "^8.106.4"
+     }
+    },
+    "extension": {
+     "dependencies": {
+      "@microsoft/sp-core-library": "1.19.0",
+      "@microsoft/decorators": "1.19.0"
+     },
+     "devDependencies": {
+      "@microsoft/sp-module-interfaces": "1.20.1"
+     }
+    },
+    "applicationCustomizer": {
+     "dependencies": {
+      "@microsoft/sp-dialog": "1.19.0",
+      "@microsoft/sp-application-base": "1.19.0"
+     },
+     "devDependencies": {}
+    },
+    "commandSet": {
+     "dependencies": {
+      "@microsoft/sp-listview-extensibility": "1.19.0",
+      "@microsoft/sp-dialog": "1.19.0"
+     },
+     "devDependencies": {}
+    },
+    "fieldCustomizer": {
+     "dependencies": {
+      "@microsoft/sp-listview-extensibility": "1.19.0"
+     },
+     "devDependencies": {}
+    },
+    "formCustomizer": {
+     "dependencies": {
+      "@microsoft/sp-core-library": "1.19.0",
+      "@microsoft/sp-listview-extensibility": "1.19.0",
+      "@microsoft/sp-lodash-subset": "1.19.0",
+      "@microsoft/sp-office-ui-fabric-core": "1.19.0"
+     },
+     "devDependencies": {
+      "@microsoft/sp-module-interfaces": "1.20.1"
+     }
+    },
+    "searchQueryModifier": {
+     "dependencies": {
+      "@microsoft/sp-search-extensibility": "1.19.0"
+     },
+     "devDependencies": {}
+    },
+    "adaptiveCardExtension": {
+     "dependencies": {
+      "@microsoft/sp-core-library": "1.19.0",
+      "@microsoft/sp-property-pane": "1.19.0",
+      "@microsoft/sp-adaptive-card-extension-base": "1.19.0"
+     },
+     "devDependencies": {
+      "@microsoft/sp-module-interfaces": "1.20.1"
+     }
+    },
+    "library": {
+     "dependencies": {},
+     "devDependencies": {
+      "@microsoft/sp-module-interfaces": "1.20.1"
+     }
+    }
+   },
+   "toolchains": {
+    "gulp": {
+     "dependencies": {
+      "tslib": "2.3.1"
+     },
+     "devDependencies": {
+      "@microsoft/rush-stack-compiler-4.7": "0.1.0",
+      "@rushstack/eslint-config": "2.5.1",
+      "@microsoft/eslint-plugin-spfx": "1.20.1",
+      "@microsoft/eslint-config-spfx": "1.20.1",
+      "@microsoft/sp-build-web": "1.20.1",
+      "@types/webpack-env": "~1.15.2",
+      "ajv": "^6.12.5",
+      "eslint": "8.7.0",
+      "gulp": "4.0.2",
+      "typescript": "4.7.4"
+     }
+    },
+    "heft": {
+     "dependencies": {
+      "tslib": "2.3.1"
+     },
+     "devDependencies": {
+      "@microsoft/rush-stack-compiler-4.7": "0.1.0",
+      "@rushstack/eslint-config": "2.5.1",
+      "@microsoft/eslint-plugin-spfx": "1.20.1",
+      "@microsoft/eslint-config-spfx": "1.20.1",
+      "@microsoft/spfx-web-build-rig": "1.20.1",
+      "@rushstack/heft": "0.66.0",
+      "@types/webpack-env": "~1.15.2",
+      "eslint": "8.7.0"
+     }
+    }
+   },
+   "react": {
+    "dependencies": {
+     "react": "17.0.1",
+     "react-dom": "17.0.1",
+     "@fluentui/react": "^8.106.4"
+    },
+    "devDependencies": {
+     "@types/react": "17.0.45",
+     "@types/react-dom": "17.0.17",
+     "eslint-plugin-react-hooks": "4.3.0"
+    }
+   }
+  },
+  "1.20.0": {
+   "components": {
+    "webpart": {
+     "dependencies": {
+      "@microsoft/sp-core-library": "1.20.0",
+      "@microsoft/sp-component-base": "1.20.0",
+      "@microsoft/sp-property-pane": "1.20.0",
+      "@microsoft/sp-webpart-base": "1.20.0",
+      "@microsoft/sp-lodash-subset": "1.20.0",
+      "@microsoft/sp-office-ui-fabric-core": "1.20.0"
+     },
+     "devDependencies": {
+      "@microsoft/sp-module-interfaces": "1.20.2",
+      "@fluentui/react": "^8.106.4"
+     }
+    },
+    "extension": {
+     "dependencies": {
+      "@microsoft/sp-core-library": "1.20.0",
+      "@microsoft/decorators": "1.20.0"
+     },
+     "devDependencies": {
+      "@microsoft/sp-module-interfaces": "1.20.2"
+     }
+    },
+    "applicationCustomizer": {
+     "dependencies": {
+      "@microsoft/sp-dialog": "1.20.0",
+      "@microsoft/sp-application-base": "1.20.0"
+     },
+     "devDependencies": {}
+    },
+    "commandSet": {
+     "dependencies": {
+      "@microsoft/sp-listview-extensibility": "1.20.0",
+      "@microsoft/sp-dialog": "1.20.0"
+     },
+     "devDependencies": {}
+    },
+    "fieldCustomizer": {
+     "dependencies": {
+      "@microsoft/sp-listview-extensibility": "1.20.0"
+     },
+     "devDependencies": {}
+    },
+    "formCustomizer": {
+     "dependencies": {
+      "@microsoft/sp-core-library": "1.20.0",
+      "@microsoft/sp-listview-extensibility": "1.20.0",
+      "@microsoft/sp-lodash-subset": "1.20.0",
+      "@microsoft/sp-office-ui-fabric-core": "1.20.0"
+     },
+     "devDependencies": {
+      "@microsoft/sp-module-interfaces": "1.20.2"
+     }
+    },
+    "searchQueryModifier": {
+     "dependencies": {
+      "@microsoft/sp-search-extensibility": "1.20.0"
+     },
+     "devDependencies": {}
+    },
+    "adaptiveCardExtension": {
+     "dependencies": {
+      "@microsoft/sp-core-library": "1.20.0",
+      "@microsoft/sp-property-pane": "1.20.0",
+      "@microsoft/sp-adaptive-card-extension-base": "1.20.0"
+     },
+     "devDependencies": {
+      "@microsoft/sp-module-interfaces": "1.20.2"
+     }
+    },
+    "library": {
+     "dependencies": {},
+     "devDependencies": {
+      "@microsoft/sp-module-interfaces": "1.20.2"
+     }
+    }
+   },
+   "toolchains": {
+    "gulp": {
+     "dependencies": {
+      "tslib": "2.3.1"
+     },
+     "devDependencies": {
+      "@microsoft/rush-stack-compiler-4.7": "0.1.0",
+      "@rushstack/eslint-config": "4.0.1",
+      "@microsoft/eslint-plugin-spfx": "1.20.2",
+      "@microsoft/eslint-config-spfx": "1.20.2",
+      "@microsoft/sp-build-web": "1.20.2",
+      "@types/webpack-env": "~1.15.2",
+      "ajv": "^6.12.5",
+      "eslint": "8.57.0",
+      "gulp": "4.0.2",
+      "typescript": "4.7.4"
+     }
+    },
+    "heft": {
+     "dependencies": {
+      "tslib": "2.3.1"
+     },
+     "devDependencies": {
+      "@microsoft/rush-stack-compiler-4.7": "0.1.0",
+      "@rushstack/eslint-config": "4.0.1",
+      "@microsoft/eslint-plugin-spfx": "1.20.2",
+      "@microsoft/eslint-config-spfx": "1.20.2",
+      "@microsoft/spfx-web-build-rig": "1.20.2",
+      "@rushstack/heft": "0.67.0",
+      "@types/webpack-env": "~1.15.2",
+      "eslint": "8.57.0"
+     }
+    }
+   },
+   "react": {
+    "dependencies": {
+     "react": "17.0.1",
+     "react-dom": "17.0.1",
+     "@fluentui/react": "^8.106.4"
+    },
+    "devDependencies": {
+     "@types/react": "17.0.45",
+     "@types/react-dom": "17.0.17",
+     "eslint-plugin-react-hooks": "4.3.0"
+    }
+   }
+  },
+  "1.21.0": {
+   "components": {
+    "webpart": {
+     "dependencies": {
+      "@microsoft/sp-core-library": "1.21.0",
+      "@microsoft/sp-component-base": "1.21.0",
+      "@microsoft/sp-property-pane": "1.21.0",
+      "@microsoft/sp-webpart-base": "1.21.0",
+      "@microsoft/sp-lodash-subset": "1.21.0",
+      "@microsoft/sp-office-ui-fabric-core": "1.21.0"
+     },
+     "devDependencies": {
+      "@microsoft/sp-module-interfaces": "1.21.0",
+      "@fluentui/react": "^8.106.4"
+     }
+    },
+    "extension": {
+     "dependencies": {
+      "@microsoft/sp-core-library": "1.21.0",
+      "@microsoft/decorators": "1.21.0"
+     },
+     "devDependencies": {
+      "@microsoft/sp-module-interfaces": "1.21.0"
+     }
+    },
+    "applicationCustomizer": {
+     "dependencies": {
+      "@microsoft/sp-dialog": "1.21.0",
+      "@microsoft/sp-application-base": "1.21.0"
+     },
+     "devDependencies": {}
+    },
+    "commandSet": {
+     "dependencies": {
+      "@microsoft/sp-listview-extensibility": "1.21.0",
+      "@microsoft/sp-dialog": "1.21.0"
+     },
+     "devDependencies": {}
+    },
+    "fieldCustomizer": {
+     "dependencies": {
+      "@microsoft/sp-listview-extensibility": "1.21.0"
+     },
+     "devDependencies": {}
+    },
+    "formCustomizer": {
+     "dependencies": {
+      "@microsoft/sp-core-library": "1.21.0",
+      "@microsoft/sp-listview-extensibility": "1.21.0",
+      "@microsoft/sp-lodash-subset": "1.21.0",
+      "@microsoft/sp-office-ui-fabric-core": "1.21.0"
+     },
+     "devDependencies": {
+      "@microsoft/sp-module-interfaces": "1.21.0"
+     }
+    },
+    "searchQueryModifier": {
+     "dependencies": {
+      "@microsoft/sp-search-extensibility": "1.21.0"
+     },
+     "devDependencies": {}
+    },
+    "adaptiveCardExtension": {
+     "dependencies": {
+      "@microsoft/sp-core-library": "1.21.0",
+      "@microsoft/sp-property-pane": "1.21.0",
+      "@microsoft/sp-adaptive-card-extension-base": "1.21.0"
+     },
+     "devDependencies": {
+      "@microsoft/sp-module-interfaces": "1.21.0"
+     }
+    },
+    "library": {
+     "dependencies": {},
+     "devDependencies": {
+      "@microsoft/sp-module-interfaces": "1.21.0"
+     }
+    }
+   },
+   "toolchains": {
+    "gulp": {
+     "dependencies": {
+      "tslib": "2.3.1"
+     },
+     "devDependencies": {
+      "@microsoft/rush-stack-compiler-5.3": "0.1.0",
+      "@rushstack/eslint-config": "4.0.1",
+      "@microsoft/eslint-plugin-spfx": "1.21.0",
+      "@microsoft/eslint-config-spfx": "1.21.0",
+      "@microsoft/sp-build-web": "1.21.0",
+      "@types/webpack-env": "~1.15.2",
+      "ajv": "^6.12.5",
+      "eslint": "8.57.1",
+      "gulp": "4.0.2",
+      "typescript": "~5.3.3"
+     }
+    },
+    "heft": {
+     "dependencies": {
+      "tslib": "2.3.1"
+     },
+     "devDependencies": {
+      "@microsoft/rush-stack-compiler-5.3": "0.1.0",
+      "@rushstack/eslint-config": "4.0.1",
+      "@microsoft/eslint-plugin-spfx": "1.21.0",
+      "@microsoft/eslint-config-spfx": "1.21.0",
+      "@microsoft/spfx-web-build-rig": "1.21.0",
+      "@rushstack/heft": "0.71.0",
+      "@types/webpack-env": "~1.15.2",
+      "eslint": "8.57.1"
+     }
+    }
+   },
+   "react": {
+    "dependencies": {
+     "react": "17.0.1",
+     "react-dom": "17.0.1",
+     "@fluentui/react": "^8.106.4"
+    },
+    "devDependencies": {
+     "@types/react": "17.0.45",
+     "@types/react-dom": "17.0.17",
+     "eslint-plugin-react-hooks": "4.3.0"
+    }
+   }
+  },
+  "1.21.1": {
+   "components": {
+    "webpart": {
+     "dependencies": {
+      "@microsoft/sp-core-library": "1.21.1",
+      "@microsoft/sp-component-base": "1.21.1",
+      "@microsoft/sp-property-pane": "1.21.1",
+      "@microsoft/sp-webpart-base": "1.21.1",
+      "@microsoft/sp-lodash-subset": "1.21.1",
+      "@microsoft/sp-office-ui-fabric-core": "1.21.1"
+     },
+     "devDependencies": {
+      "@microsoft/sp-module-interfaces": "1.21.1",
+      "@fluentui/react": "^8.106.4"
+     }
+    },
+    "extension": {
+     "dependencies": {
+      "@microsoft/sp-core-library": "1.21.1",
+      "@microsoft/decorators": "1.21.1"
+     },
+     "devDependencies": {
+      "@microsoft/sp-module-interfaces": "1.21.1"
+     }
+    },
+    "applicationCustomizer": {
+     "dependencies": {
+      "@microsoft/sp-dialog": "1.21.1",
+      "@microsoft/sp-application-base": "1.21.1"
+     },
+     "devDependencies": {}
+    },
+    "commandSet": {
+     "dependencies": {
+      "@microsoft/sp-listview-extensibility": "1.21.1",
+      "@microsoft/sp-dialog": "1.21.1"
+     },
+     "devDependencies": {}
+    },
+    "fieldCustomizer": {
+     "dependencies": {
+      "@microsoft/sp-listview-extensibility": "1.21.1"
+     },
+     "devDependencies": {}
+    },
+    "formCustomizer": {
+     "dependencies": {
+      "@microsoft/sp-core-library": "1.21.1",
+      "@microsoft/sp-listview-extensibility": "1.21.1",
+      "@microsoft/sp-lodash-subset": "1.21.1",
+      "@microsoft/sp-office-ui-fabric-core": "1.21.1"
+     },
+     "devDependencies": {
+      "@microsoft/sp-module-interfaces": "1.21.1"
+     }
+    },
+    "searchQueryModifier": {
+     "dependencies": {
+      "@microsoft/sp-search-extensibility": "1.21.1"
+     },
+     "devDependencies": {}
+    },
+    "adaptiveCardExtension": {
+     "dependencies": {
+      "@microsoft/sp-core-library": "1.21.1",
+      "@microsoft/sp-property-pane": "1.21.1",
+      "@microsoft/sp-adaptive-card-extension-base": "1.21.1"
+     },
+     "devDependencies": {
+      "@microsoft/sp-module-interfaces": "1.21.1"
+     }
+    },
+    "library": {
+     "dependencies": {},
+     "devDependencies": {
+      "@microsoft/sp-module-interfaces": "1.21.1"
+     }
+    }
+   },
+   "toolchains": {
+    "gulp": {
+     "dependencies": {
+      "tslib": "2.3.1"
+     },
+     "devDependencies": {
+      "@microsoft/rush-stack-compiler-5.3": "0.1.0",
+      "@rushstack/eslint-config": "4.0.1",
+      "@microsoft/eslint-plugin-spfx": "1.21.1",
+      "@microsoft/eslint-config-spfx": "1.21.1",
+      "@microsoft/sp-build-web": "1.21.1",
+      "@types/webpack-env": "~1.15.2",
+      "ajv": "^6.12.5",
+      "eslint": "8.57.1",
+      "gulp": "4.0.2",
+      "typescript": "~5.3.3"
+     }
+    },
+    "heft": {
+     "dependencies": {
+      "tslib": "2.3.1"
+     },
+     "devDependencies": {
+      "@microsoft/rush-stack-compiler-5.3": "0.1.0",
+      "@rushstack/eslint-config": "4.0.1",
+      "@microsoft/eslint-plugin-spfx": "1.21.1",
+      "@microsoft/eslint-config-spfx": "1.21.1",
+      "@microsoft/spfx-web-build-rig": "1.21.1",
+      "@rushstack/heft": "0.71.0",
+      "@types/webpack-env": "~1.15.2",
+      "eslint": "8.57.1"
+     }
+    }
+   },
+   "react": {
+    "dependencies": {
+     "react": "17.0.1",
+     "react-dom": "17.0.1",
+     "@fluentui/react": "^8.106.4"
+    },
+    "devDependencies": {
+     "@types/react": "17.0.45",
+     "@types/react-dom": "17.0.17",
+     "eslint-plugin-react-hooks": "4.3.0"
+    }
+   }
+  },
+  "1.22.0": {
+   "components": {
+    "webpart": {
+     "dependencies": {
+      "@microsoft/sp-core-library": "1.22.0",
+      "@microsoft/sp-component-base": "1.22.0",
+      "@microsoft/sp-property-pane": "1.22.0",
+      "@microsoft/sp-webpart-base": "1.22.0",
+      "@microsoft/sp-lodash-subset": "1.22.0",
+      "@microsoft/sp-office-ui-fabric-core": "1.22.0"
+     },
+     "devDependencies": {
+      "@microsoft/sp-module-interfaces": "1.22.0",
+      "@fluentui/react": "^8.106.4"
+     }
+    },
+    "extension": {
+     "dependencies": {
+      "@microsoft/sp-core-library": "1.22.0",
+      "@microsoft/decorators": "1.22.0"
+     },
+     "devDependencies": {
+      "@microsoft/sp-module-interfaces": "1.22.0"
+     }
+    },
+    "applicationCustomizer": {
+     "dependencies": {
+      "@microsoft/sp-dialog": "1.22.0",
+      "@microsoft/sp-application-base": "1.22.0"
+     },
+     "devDependencies": {}
+    },
+    "commandSet": {
+     "dependencies": {
+      "@microsoft/sp-listview-extensibility": "1.22.0",
+      "@microsoft/sp-dialog": "1.22.0"
+     },
+     "devDependencies": {}
+    },
+    "fieldCustomizer": {
+     "dependencies": {
+      "@microsoft/sp-listview-extensibility": "1.22.0"
+     },
+     "devDependencies": {}
+    },
+    "formCustomizer": {
+     "dependencies": {
+      "@microsoft/sp-core-library": "1.22.0",
+      "@microsoft/sp-listview-extensibility": "1.22.0",
+      "@microsoft/sp-lodash-subset": "1.22.0",
+      "@microsoft/sp-office-ui-fabric-core": "1.22.0"
+     },
+     "devDependencies": {
+      "@microsoft/sp-module-interfaces": "1.22.0"
+     }
+    },
+    "searchQueryModifier": {
+     "dependencies": {
+      "@microsoft/sp-search-extensibility": "1.22.0"
+     },
+     "devDependencies": {}
+    },
+    "adaptiveCardExtension": {
+     "dependencies": {
+      "@microsoft/sp-core-library": "1.22.0",
+      "@microsoft/sp-property-pane": "1.22.0",
+      "@microsoft/sp-adaptive-card-extension-base": "1.22.0"
+     },
+     "devDependencies": {
+      "@microsoft/sp-module-interfaces": "1.22.0"
+     }
+    },
+    "library": {
+     "dependencies": {},
+     "devDependencies": {
+      "@microsoft/sp-module-interfaces": "1.22.0"
+     }
+    }
+   },
+   "toolchains": {
+    "gulp": {
+     "dependencies": {
+      "tslib": "2.3.1"
+     },
+     "devDependencies": {
+      "@microsoft/rush-stack-compiler-5.3": "0.1.0",
+      "@rushstack/eslint-config": "4.5.2",
+      "@microsoft/eslint-plugin-spfx": "1.22.0",
+      "@microsoft/eslint-config-spfx": "1.22.0",
+      "@microsoft/sp-build-web": "1.22.0",
+      "@types/webpack-env": "~1.15.2",
+      "@typescript-eslint/parser": "8.46.2",
+      "ajv": "^6.12.5",
+      "eslint": "8.57.0",
+      "gulp": "4.0.2",
+      "typescript": "~5.3.3"
+     }
+    },
+    "heft": {
+     "dependencies": {
+      "tslib": "2.3.1"
+     },
+     "devDependencies": {
+      "@rushstack/eslint-config": "4.5.2",
+      "@microsoft/eslint-plugin-spfx": "1.22.0",
+      "@microsoft/eslint-config-spfx": "1.22.0",
+      "@microsoft/spfx-web-build-rig": "1.22.0",
+      "@microsoft/spfx-heft-plugins": "1.22.0",
+      "@rushstack/heft": "1.1.2",
+      "@types/heft-jest": "1.0.2",
+      "@types/webpack-env": "~1.15.2",
+      "@typescript-eslint/parser": "8.46.2",
+      "css-loader": "~7.1.2",
+      "eslint": "8.57.1",
+      "typescript": "~5.8.0"
+     }
+    }
+   },
+   "react": {
+    "dependencies": {
+     "react": "17.0.1",
+     "react-dom": "17.0.1",
+     "@fluentui/react": "^8.106.4"
+    },
+    "devDependencies": {
+     "@types/react": "17.0.45",
+     "@types/react-dom": "17.0.17",
+     "eslint-plugin-react-hooks": "4.3.0"
+    }
+   }
+  },
+  "1.22.1": {
+   "components": {
+    "webpart": {
+     "dependencies": {
+      "@microsoft/sp-core-library": "1.22.1",
+      "@microsoft/sp-component-base": "1.22.1",
+      "@microsoft/sp-property-pane": "1.22.1",
+      "@microsoft/sp-webpart-base": "1.22.1",
+      "@microsoft/sp-lodash-subset": "1.22.1",
+      "@microsoft/sp-office-ui-fabric-core": "1.22.1"
+     },
+     "devDependencies": {
+      "@microsoft/sp-module-interfaces": "1.22.1",
+      "@fluentui/react": "^8.106.4"
+     }
+    },
+    "extension": {
+     "dependencies": {
+      "@microsoft/sp-core-library": "1.22.1",
+      "@microsoft/decorators": "1.22.1"
+     },
+     "devDependencies": {
+      "@microsoft/sp-module-interfaces": "1.22.1"
+     }
+    },
+    "applicationCustomizer": {
+     "dependencies": {
+      "@microsoft/sp-dialog": "1.22.1",
+      "@microsoft/sp-application-base": "1.22.1"
+     },
+     "devDependencies": {}
+    },
+    "commandSet": {
+     "dependencies": {
+      "@microsoft/sp-listview-extensibility": "1.22.1",
+      "@microsoft/sp-dialog": "1.22.1"
+     },
+     "devDependencies": {}
+    },
+    "fieldCustomizer": {
+     "dependencies": {
+      "@microsoft/sp-listview-extensibility": "1.22.1"
+     },
+     "devDependencies": {}
+    },
+    "formCustomizer": {
+     "dependencies": {
+      "@microsoft/sp-core-library": "1.22.1",
+      "@microsoft/sp-listview-extensibility": "1.22.1",
+      "@microsoft/sp-lodash-subset": "1.22.1",
+      "@microsoft/sp-office-ui-fabric-core": "1.22.1"
+     },
+     "devDependencies": {
+      "@microsoft/sp-module-interfaces": "1.22.1"
+     }
+    },
+    "searchQueryModifier": {
+     "dependencies": {
+      "@microsoft/sp-search-extensibility": "1.22.1"
+     },
+     "devDependencies": {}
+    },
+    "adaptiveCardExtension": {
+     "dependencies": {
+      "@microsoft/sp-core-library": "1.22.1",
+      "@microsoft/sp-property-pane": "1.22.1",
+      "@microsoft/sp-adaptive-card-extension-base": "1.22.1"
+     },
+     "devDependencies": {
+      "@microsoft/sp-module-interfaces": "1.22.1"
+     }
+    },
+    "library": {
+     "dependencies": {},
+     "devDependencies": {
+      "@microsoft/sp-module-interfaces": "1.22.1"
+     }
+    }
+   },
+   "toolchains": {
+    "gulp": {
+     "dependencies": {
+      "tslib": "2.3.1"
+     },
+     "devDependencies": {
+      "@microsoft/rush-stack-compiler-5.3": "0.1.0",
+      "@rushstack/eslint-config": "4.5.2",
+      "@microsoft/eslint-plugin-spfx": "1.22.1",
+      "@microsoft/eslint-config-spfx": "1.22.1",
+      "@microsoft/sp-build-web": "1.22.1",
+      "@types/webpack-env": "~1.15.2",
+      "@typescript-eslint/parser": "8.46.2",
+      "ajv": "^6.12.5",
+      "eslint": "8.57.0",
+      "gulp": "4.0.2",
+      "typescript": "~5.3.3"
+     }
+    },
+    "heft": {
+     "dependencies": {
+      "tslib": "2.3.1"
+     },
+     "devDependencies": {
+      "@rushstack/eslint-config": "4.5.2",
+      "@microsoft/eslint-plugin-spfx": "1.22.1",
+      "@microsoft/eslint-config-spfx": "1.22.1",
+      "@microsoft/spfx-web-build-rig": "1.22.1",
+      "@microsoft/spfx-heft-plugins": "1.22.1",
+      "@rushstack/heft": "1.1.2",
+      "@types/heft-jest": "1.0.2",
+      "@types/webpack-env": "~1.15.2",
+      "@typescript-eslint/parser": "8.46.2",
+      "css-loader": "~7.1.2",
+      "eslint": "8.57.1",
+      "typescript": "~5.8.0"
+     }
+    }
+   },
+   "react": {
+    "dependencies": {
+     "react": "17.0.1",
+     "react-dom": "17.0.1",
+     "@fluentui/react": "^8.106.4"
+    },
+    "devDependencies": {
+     "@types/react": "17.0.45",
+     "@types/react-dom": "17.0.17",
+     "eslint-plugin-react-hooks": "4.3.0"
+    }
+   }
+  },
+  "1.22.2": {
+   "components": {
+    "webpart": {
+     "dependencies": {
+      "@microsoft/sp-core-library": "1.22.2",
+      "@microsoft/sp-component-base": "1.22.2",
+      "@microsoft/sp-property-pane": "1.22.2",
+      "@microsoft/sp-webpart-base": "1.22.2",
+      "@microsoft/sp-lodash-subset": "1.22.2",
+      "@microsoft/sp-office-ui-fabric-core": "1.22.2"
+     },
+     "devDependencies": {
+      "@microsoft/sp-module-interfaces": "1.22.2",
+      "@fluentui/react": "^8.106.4"
+     }
+    },
+    "extension": {
+     "dependencies": {
+      "@microsoft/sp-core-library": "1.22.2",
+      "@microsoft/decorators": "1.22.2"
+     },
+     "devDependencies": {
+      "@microsoft/sp-module-interfaces": "1.22.2"
+     }
+    },
+    "applicationCustomizer": {
+     "dependencies": {
+      "@microsoft/sp-dialog": "1.22.2",
+      "@microsoft/sp-application-base": "1.22.2"
+     },
+     "devDependencies": {}
+    },
+    "commandSet": {
+     "dependencies": {
+      "@microsoft/sp-listview-extensibility": "1.22.2",
+      "@microsoft/sp-dialog": "1.22.2"
+     },
+     "devDependencies": {}
+    },
+    "fieldCustomizer": {
+     "dependencies": {
+      "@microsoft/sp-listview-extensibility": "1.22.2"
+     },
+     "devDependencies": {}
+    },
+    "formCustomizer": {
+     "dependencies": {
+      "@microsoft/sp-core-library": "1.22.2",
+      "@microsoft/sp-listview-extensibility": "1.22.2",
+      "@microsoft/sp-lodash-subset": "1.22.2",
+      "@microsoft/sp-office-ui-fabric-core": "1.22.2"
+     },
+     "devDependencies": {
+      "@microsoft/sp-module-interfaces": "1.22.2"
+     }
+    },
+    "searchQueryModifier": {
+     "dependencies": {
+      "@microsoft/sp-search-extensibility": "1.22.2"
+     },
+     "devDependencies": {}
+    },
+    "adaptiveCardExtension": {
+     "dependencies": {
+      "@microsoft/sp-core-library": "1.22.2",
+      "@microsoft/sp-property-pane": "1.22.2",
+      "@microsoft/sp-adaptive-card-extension-base": "1.22.2"
+     },
+     "devDependencies": {
+      "@microsoft/sp-module-interfaces": "1.22.2"
+     }
+    },
+    "library": {
+     "dependencies": {},
+     "devDependencies": {
+      "@microsoft/sp-module-interfaces": "1.22.2"
+     }
+    }
+   },
+   "toolchains": {
+    "gulp": {
+     "dependencies": {
+      "tslib": "2.3.1"
+     },
+     "devDependencies": {
+      "@microsoft/rush-stack-compiler-5.3": "0.1.0",
+      "@rushstack/eslint-config": "4.5.2",
+      "@microsoft/eslint-plugin-spfx": "1.22.2",
+      "@microsoft/eslint-config-spfx": "1.22.2",
+      "@microsoft/sp-build-web": "1.22.2",
+      "@types/webpack-env": "~1.15.2",
+      "@typescript-eslint/parser": "8.46.2",
+      "ajv": "^6.12.5",
+      "eslint": "8.57.0",
+      "gulp": "4.0.2",
+      "typescript": "~5.3.3"
+     }
+    },
+    "heft": {
+     "dependencies": {
+      "tslib": "2.3.1"
+     },
+     "devDependencies": {
+      "@rushstack/eslint-config": "4.5.2",
+      "@microsoft/eslint-plugin-spfx": "1.22.2",
+      "@microsoft/eslint-config-spfx": "1.22.2",
+      "@microsoft/spfx-web-build-rig": "1.22.2",
+      "@microsoft/spfx-heft-plugins": "1.22.2",
+      "@rushstack/heft": "1.1.2",
+      "@types/heft-jest": "1.0.2",
+      "@types/webpack-env": "~1.15.2",
+      "@typescript-eslint/parser": "8.46.2",
+      "css-loader": "~7.1.2",
+      "eslint": "8.57.1",
+      "typescript": "~5.8.0"
+     }
+    }
+   },
+   "react": {
+    "dependencies": {
+     "react": "17.0.1",
+     "react-dom": "17.0.1",
+     "@fluentui/react": "^8.106.4"
+    },
+    "devDependencies": {
+     "@types/react": "17.0.45",
+     "@types/react-dom": "17.0.17",
+     "eslint-plugin-react-hooks": "4.3.0"
+    }
+   }
+  },
+  "1.23.0": {
+   "components": {
+    "webpart": {
+     "dependencies": {
+      "@microsoft/sp-core-library": "1.23.0",
+      "@microsoft/sp-component-base": "1.23.0",
+      "@microsoft/sp-property-pane": "1.23.0",
+      "@microsoft/sp-webpart-base": "1.23.0",
+      "@microsoft/sp-lodash-subset": "1.23.0",
+      "@microsoft/sp-office-ui-fabric-core": "1.23.0"
+     },
+     "devDependencies": {
+      "@microsoft/sp-module-interfaces": "1.23.0",
+      "@fluentui/react": "^8.106.4"
+     }
+    },
+    "extension": {
+     "dependencies": {
+      "@microsoft/sp-core-library": "1.23.0",
+      "@microsoft/decorators": "1.23.0"
+     },
+     "devDependencies": {
+      "@microsoft/sp-module-interfaces": "1.23.0"
+     }
+    },
+    "applicationCustomizer": {
+     "dependencies": {
+      "@microsoft/sp-dialog": "1.23.0",
+      "@microsoft/sp-application-base": "1.23.0"
+     },
+     "devDependencies": {}
+    },
+    "commandSet": {
+     "dependencies": {
+      "@microsoft/sp-listview-extensibility": "1.23.0",
+      "@microsoft/sp-dialog": "1.23.0"
+     },
+     "devDependencies": {}
+    },
+    "fieldCustomizer": {
+     "dependencies": {
+      "@microsoft/sp-listview-extensibility": "1.23.0"
+     },
+     "devDependencies": {}
+    },
+    "formCustomizer": {
+     "dependencies": {
+      "@microsoft/sp-core-library": "1.23.0",
+      "@microsoft/sp-listview-extensibility": "1.23.0",
+      "@microsoft/sp-lodash-subset": "1.23.0",
+      "@microsoft/sp-office-ui-fabric-core": "1.23.0"
+     },
+     "devDependencies": {
+      "@microsoft/sp-module-interfaces": "1.23.0"
+     }
+    },
+    "searchQueryModifier": {
+     "dependencies": {
+      "@microsoft/sp-search-extensibility": "1.23.0"
+     },
+     "devDependencies": {}
+    },
+    "adaptiveCardExtension": {
+     "dependencies": {
+      "@microsoft/sp-core-library": "1.23.0",
+      "@microsoft/sp-property-pane": "1.23.0",
+      "@microsoft/sp-adaptive-card-extension-base": "1.23.0"
+     },
+     "devDependencies": {
+      "@microsoft/sp-module-interfaces": "1.23.0"
+     }
+    },
+    "library": {
+     "dependencies": {},
+     "devDependencies": {
+      "@microsoft/sp-module-interfaces": "1.23.0"
+     }
+    }
+   },
+   "toolchains": {
+    "gulp": {
+     "dependencies": {
+      "tslib": "2.3.1"
+     },
+     "devDependencies": {
+      "@microsoft/rush-stack-compiler-5.3": "0.1.0",
+      "@rushstack/eslint-config": "4.3.0",
+      "@microsoft/eslint-plugin-spfx": "1.23.0",
+      "@microsoft/eslint-config-spfx": "1.23.0",
+      "@microsoft/sp-build-web": "1.23.0",
+      "@types/webpack-env": "~1.15.2",
+      "@typescript-eslint/parser": "8.56.1",
+      "ajv": "8.18.0",
+      "eslint": "8.57.0",
+      "gulp": "4.0.2",
+      "typescript": "~5.3.3"
+     }
+    },
+    "heft": {
+     "dependencies": {
+      "tslib": "2.3.1"
+     },
+     "devDependencies": {
+      "@microsoft/eslint-plugin-spfx": "1.23.0",
+      "@microsoft/eslint-config-spfx": "1.23.0",
+      "@microsoft/spfx-web-build-rig": "1.23.0",
+      "@microsoft/spfx-heft-plugins": "1.23.0",
+      "@rushstack/heft": "1.2.17",
+      "@types/jest": "30.0.0",
+      "@types/webpack-env": "~1.15.2",
+      "css-loader": "~7.1.2",
+      "eslint": "9.37.0",
+      "typescript": "~5.8.0"
+     }
+    }
+   },
+   "react": {
+    "dependencies": {
+     "react": "17.0.1",
+     "react-dom": "17.0.1",
+     "@fluentui/react": "^8.106.4"
+    },
+    "devDependencies": {
+     "@types/react": "17.0.45",
+     "@types/react-dom": "17.0.17",
+     "eslint-plugin-react-hooks": "5.2.0"
+    }
+   }
+  },
+  "1.23.2": {
+   "components": {
+    "webpart": {
+     "dependencies": {
+      "@microsoft/sp-core-library": "1.23.2",
+      "@microsoft/sp-component-base": "1.23.2",
+      "@microsoft/sp-property-pane": "1.23.2",
+      "@microsoft/sp-webpart-base": "1.23.2",
+      "@microsoft/sp-lodash-subset": "1.23.2",
+      "@microsoft/sp-office-ui-fabric-core": "1.23.2"
+     },
+     "devDependencies": {
+      "@microsoft/sp-module-interfaces": "1.23.2",
+      "@fluentui/react": "^8.106.4"
+     }
+    },
+    "extension": {
+     "dependencies": {
+      "@microsoft/sp-core-library": "1.23.2",
+      "@microsoft/decorators": "1.23.2"
+     },
+     "devDependencies": {
+      "@microsoft/sp-module-interfaces": "1.23.2"
+     }
+    },
+    "applicationCustomizer": {
+     "dependencies": {
+      "@microsoft/sp-dialog": "1.23.2",
+      "@microsoft/sp-application-base": "1.23.2"
+     },
+     "devDependencies": {}
+    },
+    "commandSet": {
+     "dependencies": {
+      "@microsoft/sp-listview-extensibility": "1.23.2",
+      "@microsoft/sp-dialog": "1.23.2"
+     },
+     "devDependencies": {}
+    },
+    "fieldCustomizer": {
+     "dependencies": {
+      "@microsoft/sp-listview-extensibility": "1.23.2"
+     },
+     "devDependencies": {}
+    },
+    "formCustomizer": {
+     "dependencies": {
+      "@microsoft/sp-core-library": "1.23.2",
+      "@microsoft/sp-listview-extensibility": "1.23.2",
+      "@microsoft/sp-lodash-subset": "1.23.2",
+      "@microsoft/sp-office-ui-fabric-core": "1.23.2"
+     },
+     "devDependencies": {
+      "@microsoft/sp-module-interfaces": "1.23.2"
+     }
+    },
+    "searchQueryModifier": {
+     "dependencies": {
+      "@microsoft/sp-search-extensibility": "1.23.2"
+     },
+     "devDependencies": {}
+    },
+    "adaptiveCardExtension": {
+     "dependencies": {
+      "@microsoft/sp-core-library": "1.23.2",
+      "@microsoft/sp-property-pane": "1.23.2",
+      "@microsoft/sp-adaptive-card-extension-base": "1.23.2"
+     },
+     "devDependencies": {
+      "@microsoft/sp-module-interfaces": "1.23.2"
+     }
+    },
+    "library": {
+     "dependencies": {},
+     "devDependencies": {
+      "@microsoft/sp-module-interfaces": "1.23.2"
+     }
+    }
+   },
+   "toolchains": {
+    "gulp": {
+     "dependencies": {
+      "tslib": "2.3.1"
+     },
+     "devDependencies": {
+      "@microsoft/rush-stack-compiler-5.3": "0.1.0",
+      "@rushstack/eslint-config": "4.3.0",
+      "@microsoft/eslint-plugin-spfx": "1.23.2",
+      "@microsoft/eslint-config-spfx": "1.23.2",
+      "@microsoft/sp-build-web": "1.23.2",
+      "@types/webpack-env": "~1.15.2",
+      "@typescript-eslint/parser": "8.56.1",
+      "ajv": "8.18.0",
+      "eslint": "8.57.0",
+      "gulp": "4.0.2",
+      "typescript": "~5.3.3"
+     }
+    },
+    "heft": {
+     "dependencies": {
+      "tslib": "2.3.1"
+     },
+     "devDependencies": {
+      "@microsoft/eslint-plugin-spfx": "1.23.2",
+      "@microsoft/eslint-config-spfx": "1.23.2",
+      "@microsoft/spfx-web-build-rig": "1.23.2",
+      "@microsoft/spfx-heft-plugins": "1.23.2",
+      "@rushstack/heft": "1.2.17",
+      "@types/jest": "30.0.0",
+      "@types/webpack-env": "~1.15.2",
+      "css-loader": "~7.1.2",
+      "eslint": "9.37.0",
+      "typescript": "~5.8.0"
+     }
+    }
+   },
+   "react": {
+    "dependencies": {
+     "react": "17.0.1",
+     "react-dom": "17.0.1",
+     "@fluentui/react": "^8.106.4"
+    },
+    "devDependencies": {
+     "@types/react": "17.0.45",
+     "@types/react-dom": "17.0.17",
+     "eslint-plugin-react-hooks": "5.2.0"
+    }
+   }
+  },
+  "1.24.0": {
+   "components": {
+    "webpart": {
+     "dependencies": {
+      "@microsoft/sp-core-library": "1.24.0-rc.0",
+      "@microsoft/sp-component-base": "1.24.0-rc.0",
+      "@microsoft/sp-property-pane": "1.24.0-rc.0",
+      "@microsoft/sp-webpart-base": "1.24.0-rc.0",
+      "@microsoft/sp-lodash-subset": "1.24.0-rc.0",
+      "@microsoft/sp-office-ui-fabric-core": "1.24.0-rc.0"
+     },
+     "devDependencies": {
+      "@microsoft/sp-module-interfaces": "1.24.0-rc.0",
+      "@fluentui/react": "^8.106.4"
+     }
+    },
+    "extension": {
+     "dependencies": {
+      "@microsoft/sp-core-library": "1.24.0-rc.0",
+      "@microsoft/decorators": "1.24.0-rc.0"
+     },
+     "devDependencies": {
+      "@microsoft/sp-module-interfaces": "1.24.0-rc.0"
+     }
+    },
+    "applicationCustomizer": {
+     "dependencies": {
+      "@microsoft/sp-dialog": "1.24.0-rc.0",
+      "@microsoft/sp-application-base": "1.24.0-rc.0"
+     },
+     "devDependencies": {}
+    },
+    "commandSet": {
+     "dependencies": {
+      "@microsoft/sp-listview-extensibility": "1.24.0-rc.0",
+      "@microsoft/sp-dialog": "1.24.0-rc.0"
+     },
+     "devDependencies": {}
+    },
+    "fieldCustomizer": {
+     "dependencies": {
+      "@microsoft/sp-listview-extensibility": "1.24.0-rc.0"
+     },
+     "devDependencies": {}
+    },
+    "formCustomizer": {
+     "dependencies": {
+      "@microsoft/sp-core-library": "1.24.0-rc.0",
+      "@microsoft/sp-listview-extensibility": "1.24.0-rc.0",
+      "@microsoft/sp-lodash-subset": "1.24.0-rc.0",
+      "@microsoft/sp-office-ui-fabric-core": "1.24.0-rc.0"
+     },
+     "devDependencies": {
+      "@microsoft/sp-module-interfaces": "1.24.0-rc.0"
+     }
+    },
+    "searchQueryModifier": {
+     "dependencies": {
+      "@microsoft/sp-search-extensibility": "1.24.0-rc.0"
+     },
+     "devDependencies": {}
+    },
+    "adaptiveCardExtension": {
+     "dependencies": {
+      "@microsoft/sp-core-library": "1.24.0-rc.0",
+      "@microsoft/sp-property-pane": "1.24.0-rc.0",
+      "@microsoft/sp-adaptive-card-extension-base": "1.24.0-rc.0"
+     },
+     "devDependencies": {
+      "@microsoft/sp-module-interfaces": "1.24.0-rc.0"
+     }
+    },
+    "library": {
+     "dependencies": {},
+     "devDependencies": {
+      "@microsoft/sp-module-interfaces": "1.24.0-rc.0"
+     }
+    }
+   },
+   "toolchains": {
+    "gulp": {
+     "dependencies": {
+      "tslib": "2.3.1"
+     },
+     "devDependencies": {
+      "@microsoft/rush-stack-compiler-5.3": "0.1.0",
+      "@rushstack/eslint-config": "4.3.0",
+      "@microsoft/eslint-plugin-spfx": "1.24.0-rc.0",
+      "@microsoft/eslint-config-spfx": "1.24.0-rc.0",
+      "@microsoft/sp-build-web": "1.24.0-rc.0",
+      "@types/webpack-env": "~1.15.2",
+      "@typescript-eslint/parser": "8.56.1",
+      "ajv": "8.18.0",
+      "eslint": "8.57.0",
+      "gulp": "4.0.2",
+      "typescript": "~5.3.3"
+     }
+    },
+    "heft": {
+     "dependencies": {
+      "tslib": "2.3.1"
+     },
+     "devDependencies": {
+      "@microsoft/eslint-plugin-spfx": "1.24.0-rc.0",
+      "@microsoft/eslint-config-spfx": "1.24.0-rc.0",
+      "@microsoft/spfx-web-build-rig": "1.24.0-rc.0",
+      "@microsoft/spfx-heft-plugins": "1.24.0-rc.0",
+      "@rushstack/heft": "1.3.2",
+      "@types/jest": "30.0.0",
+      "@types/webpack-env": "~1.15.2",
+      "css-loader": "~7.1.2",
+      "eslint": "9.37.0",
+      "typescript": "~5.8.0"
+     }
+    }
+   },
+   "react": {
+    "dependencies": {
+     "react": "18.3.1",
+     "react-dom": "18.3.1",
+     "@fluentui/react": "^8.106.4"
+    },
+    "devDependencies": {
+     "@types/react": "18.2.79",
+     "@types/react-dom": "18.2.25",
+     "eslint-plugin-react-hooks": "5.2.0"
+    }
+   }
+  }
+ }
+}

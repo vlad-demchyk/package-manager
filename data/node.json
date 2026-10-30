@@ -1,0 +1,225 @@
+{
+ "fetchedAt": "2026-10-30",
+ "sources": [
+  "https://raw.githubusercontent.com/nodejs/Release/main/schedule.json",
+  "https://nodejs.org/dist/index.json"
+ ],
+ "lines": {
+  "4": {
+   "start": "2015-09-08",
+   "lts": "2015-10-12",
+   "maintenance": "2017-04-01",
+   "end": "2018-04-30",
+   "codename": "Argon",
+   "latest": "4.9.1",
+   "latestSecurity": "4.9.0"
+  },
+  "5": {
+   "start": "2015-10-29",
+   "lts": null,
+   "maintenance": "2016-04-30",
+   "end": "2016-06-30",
+   "codename": null,
+   "latest": "5.12.0",
+   "latestSecurity": null
+  },
+  "6": {
+   "start": "2016-04-26",
+   "lts": "2016-10-18",
+   "maintenance": "2018-04-30",
+   "end": "2019-04-30",
+   "codename": "Boron",
+   "latest": "6.17.1",
+   "latestSecurity": "6.17.0"
+  },
+  "7": {
+   "start": "2016-10-25",
+   "lts": null,
+   "maintenance": "2017-04-30",
+   "end": "2017-06-30",
+   "codename": null,
+   "latest": "7.10.1",
+   "latestSecurity": "7.10.1"
+  },
+  "8": {
+   "start": "2017-05-30",
+   "lts": "2017-10-31",
+   "maintenance": "2019-01-01",
+   "end": "2019-12-31",
+   "codename": "Carbon",
+   "latest": "8.17.0",
+   "latestSecurity": "8.17.0"
+  },
+  "9": {
+   "start": "2017-10-01",
+   "lts": null,
+   "maintenance": "2018-04-01",
+   "end": "2018-06-30",
+   "codename": null,
+   "latest": "9.11.2",
+   "latestSecurity": "9.10.0"
+  },
+  "10": {
+   "start": "2018-04-24",
+   "lts": "2018-10-30",
+   "maintenance": "2020-05-19",
+   "end": "2021-04-30",
+   "codename": "Dubnium",
+   "latest": "10.24.1",
+   "latestSecurity": "10.24.1"
+  },
+  "11": {
+   "start": "2018-10-23",
+   "lts": null,
+   "maintenance": "2019-04-22",
+   "end": "2019-06-01",
+   "codename": null,
+   "latest": "11.15.0",
+   "latestSecurity": "11.10.1"
+  },
+  "12": {
+   "start": "2019-04-23",
+   "lts": "2019-10-21",
+   "maintenance": "2020-11-30",
+   "end": "2022-04-30",
+   "codename": "Erbium",
+   "latest": "12.22.12",
+   "latestSecurity": "12.22.11"
+  },
+  "13": {
+   "start": "2019-10-22",
+   "lts": null,
+   "maintenance": "2020-04-01",
+   "end": "2020-06-01",
+   "codename": null,
+   "latest": "13.14.0",
+   "latestSecurity": "13.8.0"
+  },
+  "14": {
+   "start": "2020-04-21",
+   "lts": "2020-10-27",
+   "maintenance": "2021-10-19",
+   "end": "2023-04-30",
+   "codename": "Fermium",
+   "latest": "14.21.3",
+   "latestSecurity": "14.21.3"
+  },
+  "15": {
+   "start": "2020-10-20",
+   "lts": null,
+   "maintenance": "2021-04-01",
+   "end": "2021-06-01",
+   "codename": null,
+   "latest": "15.14.0",
+   "latestSecurity": "15.10.0"
+  },
+  "16": {
+   "start": "2021-04-20",
+   "lts": "2021-10-26",
+   "maintenance": "2022-10-18",
+   "end": "2023-09-11",
+   "codename": "Gallium",
+   "latest": "16.20.2",
+   "latestSecurity": "16.20.2"
+  },
+  "17": {
+   "start": "2021-10-19",
+   "lts": null,
+   "maintenance": "2022-04-01",
+   "end": "2022-06-01",
+   "codename": null,
+   "latest": "17.9.1",
+   "latestSecurity": "17.7.2"
+  },
+  "18": {
+   "start": "2022-04-19",
+   "lts": "2022-10-25",
+   "maintenance": "2023-10-18",
+   "end": "2025-04-30",
+   "codename": "Hydrogen",
+   "latest": "18.20.8",
+   "latestSecurity": "18.20.6"
+  },
+  "19": {
+   "start": "2022-10-18",
+   "lts": null,
+   "maintenance": "2023-04-01",
+   "end": "2023-06-01",
+   "codename": null,
+   "latest": "19.9.0",
+   "latestSecurity": "19.6.1"
+  },
+  "20": {
+   "start": "2023-04-18",
+   "lts": "2023-10-24",
+   "maintenance": "2024-10-22",
+   "end": "2026-04-30",
+   "codename": "Iron",
+   "latest": "20.20.2",
+   "latestSecurity": "20.20.2"
+  },
+  "21": {
+   "start": "2023-10-17",
+   "lts": null,
+   "maintenance": "2024-04-01",
+   "end": "2024-06-01",
+   "codename": null,
+   "latest": "21.7.3",
+   "latestSecurity": "21.7.3"
+  },
+  "22": {
+   "start": "2024-04-24",
+   "lts": "2024-10-29",
+   "maintenance": "2025-10-21",
+   "end": "2027-04-30",
+   "codename": "Jod",
+   "latest": "22.23.4",
+   "latestSecurity": "22.23.4"
+  },
+  "23": {
+   "start": "2024-10-16",
+   "lts": null,
+   "maintenance": "2025-04-01",
+   "end": "2025-06-01",
+   "codename": null,
+   "latest": "23.11.1",
+   "latestSecurity": "23.11.1"
+  },
+  "24": {
+   "start": "2025-05-06",
+   "lts": "2025-10-28",
+   "maintenance": "2026-10-20",
+   "end": "2028-04-30",
+   "codename": "Krypton",
+   "latest": "24.22.2",
+   "latestSecurity": "24.22.1"
+  },
+  "25": {
+   "start": "2025-10-15",
+   "lts": null,
+   "maintenance": "2026-04-01",
+   "end": "2026-06-01",
+   "codename": null,
+   "latest": "25.9.0",
+   "latestSecurity": "25.8.2"
+  },
+  "26": {
+   "start": "2026-05-05",
+   "lts": "2026-10-28",
+   "maintenance": "2027-10-20",
+   "end": "2029-04-30",
+   "codename": null,
+   "latest": "26.13.0",
+   "latestSecurity": "26.12.1"
+  },
+  "27": {
+   "start": "2027-04-22",
+   "lts": "2027-10-20",
+   "maintenance": null,
+   "end": "2030-04-30",
+   "codename": null,
+   "latest": null,
+   "latestSecurity": null
+  }
+ }
+}

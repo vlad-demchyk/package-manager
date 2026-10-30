@@ -1,0 +1,292 @@
+import type { PackmanConfig } from './core/config.js';
+import { finding, msg, sortFindings } from './core/findings.js';
+import type {
+  Constraint,
+  ExposureContext,
+  Finding,
+  Project,
+  StackInfo,
+  Workspace,
+} from './core/types.js';
+import { satisfies, resolveVersion } from './core/versions.js';
+import { planNode, type NodePlan } from './node/plan.js';
+import { nodeDataDate, nodeVulnDataInfo } from './node/releases.js';
+import { readNodeRequirements } from './node/requirement.js';
+import { listInstalledNodes, type InstalledNode } from './node/toolchain.js';
+import {
+  buildGroups,
+  groupFindings,
+  type GroupMember,
+  type VersionGroup,
+} from './policy/groups.js';
+import { profileFindings } from './policy/profiles.js';
+import {
+  angularProvider,
+  electronProvider,
+  eslintProvider,
+  jestProvider,
+  nextProvider,
+  reactProvider,
+  typescriptProvider,
+  viteProvider,
+  vitestProvider,
+  vueProvider,
+} from './providers/frameworks.js';
+import { checkDuplicateDeclarations, checkUsage, npmProvider } from './providers/npm.js';
+import { spfxProvider } from './providers/spfx/index.js';
+import { spfxMatrix } from './providers/spfx/matrix.js';
+import type { ProjectContext, StackProvider } from './providers/types.js';
+import { configReferences } from './scan/implicit.js';
+import { scanSources, type SourceScan } from './scan/sources.js';
+import {
+  collectPackageVersions,
+  fetchAdvisories,
+  projectVulnerabilities,
+  type AdvisoryStatus,
+} from './security/advisories.js';
+import {
+  exposureOf,
+  networkUsage,
+  nodeVulnerabilityFindings,
+  packageVulnerabilityFindings,
+  type NetworkUsage,
+} from './security/exposure.js';
+
+export const PROVIDERS: StackProvider[] = [
+  npmProvider,
+  spfxProvider,
+  reactProvider,
+  typescriptProvider,
+  viteProvider,
+  nextProvider,
+  angularProvider,
+  vueProvider,
+  electronProvider,
+  eslintProvider,
+  jestProvider,
+  vitestProvider,
+];
+
+export interface AnalyzeOptions {
+  config: PackmanConfig;
+  /** Never touch the network (advisories come from cache only). */
+  offline?: boolean;
+  /** Query npm advisories for package vulnerabilities. */
+  security?: boolean;
+  /** Scan sources for undeclared/unused imports and network usage. */
+  usage?: boolean;
+  today?: Date;
+  installedNodes?: InstalledNode[];
+  fetchImpl?: typeof fetch;
+  onProgress?: (done: number, total: number, projectId: string) => void;
+}
+
+export interface ProjectReport {
+  project: Project;
+  stacks: StackInfo[];
+  constraints: Constraint[];
+  node: NodePlan;
+  exposure: ExposureContext;
+  network: NetworkUsage;
+  /** Packages the stacks need without importing them (SPFx core, build tools); linked by the store. */
+  implicit: string[];
+  /** Packages imported by source and style files, declared or not. */
+  imports: string[];
+  /** Package names referenced as strings in config files (.eslintrc.js, gulpfile.js, config/*.json). */
+  configReferences: string[];
+  findings: Finding[];
+}
+
+export interface Report {
+  root: string;
+  generatedAt: string;
+  projects: ProjectReport[];
+  groups: VersionGroup[];
+  /** Findings that span several projects (group divergence, pins). */
+  workspaceFindings: Finding[];
+  installedNodes: InstalledNode[];
+  data: { spfx: string; node: string; nodeVulns: string; advisories: AdvisoryStatus };
+}
+
+export async function analyze(workspace: Workspace, options: AnalyzeOptions): Promise<Report> {
+  const today = options.today ?? new Date();
+  const installedNodes = options.installedNodes ?? (await listInstalledNodes());
+  const disabled = new Set(options.config.checks.disabled);
+  const reports: ProjectReport[] = [];
+
+  let index = 0;
+  for (const project of workspace.projects) {
+    options.onProgress?.(index++, workspace.projects.length, project.id);
+    reports.push(await analyzeProject(workspace, project, options, installedNodes, today));
+  }
+
+  let advisoryStatus: AdvisoryStatus = { checked: false, source: 'none' };
+  if (options.security !== false) {
+    const { advisories, status } = await fetchAdvisories(
+      collectPackageVersions(workspace.projects),
+      {
+        offline: options.offline ?? false,
+        ...(options.fetchImpl ? { fetchImpl: options.fetchImpl } : {}),
+      },
+    );
+    advisoryStatus = status;
+    for (const report of reports) {
+      const vulns = projectVulnerabilities(report.project, advisories);
+      report.findings.push(
+        ...packageVulnerabilityFindings(report.project, vulns, report.exposure, report.network),
+      );
+    }
+  }
+
+  const members: GroupMember[] = reports.map((report) => {
+    const member: GroupMember = { project: report.project, stacks: report.stacks };
+    if (report.node.recommended) member.nodeRecommended = report.node.recommended;
+    return member;
+  });
+  const groups = buildGroups(members, options.config.policy.groups);
+  const workspaceFindings = groups.flatMap((group) => groupFindings(group, members));
+  const distinctNode = new Set(groups.map((group) => group.node?.split('.')[0]).filter(Boolean));
+  if (distinctNode.size > 1) {
+    workspaceFindings.push(
+      finding(
+        'policy/node-fragmentation',
+        'info',
+        undefined,
+        msg('policy.nodeFragmentation', { count: distinctNode.size }),
+        {
+          evidence: groups.map((group) => `${group.name}: ${group.projectIds.length}`),
+          tags: ['node', 'group'],
+        },
+      ),
+    );
+  }
+
+  for (const report of reports) {
+    report.findings = sortFindings(report.findings.filter((item) => !disabled.has(item.ruleId)));
+  }
+  return {
+    root: workspace.root,
+    generatedAt: today.toISOString(),
+    projects: reports,
+    groups,
+    workspaceFindings: sortFindings(workspaceFindings.filter((item) => !disabled.has(item.ruleId))),
+    installedNodes,
+    data: {
+      spfx: spfxMatrix().verifiedAt,
+      node: nodeDataDate(),
+      nodeVulns: nodeVulnDataInfo().fetchedAt,
+      advisories: advisoryStatus,
+    },
+  };
+}
+
+async function analyzeProject(
+  workspace: Workspace,
+  project: Project,
+  options: AnalyzeOptions,
+  installedNodes: InstalledNode[],
+  today: Date,
+): Promise<ProjectReport> {
+  let scan: Promise<SourceScan> | undefined;
+  const stacks = new Map<string, StackInfo>();
+  const ctx: ProjectContext = {
+    workspace,
+    project,
+    config: options.config,
+    nodeRequirements: await readNodeRequirements(project, workspace.root),
+    stacks,
+    sources: () => (scan ??= scanSources(project.dir, options.config.checks.ignorePaths)),
+  };
+
+  const active: { provider: StackProvider; stack: StackInfo }[] = [];
+  for (const provider of PROVIDERS) {
+    const stack = await provider.detect(ctx);
+    if (stack) {
+      stacks.set(provider.id, stack);
+      active.push({ provider, stack });
+    }
+  }
+
+  const findings: Finding[] = [];
+  const constraints: Constraint[] = [];
+  const implicit: string[] = [];
+  const virtual: string[] = [];
+  for (const { provider, stack } of active) {
+    constraints.push(...(provider.constraints?.(ctx, stack) ?? []));
+    implicit.push(...((await provider.implicitlyUsed?.(ctx, stack)) ?? []));
+    if (provider.virtualModules) virtual.push(...(await provider.virtualModules(ctx, stack)));
+    findings.push(...((await provider.check?.(ctx, stack)) ?? []));
+  }
+  findings.push(...packageConstraintFindings(project, constraints, findings));
+  findings.push(...(await profileFindings(ctx)));
+  if (options.usage !== false) {
+    findings.push(...(await checkUsage(ctx, implicit, virtual)));
+  } else {
+    findings.push(...checkDuplicateDeclarations(project, new Map()));
+  }
+
+  const { plan, findings: nodeFindings } = planNode(
+    project,
+    ctx.nodeRequirements,
+    constraints,
+    installedNodes,
+    today,
+  );
+  findings.push(...nodeFindings);
+
+  const stackList = [...stacks.values()];
+  const exposure = exposureOf(stackList, project);
+  const network = networkUsage(project, options.usage === false ? undefined : await ctx.sources());
+  if (plan.selected) {
+    findings.push(
+      ...nodeVulnerabilityFindings(project, plan.selected.version, plan.vulns, exposure),
+    );
+  }
+  return {
+    project,
+    stacks: stackList,
+    constraints,
+    node: plan,
+    exposure,
+    network,
+    implicit: [...new Set(implicit)].sort(),
+    imports: options.usage === false ? [] : [...(await ctx.sources()).imports.keys()].sort(),
+    configReferences: await configReferences(project.dir),
+    findings,
+  };
+}
+
+/** Generic evaluation of package constraints not already reported by a provider rule. */
+function packageConstraintFindings(
+  project: Project,
+  constraints: Constraint[],
+  existing: Finding[],
+): Finding[] {
+  const reported = new Set(
+    existing.flatMap((item) => item.evidence.map((line) => line.split(':')[0])),
+  );
+  const findings: Finding[] = [];
+  for (const constraint of constraints) {
+    if (constraint.kind !== 'package' || reported.has(constraint.name)) continue;
+    const resolved = resolveVersion(project, constraint.name);
+    if (resolved && !satisfies(resolved.version, constraint.range)) {
+      findings.push(
+        finding(
+          'constraint/package',
+          'error',
+          project,
+          msg('constraint.package', {
+            name: constraint.name,
+            version: resolved.version,
+            range: constraint.range,
+            source: constraint.source,
+          }),
+          {
+            tags: ['compatibility'],
+          },
+        ),
+      );
+    }
+  }
+  return findings;
+}

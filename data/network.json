@@ -1,0 +1,23 @@
+{
+  "verifiedAt": "2026-10-30",
+  "notes": "Signals that a project performs HTTP/REST calls. Used to raise the priority of vulnerabilities in networking code paths.",
+  "packages": [
+    "axios", "node-fetch", "cross-fetch", "isomorphic-fetch", "whatwg-fetch", "undici", "got", "ky", "superagent",
+    "request", "needle", "follow-redirects", "http-proxy-agent", "https-proxy-agent", "ws", "socket.io-client",
+    "graphql-request", "@apollo/client", "@microsoft/sp-http", "@microsoft/microsoft-graph-client",
+    "@pnp/sp", "@pnp/graph", "@pnp/queryable", "@pnp/odata", "@pnp/common", "@azure/msal-browser", "@azure/msal-node",
+    "@azure/core-rest-pipeline", "jquery"
+  ],
+  "codePatterns": [
+    { "id": "fetch", "regex": "\\bfetch\\s*\\(" },
+    { "id": "xhr", "regex": "\\bnew\\s+XMLHttpRequest\\b" },
+    { "id": "sp-http-client", "regex": "\\b(?:SPHttpClient|AadHttpClient|HttpClient|MSGraphClientV3|MSGraphClient)\\b" },
+    { "id": "websocket", "regex": "\\bnew\\s+WebSocket\\s*\\(" },
+    { "id": "node-http", "regex": "\\b(?:https?|http2)\\.(?:request|get)\\s*\\(" }
+  ],
+  "networkAdvisoryPackages": [
+    "axios", "node-fetch", "undici", "got", "follow-redirects", "ws", "http-proxy-agent", "https-proxy-agent",
+    "request", "superagent", "needle", "tough-cookie", "qs", "form-data", "cookie", "jquery", "socket.io-client",
+    "socket.io-parser", "engine.io-client"
+  ]
+}

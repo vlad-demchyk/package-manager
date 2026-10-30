@@ -1,0 +1,130 @@
+{
+  "verifiedAt": "2026-10-30",
+  "sources": [
+    "https://learn.microsoft.com/en-us/sharepoint/dev/spfx/compatibility",
+    "https://learn.microsoft.com/en-us/sharepoint/dev/spfx/release-1.24.0",
+    "https://learn.microsoft.com/en-us/sharepoint/dev/spfx/toolchain/migrate-gulptoolchain-hefttoolchain",
+    "https://registry.npmjs.org/@microsoft/generator-sharepoint",
+    "https://registry.npmjs.org/@pnp/cli-microsoft365"
+  ],
+  "notes": {
+    "node": "node = engines of the official generator when published (1.12.1+), otherwise the Microsoft compatibility table. nodeMs = Microsoft table, informational.",
+    "subscriptionEdition": "Microsoft sources disagree on the maximum SPFx for SharePoint Server Subscription Edition (1.5 in the compatibility table, 1.4.1 in the SP2019/SE support page)."
+  },
+  "versions": [
+    { "version": "1.0.0", "released": "2017-02-23", "node": ">=6.0.0 <7.0.0", "nodeMs": "6", "toolchain": "gulp", "typescript": "2.4", "compiler": "builtin", "react": null, "lint": "tslint", "sharepoint": ["spo", "sp2016", "sp2019", "spse"] },
+    { "version": "1.1.0", "released": "2017-06-06", "node": ">=6.0.0 <7.0.0", "nodeMs": "6", "toolchain": "gulp", "typescript": "2.4", "compiler": "builtin", "react": "15.4.2", "lint": "tslint", "sharepoint": ["spo", "sp2016", "sp2019", "spse"] },
+    { "version": "1.2.0", "released": "2017-08-29", "node": ">=6.0.0 <7.0.0", "nodeMs": null, "toolchain": "gulp", "typescript": "2.4", "compiler": "builtin", "react": "15.4.2", "lint": "tslint", "sharepoint": ["spo", "sp2019", "spse"], "unverified": ["node"] },
+    { "version": "1.3.0", "released": "2017-09-25", "node": ">=6.0.0 <7.0.0", "nodeMs": "6", "toolchain": "gulp", "typescript": "2.4", "compiler": "builtin", "react": "15.4.2", "lint": "tslint", "sharepoint": ["spo", "sp2019", "spse"] },
+    { "version": "1.3.4", "released": "2017-10-31", "node": ">=6.0.0 <7.0.0", "nodeMs": "6", "toolchain": "gulp", "typescript": "2.4", "compiler": "builtin", "react": "15.4.2", "lint": "tslint", "sharepoint": ["spo", "sp2019", "spse"] },
+    { "version": "1.4.0", "released": "2017-12-07", "node": ">=6.0.0 <7.0.0", "nodeMs": "6", "toolchain": "gulp", "typescript": "2.4", "compiler": "builtin", "react": "15.6.2", "typesReact": "15.6.6", "typesReactDom": "15.5.6", "lint": "tslint", "sharepoint": ["spo", "sp2019", "spse"] },
+    { "version": "1.4.1", "released": "2018-02-15", "node": ">=6.0.0 <7.0.0 || >=8.0.0 <9.0.0", "nodeMs": "6, 8", "toolchain": "gulp", "typescript": "2.4", "compiler": "builtin", "react": "15.6.2", "typesReact": "15.6.6", "typesReactDom": "15.5.6", "lint": "tslint", "sharepoint": ["spo", "sp2019", "spse"] },
+    { "version": "1.5.0", "released": "2018-06-05", "node": ">=6.0.0 <7.0.0 || >=8.0.0 <9.0.0", "nodeMs": "6, 8", "toolchain": "gulp", "typescript": "2.4", "compiler": "builtin", "react": "15.6.2", "typesReact": "15.6.6", "typesReactDom": "15.5.6", "lint": "tslint", "sharepoint": ["spo", "spse"] },
+    { "version": "1.5.1", "released": "2018-06-26", "node": ">=6.0.0 <7.0.0 || >=8.0.0 <9.0.0", "nodeMs": "6, 8", "toolchain": "gulp", "typescript": "2.4", "compiler": "builtin", "react": "15.6.2", "typesReact": "15.6.6", "typesReactDom": "15.5.6", "lint": "tslint", "sharepoint": ["spo", "spse"] },
+    { "version": "1.6.0", "released": "2018-09-05", "node": ">=6.0.0 <7.0.0 || >=8.0.0 <9.0.0", "nodeMs": "6, 8", "toolchain": "gulp", "typescript": "2.4", "compiler": "builtin", "react": "15.6.2", "typesReact": "15.6.6", "typesReactDom": "15.5.6", "lint": "tslint", "sharepoint": ["spo"] },
+    { "version": "1.7.0", "released": "2018-11-08", "node": ">=8.0.0 <9.0.0", "nodeMs": "8", "toolchain": "gulp", "typescript": "2.4", "compiler": "builtin", "react": "16.3.2", "typesReact": "16.4.2", "typesReactDom": "16.0.5", "lint": "tslint", "sharepoint": ["spo"] },
+    { "version": "1.7.1", "released": "2018-12-18", "node": ">=8.0.0 <9.0.0", "nodeMs": "8", "toolchain": "gulp", "typescript": "2.4", "compiler": "builtin", "react": "16.3.2", "typesReact": "16.4.2", "typesReactDom": "16.0.5", "lint": "tslint", "sharepoint": ["spo"] },
+    { "version": "1.8.0", "released": "2019-03-14", "node": ">=8.0.0 <9.0.0", "nodeMs": "8", "toolchain": "gulp", "typescript": "2.7", "compiler": "rush-stack-compiler-2.7", "react": "16.7.0", "typesReact": "16.4.2", "typesReactDom": "16.0.5", "lint": "tslint", "sharepoint": ["spo"] },
+    { "version": "1.8.1", "released": "2019-04-16", "node": ">=8.0.0 <9.0.0", "nodeMs": "8", "toolchain": "gulp", "typescript": "2.7", "compiler": "rush-stack-compiler-2.7", "react": "16.7.0", "typesReact": "16.4.2", "typesReactDom": "16.0.5", "lint": "tslint", "sharepoint": ["spo"] },
+    { "version": "1.8.2", "released": "2019-05-07", "node": ">=8.0.0 <9.0.0 || >=10.0.0 <11.0.0", "nodeMs": "8, 10", "toolchain": "gulp", "typescript": "2.9", "compiler": "rush-stack-compiler-2.9", "react": "16.7.0", "typesReact": "16.7.22", "typesReactDom": "16.8.0", "lint": "tslint", "sharepoint": ["spo"] },
+    { "version": "1.9.1", "released": "2019-08-14", "node": ">=8.0.0 <9.0.0 || >=10.0.0 <11.0.0", "nodeMs": "8, 10", "toolchain": "gulp", "typescript": "2.9", "compiler": "rush-stack-compiler-2.9", "react": "16.8.5", "typesReact": "16.8.8", "typesReactDom": "16.8.3", "lint": "tslint", "sharepoint": ["spo"] },
+    { "version": "1.10.0", "released": "2020-01-07", "node": ">=8.0.0 <9.0.0 || >=10.0.0 <11.0.0", "nodeMs": "8, 10", "toolchain": "gulp", "typescript": "3.3", "compiler": "rush-stack-compiler-3.3", "react": "16.8.5", "typesReact": "16.8.8", "typesReactDom": "16.8.3", "lint": "tslint", "sharepoint": ["spo"] },
+    { "version": "1.11.0", "released": "2020-07-16", "node": ">=10.0.0 <11.0.0", "nodeMs": "10", "toolchain": "gulp", "typescript": "3.3", "compiler": "rush-stack-compiler-3.3", "react": "16.8.5", "typesReact": "16.8.8", "typesReactDom": "16.8.3", "lint": "tslint", "sharepoint": ["spo"] },
+    { "version": "1.12.0", "released": "2021-03-16", "node": ">=10.0.0 <11.0.0 || >=12.0.0 <13.0.0", "nodeMs": "struck out", "toolchain": "gulp", "typescript": "3.7", "compiler": "rush-stack-compiler-3.7", "react": "16.9.0", "typesReact": "16.9.36", "typesReactDom": "16.9.8", "lint": "tslint", "sharepoint": ["spo"], "withdrawn": true },
+    { "version": "1.12.1", "released": "2021-04-28", "node": ">=12.13.0 <13.0.0 || >=14.15.0 <15.0.0", "nodeMs": "10, 12, 14", "toolchain": "gulp", "typescript": "3.7", "compiler": "rush-stack-compiler-3.7", "react": "16.9.0", "typesReact": "16.9.36", "typesReactDom": "16.9.8", "lint": "tslint", "sharepoint": ["spo"] },
+    { "version": "1.13.0", "released": "2021-10-21", "node": ">=12.13.0 <13.0.0 || >=14.15.0 <15.0.0", "nodeMs": "12, 14", "toolchain": "gulp", "typescript": "3.9", "compiler": "rush-stack-compiler-3.9", "react": "16.13.1", "typesReact": "16.9.51", "typesReactDom": "16.9.8", "lint": "tslint", "sharepoint": ["spo"] },
+    { "version": "1.13.1", "released": "2021-11-23", "node": ">=12.13.0 <13.0.0 || >=14.15.0 <15.0.0", "nodeMs": "12, 14", "toolchain": "gulp", "typescript": "3.9", "compiler": "rush-stack-compiler-3.9", "react": "16.13.1", "typesReact": "16.9.51", "typesReactDom": "16.9.8", "lint": "tslint", "sharepoint": ["spo"] },
+    { "version": "1.14.0", "released": "2022-02-17", "node": ">=12.13.0 <13.0.0 || >=14.15.0 <15.0.0", "nodeMs": "12, 14", "toolchain": "gulp", "typescript": "3.9", "compiler": "rush-stack-compiler-3.9", "react": "16.13.1", "typesReact": "16.9.51", "typesReactDom": "16.9.8", "lint": "tslint", "sharepoint": ["spo"] },
+    { "version": "1.15.0", "released": "2022-06-21", "node": ">=12.13.0 <13.0.0 || >=14.15.0 <15.0.0 || >=16.13.0 <17.0.0", "nodeMs": "12, 14, 16", "toolchain": "gulp", "typescript": "4.5", "compiler": "rush-stack-compiler-4.5", "react": "16.13.1", "typesReact": "16.9.51", "typesReactDom": "16.9.8", "lint": "eslint", "eslint": "8.7.0", "sharepoint": ["spo"] },
+    { "version": "1.15.2", "released": "2022-08-02", "node": ">=12.13.0 <13.0.0 || >=14.15.0 <15.0.0 || >=16.13.0 <17.0.0", "nodeMs": "12, 14, 16", "toolchain": "gulp", "typescript": "4.5.5", "compiler": "rush-stack-compiler-4.5", "react": "16.13.1", "typesReact": "16.9.51", "typesReactDom": "16.9.8", "lint": "eslint", "eslint": "8.7.0", "sharepoint": ["spo"] },
+    { "version": "1.16.0", "released": "2022-11-15", "node": ">=16.13.0 <17.0.0", "nodeMs": "16.13+", "toolchain": "gulp", "typescript": "4.5.5", "compiler": "rush-stack-compiler-4.5", "react": "17.0.1", "typesReact": "17.0.45", "typesReactDom": "17.0.17", "lint": "eslint", "eslint": "8.7.0", "sharepoint": ["spo"] },
+    { "version": "1.16.1", "released": "2022-11-30", "node": ">=16.13.0 <17.0.0", "nodeMs": "16.13+", "toolchain": "gulp", "typescript": "4.5.5", "compiler": "rush-stack-compiler-4.5", "react": "17.0.1", "typesReact": "17.0.45", "typesReactDom": "17.0.17", "lint": "eslint", "eslint": "8.7.0", "sharepoint": ["spo"] },
+    { "version": "1.17.0", "released": "2023-04-04", "node": ">=16.13.0 <17.0.0", "nodeMs": "16.13+", "toolchain": "gulp", "typescript": "4.5.5", "compiler": "rush-stack-compiler-4.5", "react": "17.0.1", "typesReact": "17.0.45", "typesReactDom": "17.0.17", "lint": "eslint", "eslint": "8.7.0", "sharepoint": ["spo"] },
+    { "version": "1.17.1", "released": null, "node": ">=16.13.0 <17.0.0", "nodeMs": "16.13+", "toolchain": "gulp", "typescript": "4.5.5", "compiler": "rush-stack-compiler-4.5", "react": "17.0.1", "typesReact": "17.0.45", "typesReactDom": "17.0.17", "lint": "eslint", "eslint": "8.7.0", "sharepoint": ["spo"], "unverified": ["released"] },
+    { "version": "1.17.2", "released": null, "node": ">=16.13.0 <17.0.0", "nodeMs": "16.13+", "toolchain": "gulp", "typescript": "4.5.5", "compiler": "rush-stack-compiler-4.5", "react": "17.0.1", "typesReact": "17.0.45", "typesReactDom": "17.0.17", "lint": "eslint", "eslint": "8.7.0", "sharepoint": ["spo"], "unverified": ["released"] },
+    { "version": "1.17.3", "released": null, "node": ">=16.13.0 <17.0.0", "nodeMs": "16.13+", "toolchain": "gulp", "typescript": "4.5.5", "compiler": "rush-stack-compiler-4.5", "react": "17.0.1", "typesReact": "17.0.45", "typesReactDom": "17.0.17", "lint": "eslint", "eslint": "8.7.0", "sharepoint": ["spo"], "unverified": ["released"] },
+    { "version": "1.17.4", "released": "2023-06-21", "node": ">=16.13.0 <17.0.0", "nodeMs": "16.13+", "toolchain": "gulp", "typescript": "4.5.5", "compiler": "rush-stack-compiler-4.5", "react": "17.0.1", "typesReact": "17.0.45", "typesReactDom": "17.0.17", "lint": "eslint", "eslint": "8.7.0", "sharepoint": ["spo"] },
+    { "version": "1.18.0", "released": "2023-09-12", "node": ">=16.13.0 <17.0.0 || >=18.17.1 <19.0.0", "nodeMs": "16, 18", "toolchain": "gulp", "typescript": "4.7.4", "compiler": "rush-stack-compiler-4.7", "react": "17.0.1", "typesReact": "17.0.45", "typesReactDom": "17.0.17", "lint": "eslint", "eslint": "8.7.0", "sharepoint": ["spo"] },
+    { "version": "1.18.1", "released": "2023-11-07", "node": ">=18.17.1 <19.0.0", "nodeMs": "16, 18", "toolchain": "gulp", "typescript": "4.7.4", "compiler": "rush-stack-compiler-4.7", "react": "17.0.1", "typesReact": "17.0.45", "typesReactDom": "17.0.17", "lint": "eslint", "eslint": "8.7.0", "sharepoint": ["spo"] },
+    { "version": "1.18.2", "released": "2023-11-21", "node": ">=18.17.1 <19.0.0", "nodeMs": "16, 18", "toolchain": "gulp", "typescript": "4.7.4", "compiler": "rush-stack-compiler-4.7", "react": "17.0.1", "typesReact": "17.0.45", "typesReactDom": "17.0.17", "lint": "eslint", "eslint": "8.7.0", "sharepoint": ["spo"] },
+    { "version": "1.19.0", "released": "2024-04-30", "node": ">=18.17.1 <19.0.0", "nodeMs": "18", "toolchain": "gulp", "typescript": "4.7.4", "compiler": "rush-stack-compiler-4.7", "react": "17.0.1", "typesReact": "17.0.45", "typesReactDom": "17.0.17", "lint": "eslint", "eslint": "8.7.0", "sharepoint": ["spo"], "buildToolsVersion": "1.20.1" },
+    { "version": "1.20.0", "released": "2024-09-26", "node": ">=18.17.1 <19.0.0", "nodeMs": "18", "toolchain": "gulp", "typescript": "4.7.4", "compiler": "rush-stack-compiler-4.7", "react": "17.0.1", "typesReact": "17.0.45", "typesReactDom": "17.0.17", "lint": "eslint", "eslint": "8.57.0", "sharepoint": ["spo"], "buildToolsVersion": "1.20.2" },
+    { "version": "1.21.0", "released": "2025-04-23", "node": ">=22.14.0 <23.0.0", "nodeMs": "22", "toolchain": "gulp", "typescript": "~5.3.3", "compiler": "rush-stack-compiler-5.3", "react": "17.0.1", "typesReact": "17.0.45", "typesReactDom": "17.0.17", "lint": "eslint", "eslint": "8.57.1", "sharepoint": ["spo"] },
+    { "version": "1.21.1", "released": "2025-05-03", "node": ">=22.14.0 <23.0.0", "nodeMs": "22", "toolchain": "gulp", "typescript": "~5.3.3", "compiler": "rush-stack-compiler-5.3", "react": "17.0.1", "typesReact": "17.0.45", "typesReactDom": "17.0.17", "lint": "eslint", "eslint": "8.57.1", "sharepoint": ["spo"] },
+    { "version": "1.22.0", "released": "2025-12-10", "node": ">=22.14.0 <23.0.0", "nodeMs": "22", "toolchain": "heft", "heft": "1.1.2", "typescript": "~5.8.0", "compiler": "heft", "gulpVariant": { "typescript": "~5.3.3", "compiler": "rush-stack-compiler-5.3" }, "react": "17.0.1", "typesReact": "17.0.45", "typesReactDom": "17.0.17", "lint": "eslint", "eslint": "8.57.1", "sharepoint": ["spo"] },
+    { "version": "1.22.1", "released": "2025-12-15", "node": ">=22.14.0 <23.0.0", "nodeMs": "22", "toolchain": "heft", "heft": "1.1.2", "typescript": "~5.8.0", "compiler": "heft", "gulpVariant": { "typescript": "~5.3.3", "compiler": "rush-stack-compiler-5.3" }, "react": "17.0.1", "typesReact": "17.0.45", "typesReactDom": "17.0.17", "lint": "eslint", "eslint": "8.57.1", "sharepoint": ["spo"] },
+    { "version": "1.22.2", "released": "2026-01-28", "node": ">=22.14.0 <23.0.0", "nodeMs": "22", "toolchain": "heft", "heft": "1.1.2", "typescript": "~5.8.0", "compiler": "heft", "gulpVariant": { "typescript": "~5.3.3", "compiler": "rush-stack-compiler-5.3" }, "react": "17.0.1", "typesReact": "17.0.45", "typesReactDom": "17.0.17", "lint": "eslint", "eslint": "8.57.1", "sharepoint": ["spo"] },
+    { "version": "1.23.0", "released": "2026-05-13", "node": ">=22.14.0 <23.0.0", "nodeMs": "22", "toolchain": "heft", "heft": "1.2.17", "typescript": "~5.8.0", "compiler": "heft", "gulpVariant": { "typescript": "~5.3.3", "compiler": "rush-stack-compiler-5.3" }, "react": "17.0.1", "typesReact": "17.0.45", "typesReactDom": "17.0.17", "lint": "eslint", "eslint": "9.37.0", "sharepoint": ["spo"] },
+    { "version": "1.23.1", "released": "2026-06-05", "node": ">=22.14.0 <23.0.0", "nodeMs": null, "toolchain": "heft", "heft": "1.2.17", "typescript": "~5.8.0", "compiler": "heft", "react": "17.0.1", "typesReact": "17.0.45", "typesReactDom": "17.0.17", "lint": "eslint", "eslint": "9.37.0", "sharepoint": ["spo"], "withdrawn": true },
+    { "version": "1.23.2", "released": "2026-06-30", "node": ">=22.14.0 <23.0.0", "nodeMs": "22", "toolchain": "heft", "heft": "1.2.17", "typescript": "~5.8.0", "compiler": "heft", "gulpVariant": { "typescript": "~5.3.3", "compiler": "rush-stack-compiler-5.3" }, "react": "17.0.1", "typesReact": "17.0.45", "typesReactDom": "17.0.17", "lint": "eslint", "eslint": "9.37.0", "sharepoint": ["spo"] },
+    { "version": "1.24.0", "released": "2026-10-28", "node": ">=22.14.0 <23.0.0 || >=24.0.0 <25.0.0 || >=26.0.0 <27.0.0", "nodeMs": "22, 24, 26 (26 LTS recommended)", "toolchain": "heft", "heft": "1.3.2", "typescript": "~5.8.0", "compiler": "heft", "gulpUnsupported": true, "react": "18.3.1", "typesReact": "18.2.79", "typesReactDom": "18.2.25", "lint": "eslint", "eslint": "9.37.0", "sharepoint": ["spo"] }
+  ],
+  "compilers": {
+    "rush-stack-compiler-2.7": { "version": "0.4.0", "typescript": "2.7" },
+    "rush-stack-compiler-2.9": { "version": "0.7.16", "typescript": "2.9" },
+    "rush-stack-compiler-3.3": { "version": "0.3.5", "typescript": "3.3" },
+    "rush-stack-compiler-3.7": { "version": "0.2.3", "typescript": "3.7" },
+    "rush-stack-compiler-3.9": { "version": "0.4.47", "typescript": "3.9" },
+    "rush-stack-compiler-4.5": { "version": "0.2.2", "typescript": "4.5" },
+    "rush-stack-compiler-4.7": { "version": "0.1.0", "typescript": "4.7" },
+    "rush-stack-compiler-5.3": { "version": "0.1.0", "typescript": "5.3" }
+  },
+  "lockstep": {
+    "exact": [
+      "@microsoft/sp-core-library", "@microsoft/sp-lodash-subset", "@microsoft/sp-office-ui-fabric-core",
+      "@microsoft/sp-webpart-base", "@microsoft/sp-property-pane", "@microsoft/sp-component-base",
+      "@microsoft/sp-dialog", "@microsoft/sp-application-base", "@microsoft/sp-listview-extensibility",
+      "@microsoft/sp-diagnostics", "@microsoft/sp-dynamic-data", "@microsoft/sp-extension-base",
+      "@microsoft/sp-http", "@microsoft/sp-list-subscription", "@microsoft/sp-loader",
+      "@microsoft/sp-module-interfaces", "@microsoft/sp-odata-types", "@microsoft/sp-page-context",
+      "@microsoft/sp-adaptive-card-extension-base", "@microsoft/sp-search-extensibility",
+      "@microsoft/sp-copilot-component", "@microsoft/sp-image-helper", "@microsoft/decorators",
+      "@microsoft/spfx-web-build-rig", "@microsoft/spfx-heft-plugins"
+    ],
+    "buildTools": [
+      "@microsoft/sp-build-web", "@microsoft/eslint-config-spfx", "@microsoft/eslint-plugin-spfx",
+      "@microsoft/sp-tslint-rules"
+    ]
+  },
+  "libraries": [
+    {
+      "package": "@pnp/spfx-controls-react",
+      "map": [
+        { "range": ">=2.0.0 <3.0.0", "spfx": "1.11.0" },
+        { "range": ">=3.0.0 <3.5.0", "spfx": "1.12.1" },
+        { "range": ">=3.5.0 <3.10.0", "spfx": "1.14.0" },
+        { "range": ">=3.10.0 <3.12.0", "spfx": "1.15.2" },
+        { "range": ">=3.12.0 <3.16.0", "spfx": "1.17.4" },
+        { "range": ">=3.16.0 <3.19.0", "spfx": "1.18.2" },
+        { "range": ">=3.19.0 <3.20.0", "spfx": "1.19.0" },
+        { "range": ">=3.20.0 <3.22.0", "spfx": "1.20.0" },
+        { "range": ">=3.22.0 <3.24.0", "spfx": "1.21.1" },
+        { "range": ">=3.24.0 <3.25.0", "spfx": "1.22.2" },
+        { "range": ">=3.25.0 <4.0.0", "spfx": "1.23.0" }
+      ]
+    },
+    {
+      "package": "@pnp/spfx-property-controls",
+      "map": [
+        { "range": ">=2.0.0 <3.0.0", "spfx": "1.11.0" },
+        { "range": ">=3.0.0 <3.3.0", "spfx": "1.12.1" },
+        { "range": ">=3.3.0 <3.9.0", "spfx": "1.14.0" },
+        { "range": ">=3.9.0 <3.11.0", "spfx": "1.15.2" },
+        { "range": ">=3.11.0 <3.13.0", "spfx": "1.16.0" },
+        { "range": ">=3.13.0 <3.15.0", "spfx": "1.17.4" },
+        { "range": ">=3.15.0 <3.18.0", "spfx": "1.18.2" },
+        { "range": ">=3.18.0 <3.19.0", "spfx": "1.19.0" },
+        { "range": ">=3.19.0 <3.21.0", "spfx": "1.20.0" },
+        { "range": ">=3.21.0 <3.23.0", "spfx": "1.21.1" },
+        { "range": ">=3.23.0 <3.24.0", "spfx": "1.22.2" },
+        { "range": ">=3.24.0 <4.0.0", "spfx": "1.23.0" }
+      ]
+    }
+  ],
+  "pnpjs": [
+    { "major": 1, "spfx": "<1.12.1", "note": "legacy, on-premises" },
+    { "major": 2, "spfx": "<1.12.1", "note": "SharePoint 2016/2019 on-premises and older SPFx" },
+    { "major": 3, "spfx": ">=1.12.1 <1.18.0", "note": "ESM only" },
+    { "major": 4, "spfx": ">=1.18.0", "node": ">=18.12.0", "note": "ESM only; taxonomy moved to @pnp/graph, add/update return raw payload, items/get-all removed" }
+  ]
+}

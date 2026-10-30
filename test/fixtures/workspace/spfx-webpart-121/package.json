@@ -1,0 +1,36 @@
+{
+  "name": "spfx-webpart-121",
+  "version": "0.0.1",
+  "private": true,
+  "engines": {
+    "node": ">=18.17.1 <19.0.0 || >=22.14.0 <23.0.0"
+  },
+  "scripts": {
+    "build": "gulp bundle",
+    "test": "gulp test"
+  },
+  "dependencies": {
+    "@microsoft/sp-core-library": "1.21.1",
+    "@microsoft/sp-webpart-base": "1.21.1",
+    "@microsoft/sp-property-pane": "1.21.1",
+    "react": "17.0.1",
+    "react-dom": "17.0.1",
+    "@pnp/sp": "^4.12.0",
+    "@pnp/logging": "3.26.0",
+    "moment": "2.29.4",
+    "@microsoft/eslint-config-spfx": "1.20.0"
+  },
+  "devDependencies": {
+    "@microsoft/sp-build-web": "1.21.1",
+    "@microsoft/rush-stack-compiler-5.3": "0.1.0",
+    "@microsoft/eslint-config-spfx": "1.21.1",
+    "@microsoft/eslint-plugin-spfx": "1.21.1",
+    "@rushstack/eslint-config": "4.0.1",
+    "@types/webpack-env": "~1.15.2",
+    "ajv": "^6.12.5",
+    "eslint": "8.57.1",
+    "gulp": "4.0.2",
+    "typescript": "~5.3.3",
+    "postcss": "8.4.49"
+  }
+}

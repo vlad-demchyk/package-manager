@@ -1,0 +1,6 @@
+{
+  "@microsoft/generator-sharepoint": {
+    "version": "1.12.1",
+    "environment": "spo"
+  }
+}

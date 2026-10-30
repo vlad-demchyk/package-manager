@@ -1,0 +1,36 @@
+{
+  "profiles": {
+    "spfx121": {
+      "projects": [
+        "spfx-*-121"
+      ],
+      "dependencies": {
+        "react": "17.0.1",
+        "react-dom": "17.0.1",
+        "@pnp/sp": "4.12.0"
+      },
+      "devDependencies": {
+        "@types/webpack-env": "~1.15.2",
+        "gulp": "4.0.2"
+      },
+      "deprecated": [
+        "moment"
+      ],
+      "scripts": {
+        "build": "gulp bundle",
+        "clean": "gulp clean"
+      },
+      "engines": {
+        "node": ">=22.14.0 <23.0.0"
+      },
+      "tsconfig": {
+        "compilerOptions": {
+          "skipLibCheck": true
+        }
+      }
+    }
+  },
+  "checks": {
+    "ignorePaths": []
+  }
+}

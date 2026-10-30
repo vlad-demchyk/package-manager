@@ -1,0 +1,52 @@
+{
+  "verifiedAt": "2026-10-30",
+  "singletons": [
+    "react", "react-dom", "@microsoft/sp-*", "@fluentui/react", "office-ui-fabric-react", "@angular/core",
+    "vue", "styled-components", "@emotion/react", "mobx", "rxjs", "zone.js"
+  ],
+  "families": [
+    {
+      "id": "react",
+      "policy": "same-version",
+      "packages": ["react", "react-dom"],
+      "reason": "react-dom pins react to the same version; mixed copies break hooks at runtime"
+    },
+    {
+      "id": "types-react",
+      "policy": "same-major",
+      "packages": ["@types/react", "@types/react-dom"],
+      "reason": "type definitions must describe the same React major"
+    },
+    {
+      "id": "pnpjs",
+      "policy": "same-major",
+      "packages": [
+        "@pnp/sp", "@pnp/graph", "@pnp/core", "@pnp/queryable", "@pnp/logging", "@pnp/odata",
+        "@pnp/common", "@pnp/nodejs", "@pnp/msaljsclient", "@pnp/sp-addinhelpers", "@pnp/config-store",
+        "@pnp/pnpjs", "@pnp/graph-commonjs", "@pnp/sp-commonjs"
+      ],
+      "reason": "PnPjs packages of different majors do not share the same queryable/behavior pipeline"
+    },
+    {
+      "id": "angular",
+      "policy": "same-version",
+      "prefix": "@angular/",
+      "exclude": ["@angular/cdk", "@angular/material", "@angular/cli", "@angular/build", "@angular-devkit/build-angular"],
+      "reason": "Angular framework packages are released together and must match exactly"
+    },
+    {
+      "id": "typescript-eslint",
+      "policy": "same-version",
+      "prefix": "@typescript-eslint/",
+      "packages": ["typescript-eslint"],
+      "reason": "parser, plugin and utils are released in lockstep"
+    },
+    {
+      "id": "vitest",
+      "policy": "same-version",
+      "prefix": "@vitest/",
+      "packages": ["vitest"],
+      "reason": "vitest plugins are released in lockstep with vitest"
+    }
+  ]
+}
