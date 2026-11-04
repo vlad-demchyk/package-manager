@@ -7,6 +7,7 @@ import { msg, removeDependency } from '../core/findings.js';
 import { readJsonFile } from '../core/json.js';
 import type { Edit, Project } from '../core/types.js';
 import { minVersionOf, resolveVersion, satisfies } from '../core/versions.js';
+import { migrateEslintForPlugin8 } from '../providers/frameworks.js';
 import { corePackages, componentTypes } from '../providers/spfx/core.js';
 import {
   expectedCompiler,
@@ -213,6 +214,17 @@ export async function spfxMigration(
         content:
           'require("@rushstack/eslint-config/patch/modern-module-resolution");\nmodule.exports = { extends: ["@microsoft/eslint-config-spfx/lib/profiles/default"], parserOptions: { tsconfigRootDir: __dirname } };\n',
       });
+    // Kept legacy configs move with typescript-eslint 8: removed rules go to their successors and
+    // no-unused-vars keeps catch bindings unchecked, or every file warns and --ship builds fail.
+    const plugin = pins['@typescript-eslint/eslint-plugin'];
+    if (!flatLint && plugin && (semver.coerce(plugin)?.major ?? 0) >= 8)
+      for (const name of ['.eslintrc.js', '.eslintrc.cjs', '.eslintrc.json']) {
+        const file = path.join(project.dir, name);
+        if (!existsSync(file)) continue;
+        const text = await readFile(file, 'utf8');
+        const content = migrateEslintForPlugin8(text);
+        if (content !== text) edits.push({ kind: 'file-write', file, content });
+      }
   }
   if (!project.manifest.scripts?.build && chain === 'gulp')
     edits.push(jsonSet(project, 'package.json', ['scripts', 'build'], 'gulp bundle'));

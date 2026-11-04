@@ -82,6 +82,7 @@ it installs and replaces `node_modules`.
 | SPFx core packages   | packages the official generator scaffolds for the SPFx version, toolchain (gulp/Heft), component types (from `*.manifest.json`) and React usage (`data/spfx-scaffold.json`, extracted from `@microsoft/generator-sharepoint` 1.0-1.24): never reported as unused; missing ones are errors (`spfx/core-missing`), ones present only as transitive dependencies are warnings (`spfx/core-transitive`), without lockfile they cannot be verified (`spfx/core-unverified`)              |
 | Profiles             | `profile/*`: versions, misplaced sections, missing, deprecated, scripts, engines, overrides, tsconfig leaves differing from the project's profile                                                                                                                                                                                                                                                                                                                                   |
 | Locked tree          | every dependency edge of the npm lockfile, transitive ones included, resolved the way Node does: a dependency outside its range is an error (`npm/tree-broken`), unmet peers of nested packages a warning (`npm/tree-peer`); locked versions that moved away from the set the last passing build used (`npm/unverified-versions`)                                                                                                                                                   |
+| ESLint               | rules a config sets that the installed `@typescript-eslint/eslint-plugin` does not have, `no-unused-vars` without `caughtErrors` on plugin 8+: both make SPFx `--ship` builds fail on warnings; fixes move removed rules to their successors                                                                                                                                                                                                                                        |
 | Other stacks         | React, TypeScript (including TypeScript 7 with tools that need its API), Vite, Next.js, Angular, Vue, Electron, ESLint (legacy config ignored by ESLint 10), Jest, Vitest; Angular, Next.js and Vite majors carry Node and companion ranges from `data/frameworks.json` (TypeScript, rxjs, zone.js; React) even before installation                                                                                                                                                 |
 
 Compatibility data lives in `data/` with the date it was verified and its sources:
@@ -201,11 +202,71 @@ How the union store works:
   store built the old way is rebuilt.
 - Project-relative dependencies (`file:`, `link:`, `workspace:`) are excluded: moving their manifest
   into the store would change what those paths resolve to.
+- npm run inside a linked project never touches the store (junctions are not followed), but it does
+  change the project: `npm install` and `npm update` replace links with real copies, `npm install <pkg>`
+  adds folders the group does not have, `npm uninstall` removes links, `npm ci` replaces the whole
+  folder. `store status` and `check` (`store/link-drift`, `store/link-stale`) list exactly what
+  changed. `packman store link --of <project> --union` relinks the group the project belongs to now
+  (keys change with manifests and locks); copies npm left behind go to `.packman/trash`, never deleted.
+  After `npm ci` the folder is no longer packman's, so relinking asks for `--replace-existing`.
+- Editors and tools see the store through the links: TypeScript (and the VS Code TS server) resolves
+  modules to their real paths in the store, ESLint loads parsers and plugins from the project folder.
+- `packman hooks install` adds `post-merge` and `post-checkout` git hooks that run
+  `packman store status --check` after a pull or branch switch and print what to relink. They never
+  relink by themselves and never fail the git command; hooks packman did not write are left alone, and
+  `packman hooks uninstall` removes only its own.
 
 Verified on a copy of a real SPFx 1.21.1 repository (3 web parts): `gulp bundle` and
 `gulp bundle --ship && gulp package-solution --ship` pass through the store, and the production bundle
 has the same size and the same normalized code as a build with the project's own `node_modules`
 (module ids and minified names differ because webpack derives them from file paths).
+
+## SharePoint test data and debug runs
+
+For SPFx projects whose components read SharePoint lists, configuration files and Microsoft Graph.
+Use a dev site only: components write to these lists while they run.
+
+```bash
+packman sp requirements [--write]          # lists, columns, files and Graph calls the components use
+packman sp seed --site <url> [--apply]     # create what packman.sharepoint.json describes (dry run by default)
+packman sp test --site <url>               # load every component from its dev server into the site
+packman sp clean --site <url>              # remove what seed created
+```
+
+- `requirements` reads the source (list titles, `$select`/`$filter`/`orderBy` columns, `items.add`
+  writes, `SiteAssets/...` files, Graph calls) and the REST requests recorded by the last `sp test`,
+  which carry the columns the code builds at run time. `--write` adds what is missing to
+  `packman.sharepoint.json` with guessed types (Yes/No for `eq 1`, dates for date comparisons); types,
+  choices and items are completed by hand and never overwritten.
+- `packman.sharepoint.json` holds the site, lists (`generic`, `documents`, `pictures`), columns
+  (Text, Note, Number, Boolean, DateTime, Choice, MultiChoice, URL, User, Lookup), items and files.
+  Item values may be `"@me"` (signed-in user: User column or site user id), `"@aad"` (their Entra
+  object id), `{ "lookup": "<Title>" }` and relative dates such as `today+3d` or `now-1h`. Library items
+  take a `file` name and a `placeholder` color (a generated PNG) or text `content`. Files take JSON or
+  text `content`, a `placeholder`, or `from` (a workspace file such as a sample menu).
+- `seed` creates only what is missing: an existing list, column, item with the same Title (file name
+  in libraries) or a file a person made is left alone. What it creates is recorded in
+  `.packman/sharepoint/seeded.json`; `clean` removes exactly that, and whole lists only when packman
+  created them.
+- `test` starts `gulp serve` for each SPFx project with its Node, opens the hosted workbench with the
+  debug manifests, adds each web part from the toolbox (application customizers load on the site home
+  page or `--page`), and sorts what the page reports: `load` (a bundle or chunk did not arrive),
+  `runtime` (an exception from the component's own bundle), `data` (a list, column or file the site
+  lacks) and `host` (workbench noise). Results, REST requests, screenshots and dev server logs go to
+  `.packman/validation/<time>-sharepoint/`. Every component starts on an empty workbench (it keeps
+  its canvas in session storage otherwise).
+- `test --properties` then drives the property pane: every dropdown option, both states of toggles
+  and checkboxes, every choice, and a typed value in text fields (URLs, e-mails and numbers where the
+  label asks for them; JSON fields are left alone). Controls a change reveals, such as the fields of a
+  selected template, are driven one level deeper. Each change is restored and reported with what the
+  web part showed, the problems it caused and a screenshot when it broke. Pickers and collection
+  editors are listed as not driven.
+- `components` in `packman.sharepoint.json` set per web part alias: `query` for the page URL
+  (`iditem={Eventi/[test] Evento}` puts in the id of that item) and `known` problems that come from
+  the hosting page rather than the packages, reported without failing the run.
+- Sign-in happens in a browser packman opens with its own profile (`~/.packman/browser`, Edge or
+  Chrome, or `PACKMAN_BROWSER`). packman never handles passwords or tokens: REST calls run inside the
+  signed-in page. Heft projects are not supported by `test` yet.
 
 ## Configuration
 

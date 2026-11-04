@@ -3,6 +3,8 @@ import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { bundledDataPath, loadData, resetData } from '../src/core/data.js';
+import type { Report } from '../src/analyze.js';
+import { dataLine } from '../src/report/model.js';
 import { nodeLineStatus, nodeVulnerabilities, type NodeVuln } from '../src/node/releases.js';
 import {
   dataStatus,
@@ -165,5 +167,24 @@ describe('packman data', () => {
       'fewer than',
     );
     expect(existsSync(dir)).toBe(false);
+  });
+});
+
+describe('data age in reports', () => {
+  const report = (generatedAt: string) =>
+    ({
+      generatedAt,
+      data: {
+        spfx: '2026-10-30',
+        node: '2026-10-30',
+        nodeVulns: '2026-10-01',
+        advisories: { checked: false, source: 'npm' },
+      },
+    }) as unknown as Report;
+
+  it('suggests an update only when Node data is older than 30 days', () => {
+    expect(dataLine(report('2026-10-30T12:00:00Z'))).not.toContain('packman data update');
+    expect(dataLine(report('2026-11-04T12:00:00Z'))).toContain('34');
+    expect(dataLine(report('2026-11-04T12:00:00Z'))).toContain('packman data update');
   });
 });

@@ -17,6 +17,7 @@ export const en = {
   'report.network': 'Network calls',
   'report.fixes': 'Fixes',
   'report.summary': '{critical} critical, {error} errors, {warning} warnings, {info} info',
+  'report.dataStale': '(data {days} days old: packman data update)',
   'report.data':
     'Data: SPFx matrix {spfx}, Node schedule {node}, Node CVEs {nodeVulns}, npm advisories {advisories}',
   'report.advisoriesSkipped': 'not checked ({reason})',
@@ -85,6 +86,14 @@ export const en = {
   'react.typesMajor': '@types/react {types} does not match react {react}',
   'typescript.v7Api':
     'TypeScript {version} has no programmatic API; these tools still need TypeScript 6',
+  'eslint.unknownRule':
+    '{file} sets {count} rules @typescript-eslint/eslint-plugin {version} does not have: every file reports them and --ship builds fail',
+  'eslint.unknownRuleSuppressed':
+    '{file} sets {count} rules @typescript-eslint/eslint-plugin {version} does not have: every file reports them (the gulpfile suppresses warnings, so builds still pass)',
+  'eslint.caughtErrors':
+    '{file}: @typescript-eslint/no-unused-vars without caughtErrors checks catch bindings on plugin {version} (default moved from none to all)',
+  'fix.migrateRules': 'Move the removed rules in {file} to the rules that replaced them',
+  'fix.keepCaughtErrors': 'Keep catch bindings unchecked in {file} (caughtErrors: none)',
   'eslint.legacyIgnored': 'ESLint {version} ignores {file}; migrate to eslint.config.js',
 
   // Node
@@ -161,6 +170,34 @@ export const en = {
   'tui.key.quit': 'quit',
   'tui.nodeUsers': '{count} projects',
   'tui.noSelection': 'No fixes selected: press space on a finding with a fix.',
+  'sp.fromTest': 'Including the requests recorded by {run}.',
+  'sp.propertySteps':
+    'properties: {steps} changes on {controls} controls, {failed} broke the web part',
+  'sp.propertySkipped': 'not driven: {controls}',
+  'sp.propertyPaneClosed': 'properties: the property pane did not open, nothing was checked',
+  'sp.noSite': 'No SharePoint site: pass --site or set "site" in {file}.',
+  'sp.signIn': 'Sign in to {site} in the browser packman opened; waiting...',
+  'sp.written': '{file} updated: add column types, choices and items by hand.',
+  'sp.upToDate': 'The site already has everything in the fixtures.',
+  'sp.dryRun': 'Dry run: nothing written. Use --apply to create it.',
+  'sp.confirmSeed': 'Create {count} lists, columns, items and files on {site}?',
+  'sp.confirmClean': 'Delete what packman created on {site}?',
+  'sp.noGulp': 'no gulp toolchain installed (Heft projects are not supported yet)',
+  'store.linkStale':
+    'package.json changed since the project was linked; the shared store does not have the new versions yet',
+  'store.linkDrift':
+    'node_modules no longer matches the shared store: npm was run inside a linked project',
+  'store.driftMissing': 'missing: {packages}',
+  'store.driftReplaced': 'real copies instead of links: {packages}',
+  'store.driftExtra': 'not from the store: {packages}',
+  'store.driftHint':
+    'Do not run npm in linked projects. Declare packages in package.json, then packman store plan --union and packman store link; relinking moves npm copies to .packman/trash.',
+  'store.trashed': '{project}: npm copies moved to .packman/trash before relinking: {packages}',
+  'store.needGroup': 'Pass --group <key> or --of <project>.',
+  'hooks.installed': 'hook added: {file}',
+  'hooks.foreign':
+    'left as is, not written by packman: {file}. Add packman store status --check to it by hand.',
+  'hooks.removed': 'hook removed: {file}',
   'store.none': 'No group of identical projects can share an install yet.',
   'store.groupNotFound': 'Group {group} not found; run `packman store plan`.',
   'store.linkPlan': '{count} projects will share one install built with Node {node}:',

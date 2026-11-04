@@ -2,6 +2,27 @@
 
 ## Unreleased
 
+- `packman sharepoint` (`sp`): `requirements` collects the lists, columns, files and Graph calls SPFx
+  components use, from the source and from the requests of the last test run, into
+  `packman.sharepoint.json`; `seed` creates the missing lists, columns, items and files on a dev site
+  (dry run by default, idempotent, recorded); `clean` removes exactly what seed created; `test` loads
+  every component from its dev server into the hosted workbench (or a page, for application
+  customizers) and classifies load, runtime and missing-data problems. Sign-in happens in a browser
+  packman opens; it never handles passwords or tokens. `test --properties` drives every property
+  pane control, including the fields a template selection reveals, and reports the changes that
+  break the web part.
+- Linked projects are checked against their link record: `store status` and `check`
+  (`store/link-drift`, `store/link-stale`) show links npm replaced with real copies, removed, or
+  packages it added. Relinking moves those copies to `.packman/trash` instead of failing on them;
+  `store link --of <project>` finds the project's current group without its key.
+- `packman hooks install|uninstall`: git `post-merge`/`post-checkout` hooks that report linked
+  projects to relink after a pull or a branch switch (`store status --check`).
+- ESLint configs are checked against the `@typescript-eslint/eslint-plugin` actually installed:
+  rules it no longer has (`eslint/unknown-rule`) and `no-unused-vars` without `caughtErrors` on plugin
+  8+ (`eslint/caught-errors`), which make SPFx `--ship` builds fail on warnings. Fixes move removed
+  rules to their successors (`ban-types` to `no-restricted-types` with the same types) and keep catch
+  bindings unchecked; `upgrade` applies the same migration to kept `.eslintrc` files. Projects whose
+  gulpfile suppresses warnings get warnings instead of errors.
 - `upgrade` plans convergence on the newest framework stack already present in the repository;
   published releases are selected only with an explicit `--to`. Separate framework families have
   separate baselines, with target-policy findings, generated stack-filtered profiles and build order.

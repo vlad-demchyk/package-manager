@@ -19,6 +19,7 @@ export const uk: Catalogue = {
   'report.fixes': 'Виправлення',
   'report.summary':
     'критичних {critical}, помилок {error}, попереджень {warning}, інформаційних {info}',
+  'report.dataStale': '(даним {days} днів: packman data update)',
   'report.data':
     'Дані: матриця SPFx {spfx}, розклад Node {node}, CVE Node {nodeVulns}, npm advisories {advisories}',
   'report.advisoriesSkipped': 'не перевірено ({reason})',
@@ -86,6 +87,14 @@ export const uk: Catalogue = {
   'react.typesMajor': '@types/react {types} не відповідає react {react}',
   'typescript.v7Api':
     'TypeScript {version} не має програмного API; ці інструменти досі потребують TypeScript 6',
+  'eslint.unknownRule':
+    '{file} задає {count} правил, яких немає в @typescript-eslint/eslint-plugin {version}: кожен файл їх показує, а збірки --ship падають',
+  'eslint.unknownRuleSuppressed':
+    '{file} задає {count} правил, яких немає в @typescript-eslint/eslint-plugin {version}: кожен файл їх показує (gulpfile придушує попередження, тож збірки проходять)',
+  'eslint.caughtErrors':
+    '{file}: @typescript-eslint/no-unused-vars без caughtErrors перевіряє змінні catch у плагіні {version} (типове значення змінилось з none на all)',
+  'fix.migrateRules': 'Перенести прибрані правила в {file} на правила, що їх замінили',
+  'fix.keepCaughtErrors': 'Не перевіряти змінні catch у {file} (caughtErrors: none)',
   'eslint.legacyIgnored': 'ESLint {version} ігнорує {file}; перейдіть на eslint.config.js',
 
   'node.pinConflict': 'Закріплення Node {pin} ({file}) суперечить {range}, якого вимагає {source}',
@@ -159,6 +168,35 @@ export const uk: Catalogue = {
   'tui.key.quit': 'вихід',
   'tui.nodeUsers': 'проєктів: {count}',
   'tui.noSelection': 'Виправлення не вибрано: натисніть пробіл на знахідці з виправленням.',
+  'sp.fromTest': 'Враховано запити, записані прогоном {run}.',
+  'sp.propertySteps':
+    'властивості: {steps} змін на {controls} контролах, {failed} зламали web part',
+  'sp.propertySkipped': 'не перевірено: {controls}',
+  'sp.propertyPaneClosed': 'властивості: панель властивостей не відкрилась, нічого не перевірено',
+  'sp.noSite': 'Немає сайту SharePoint: передайте --site або задайте "site" у {file}.',
+  'sp.signIn': 'Увійдіть у {site} у браузері, який відкрив packman; чекаю...',
+  'sp.written': '{file} оновлено: типи колонок, варіанти й записи допишіть вручну.',
+  'sp.upToDate': 'На сайті вже є все з фікстур.',
+  'sp.dryRun': 'Пробний прогін: нічого не записано. Додайте --apply, щоб створити.',
+  'sp.confirmSeed': 'Створити {count} списків, колонок, записів і файлів на {site}?',
+  'sp.confirmClean': 'Видалити те, що packman створив на {site}?',
+  'sp.noGulp': 'gulp не встановлено (проєкти на Heft поки не підтримуються)',
+  'store.linkStale':
+    'package.json змінився після привʼязки; у спільному сховищі ще немає нових версій',
+  'store.linkDrift':
+    'node_modules більше не відповідає спільному сховищу: у привʼязаному проєкті запускали npm',
+  'store.driftMissing': 'бракує: {packages}',
+  'store.driftReplaced': 'справжні копії замість лінків: {packages}',
+  'store.driftExtra': 'не зі сховища: {packages}',
+  'store.driftHint':
+    'Не запускайте npm у привʼязаних проєктах. Оголосіть пакети в package.json, потім packman store plan --union і packman store link; повторна привʼязка переносить копії npm у .packman/trash.',
+  'store.trashed':
+    '{project}: копії npm перенесено в .packman/trash перед повторною привʼязкою: {packages}',
+  'store.needGroup': 'Вкажіть --group <ключ> або --of <проєкт>.',
+  'hooks.installed': 'хук додано: {file}',
+  'hooks.foreign':
+    'не змінено, цей хук написав не packman: {file}. Додайте в нього packman store status --check вручну.',
+  'hooks.removed': 'хук прибрано: {file}',
   'store.none': 'Поки жодна група ідентичних проєктів не може мати спільну установку.',
   'store.groupNotFound': 'Групу {group} не знайдено; запустіть `packman store plan`.',
   'store.linkPlan': '{count} проєктів матимуть одну установку, зібрану з Node {node}:',

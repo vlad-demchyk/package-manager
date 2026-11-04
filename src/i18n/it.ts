@@ -18,6 +18,7 @@ export const it: Catalogue = {
   'report.network': 'Chiamate di rete',
   'report.fixes': 'Correzioni',
   'report.summary': '{critical} critici, {error} errori, {warning} avvisi, {info} informativi',
+  'report.dataStale': '(dati vecchi di {days} giorni: packman data update)',
   'report.data':
     'Dati: matrice SPFx {spfx}, calendario Node {node}, CVE Node {nodeVulns}, npm advisories {advisories}',
   'report.advisoriesSkipped': 'non verificato ({reason})',
@@ -86,6 +87,14 @@ export const it: Catalogue = {
   'react.typesMajor': '@types/react {types} non corrisponde a react {react}',
   'typescript.v7Api':
     'TypeScript {version} non ha API programmatica; questi strumenti richiedono ancora TypeScript 6',
+  'eslint.unknownRule':
+    '{file} imposta {count} regole che @typescript-eslint/eslint-plugin {version} non ha: ogni file le segnala e le build --ship falliscono',
+  'eslint.unknownRuleSuppressed':
+    '{file} imposta {count} regole che @typescript-eslint/eslint-plugin {version} non ha: ogni file le segnala (il gulpfile sopprime gli avvisi, le build passano comunque)',
+  'eslint.caughtErrors':
+    '{file}: @typescript-eslint/no-unused-vars senza caughtErrors controlla le variabili dei catch con il plugin {version} (default passato da none ad all)',
+  'fix.migrateRules': 'Spostare le regole rimosse in {file} alle regole che le sostituiscono',
+  'fix.keepCaughtErrors': 'Non controllare le variabili dei catch in {file} (caughtErrors: none)',
   'eslint.legacyIgnored': 'ESLint {version} ignora {file}; migrare a eslint.config.js',
 
   'node.pinConflict':
@@ -161,6 +170,36 @@ export const it: Catalogue = {
   'tui.key.quit': 'esci',
   'tui.nodeUsers': '{count} progetti',
   'tui.noSelection': 'Nessuna correzione selezionata: premere spazio su un rilievo con correzione.',
+  'sp.fromTest': 'Incluse le richieste registrate da {run}.',
+  'sp.propertySteps':
+    'proprietà: {steps} modifiche su {controls} controlli, {failed} hanno rotto la web part',
+  'sp.propertySkipped': 'non pilotati: {controls}',
+  'sp.propertyPaneClosed':
+    'proprietà: il riquadro proprietà non si è aperto, nulla è stato verificato',
+  'sp.noSite': 'Nessun sito SharePoint: usa --site o imposta "site" in {file}.',
+  'sp.signIn': 'Accedi a {site} nel browser aperto da packman; in attesa...',
+  'sp.written': '{file} aggiornato: completa a mano tipi di colonna, scelte ed elementi.',
+  'sp.upToDate': 'Il sito ha già tutto ciò che è nelle fixture.',
+  'sp.dryRun': 'Prova: nulla è stato scritto. Usa --apply per crearlo.',
+  'sp.confirmSeed': 'Creare {count} liste, colonne, elementi e file su {site}?',
+  'sp.confirmClean': 'Eliminare ciò che packman ha creato su {site}?',
+  'sp.noGulp': 'toolchain gulp non installata (i progetti Heft non sono ancora supportati)',
+  'store.linkStale':
+    'package.json è cambiato dopo il collegamento; lo store condiviso non ha ancora le nuove versioni',
+  'store.linkDrift':
+    'node_modules non corrisponde più allo store condiviso: npm è stato eseguito in un progetto collegato',
+  'store.driftMissing': 'mancanti: {packages}',
+  'store.driftReplaced': 'copie reali al posto dei link: {packages}',
+  'store.driftExtra': 'non dallo store: {packages}',
+  'store.driftHint':
+    'Non eseguire npm nei progetti collegati. Dichiara i pacchetti in package.json, poi packman store plan --union e packman store link; il ricollegamento sposta le copie di npm in .packman/trash.',
+  'store.trashed':
+    '{project}: copie di npm spostate in .packman/trash prima del ricollegamento: {packages}',
+  'store.needGroup': 'Indica --group <chiave> o --of <progetto>.',
+  'hooks.installed': 'hook aggiunto: {file}',
+  'hooks.foreign':
+    "lasciato com'è, non scritto da packman: {file}. Aggiungi a mano packman store status --check.",
+  'hooks.removed': 'hook rimosso: {file}',
   'store.none': "Nessun gruppo di progetti identici può ancora condividere un'installazione.",
   'store.groupNotFound': 'Gruppo {group} non trovato; eseguire `packman store plan`.',
   'store.linkPlan': "{count} progetti condivideranno un'installazione con Node {node}:",

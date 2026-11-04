@@ -17,6 +17,8 @@ import { allFindings, toJson } from '../report/model.js';
 import { renderText } from '../report/text.js';
 import { openSession, runAnalysis, type CommonOptions } from './context.js';
 import { registerCommands } from './commands.js';
+import { registerHooks } from './hooks.js';
+import { registerSharePoint } from './sharepoint.js';
 import { registerUpgrade } from './upgrade.js';
 import {
   commonOptions,
@@ -33,6 +35,8 @@ import { readJsonFile } from '../core/json.js';
 import { readStoreVerified } from '../core/verified.js';
 import type { PackageManifest } from '../core/types.js';
 import {
+  describeDrift,
+  linkDrift,
   linkGroup,
   manifestKey,
   planStore,
@@ -234,7 +238,11 @@ export function buildProgram(): Command {
   commonOptions(
     store.command('link').description('install a group once and link its projects to it'),
   )
-    .requiredOption('-g, --group <key>', 'group key from `packman store plan`')
+    .option('-g, --group <key>', 'group key from `packman store plan`')
+    .option(
+      '--of <project>',
+      'the group this project belongs to now (keys change with manifests and locks)',
+    )
     .option('--union', 'the group comes from `packman store plan --union`')
     .option(
       '--replace-existing',
@@ -250,7 +258,8 @@ export function buildProgram(): Command {
       async (
         root: string,
         options: CommonOptions & {
-          group: string;
+          group?: string;
+          of?: string;
           union?: boolean;
           replaceExisting?: boolean;
           syncLocks: boolean;
@@ -258,6 +267,11 @@ export function buildProgram(): Command {
           yes?: boolean;
         },
       ) => {
+        if (!options.group && !options.of) {
+          console.error(t('store.needGroup'));
+          process.exitCode = 1;
+          return;
+        }
         const session = await openSession(root, options);
         const report = await runAnalysis(
           session,
@@ -265,10 +279,12 @@ export function buildProgram(): Command {
           { targetVersions: true },
         );
         const group = planStore(report, { union: options.union ?? false }).groups.find((item) =>
-          item.key.startsWith(options.group),
+          options.of
+            ? item.projectIds.includes(options.of)
+            : item.key.startsWith(options.group ?? '\0'),
         );
         if (!group) {
-          console.error(t('store.groupNotFound', { group: options.group }));
+          console.error(t('store.groupNotFound', { group: options.of ?? options.group ?? '-' }));
           process.exitCode = 1;
           return;
         }
@@ -324,6 +340,12 @@ export function buildProgram(): Command {
             }),
           ),
         );
+        for (const entry of result.trashed)
+          console.log(
+            pc.yellow(
+              t('store.trashed', { project: entry.projectId, packages: entry.packages.join(', ') }),
+            ),
+          );
       },
     );
 
@@ -375,7 +397,11 @@ export function buildProgram(): Command {
     .argument('[path]', 'workspace root', '.')
     .addOption(langOption())
     .option('--json', 'machine-readable output')
-    .action(async (root: string, options: { json?: boolean }) => {
+    .option(
+      '--check',
+      'exit with status 1 when a linked project is stale or drifted (for git hooks and CI)',
+    )
+    .action(async (root: string, options: { json?: boolean; check?: boolean }) => {
       const absRoot = path.resolve(root);
       const rows = [];
       for (const link of await readLinks(absRoot)) {
@@ -385,17 +411,28 @@ export function buildProgram(): Command {
         const current = manifest.ok ? manifestKey(manifest.value) : undefined;
         const stale =
           current !== undefined && current !== (link.manifestKey ?? link.key.slice(0, 16));
-        rows.push({ projectId: link.projectId, target: link.target, stale });
+        const drift = await linkDrift(absRoot, link);
+        rows.push({
+          projectId: link.projectId,
+          target: link.target,
+          stale,
+          ...(drift ? { drift } : {}),
+        });
       }
+      if (options.check && rows.some((row) => row.stale || row.drift)) process.exitCode = 1;
       if (options.json) {
         process.stdout.write(`${JSON.stringify(rows, null, 2)}\n`);
         return;
       }
       if (rows.length === 0) console.log(t('store.noLinks'));
-      for (const row of rows)
+      for (const row of rows) {
+        const state = row.stale ? pc.red('stale') : row.drift ? pc.red('drift') : pc.green('ok   ');
         console.log(
-          `${row.stale ? pc.red('stale') : pc.green('ok   ')} ${row.projectId} ${pc.dim(`-> ${path.relative(absRoot, row.target)}`)}`,
+          `${state} ${row.projectId} ${pc.dim(`-> ${path.relative(absRoot, row.target)}`)}`,
         );
+        if (row.drift) console.log(`      ${describeDrift(row.drift)}`);
+      }
+      if (rows.some((row) => row.stale || row.drift)) console.log(pc.dim(t('store.driftHint')));
     });
 
   commonOptions(
@@ -559,6 +596,8 @@ export function buildProgram(): Command {
 
   registerCommands(program);
   registerUpgrade(program);
+  registerSharePoint(program);
+  registerHooks(program);
   return program;
 }
 

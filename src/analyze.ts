@@ -26,7 +26,13 @@ import {
 import { profileFindings } from './policy/profiles.js';
 import { targetFindings } from './policy/target.js';
 import { migrationStack, newestProject, stackVersion } from './upgrade/targets.js';
-import { readLinks, type LinkRecord } from './store/store.js';
+import {
+  describeDrift,
+  linkDrift,
+  manifestKey,
+  readLinks,
+  type LinkRecord,
+} from './store/store.js';
 import {
   angularProvider,
   electronProvider,
@@ -199,8 +205,10 @@ export async function analyze(workspace: Workspace, options: AnalyzeOptions): Pr
     );
   }
 
+  const links = await readLinks(workspace.root);
   for (const report of reports) {
     report.findings.push(...targetFindings(report, options.config));
+    report.findings.push(...(await linkFindings(workspace.root, report, links)));
     report.findings = sortFindings(report.findings.filter((item) => !disabled.has(item.ruleId)));
   }
   return {
@@ -210,7 +218,7 @@ export async function analyze(workspace: Workspace, options: AnalyzeOptions): Pr
     groups,
     workspaceFindings: sortFindings(workspaceFindings.filter((item) => !disabled.has(item.ruleId))),
     installedNodes,
-    links: await readLinks(workspace.root),
+    links,
     data: {
       spfx: spfxMatrix().verifiedAt,
       node: nodeDataDate(),
@@ -378,4 +386,32 @@ function packageConstraintFindings(
     }
   }
   return findings;
+}
+
+/** A linked project whose manifest or node_modules no longer matches what packman linked. */
+async function linkFindings(
+  root: string,
+  report: ProjectReport,
+  links: LinkRecord[],
+): Promise<Finding[]> {
+  const link = links.find((entry) => entry.projectId === report.project.id);
+  if (!link) return [];
+  const relink = `packman store link --of ${link.projectId}${link.mode === 'packages' ? ' --union' : ''}`;
+  const out: Finding[] = [];
+  if (manifestKey(report.project.manifest) !== (link.manifestKey ?? link.key.slice(0, 16)))
+    out.push(
+      finding('store/link-stale', 'warning', report.project, msg('store.linkStale'), {
+        tags: ['store'],
+        evidence: ['packman store plan --union', relink],
+      }),
+    );
+  const drift = await linkDrift(root, link);
+  if (drift)
+    out.push(
+      finding('store/link-drift', 'error', report.project, msg('store.linkDrift'), {
+        tags: ['store'],
+        evidence: [describeDrift(drift), relink],
+      }),
+    );
+  return out;
 }

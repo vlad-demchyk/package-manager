@@ -19,13 +19,22 @@ export function dataLine(report: Report): string {
   const advisories = report.data.advisories.checked
     ? `${report.data.advisories.source} ${report.data.advisories.fetchedAt?.slice(0, 10) ?? ''}`.trim()
     : t('report.advisoriesSkipped', { reason: report.data.advisories.error ?? 'disabled' });
-  return t('report.data', {
+  const line = t('report.data', {
     spfx: report.data.spfx,
     node: report.data.node,
     nodeVulns: report.data.nodeVulns,
     advisories,
   });
+  // Node releases and CVEs change monthly; `packman data update` refreshes them on request only.
+  const ages = [report.data.node, report.data.nodeVulns]
+    .map((date) => Date.parse(report.generatedAt) - Date.parse(date))
+    .filter((age) => !Number.isNaN(age));
+  const days = Math.floor(Math.max(0, ...ages) / 86_400_000);
+  return days > DATA_MAX_AGE_DAYS ? `${line} ${t('report.dataStale', { days })}` : line;
 }
+
+/** Age after which the report suggests `packman data update`. */
+export const DATA_MAX_AGE_DAYS = 30;
 
 /** Serializable report with translated messages, for `--json` and integrations. */
 export function toJson(report: Report): unknown {

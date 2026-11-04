@@ -413,6 +413,32 @@ describe('explicit SPFx migrations and blockers', () => {
     );
   });
 
+  it('moves a kept .eslintrc to typescript-eslint 8 so --ship builds do not fail on its warnings', async () => {
+    const files = { ...spfx('old', '1.18.2'), ...spfx('new', '1.21.1') };
+    files['old/.eslintrc.js'] = `require('@rushstack/eslint-config/patch/modern-module-resolution');
+module.exports = {
+  rules: {
+    '@typescript-eslint/ban-types': [1, { 'extendDefaults': false, 'types': { 'String': { 'message': 'string' } } }],
+    '@typescript-eslint/no-unused-vars': [1, { 'vars': 'all', 'args': 'none' }]
+  }
+};
+`;
+    const { report } = await setup(files);
+    const plan = await planUpgrade(report, { config: config(), fetchImpl: registry });
+    const edit = plan.projects
+      .find((project) => project.id === 'old')
+      ?.edits.find(
+        (item) =>
+          item.kind === 'file-write' && item.file.endsWith(path.join('old', '.eslintrc.js')),
+      );
+    const content = edit && 'content' in edit ? edit.content : '';
+    expect(content).toContain(
+      "'@typescript-eslint/no-restricted-types': [1, { 'types': { 'String': { 'message': 'string' } } }]",
+    );
+    expect(content).toContain("'caughtErrors': 'none'");
+    expect(content).not.toContain('ban-types');
+  });
+
   it('warns that async iterators over PnPjs need ES2018+ or downlevelIteration', async () => {
     const asyncTarget = async (compilerOptions: object) => {
       const files = { ...spfx('old', '1.18.2'), ...spfx('new', '1.21.1') };

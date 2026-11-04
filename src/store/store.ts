@@ -7,6 +7,7 @@ import {
   readFile,
   readlink,
   copyFile,
+  rename,
   rm,
   rmdir,
   symlink,
@@ -24,6 +25,7 @@ import type { PackageManifest, Project } from '../core/types.js';
 import type { InstalledNode } from '../node/toolchain.js';
 import { STORE_MARKER } from '../core/discovery.js';
 import { backupFiles } from '../fixes/apply.js';
+import { t } from '../i18n/index.js';
 
 const STORE_DIR = path.join('.packman', 'store');
 const LINKS_FILE = path.join('.packman', 'links.json');
@@ -385,6 +387,8 @@ export interface LinkResult {
   unverified?: string[];
   linked: string[];
   skipped: { projectId: string; reason: string }[];
+  /** Real packages npm had put into linked folders, moved to `.packman/trash` before relinking. */
+  trashed: { projectId: string; packages: string[] }[];
 }
 
 /** Installs one store for the group and links every member's node_modules to it. */
@@ -421,7 +425,7 @@ export async function linkGroup(
   }
 
   const storeDir = path.join(root, STORE_DIR, group.key);
-  const result: LinkResult = { storeDir, linked: [], skipped: [] };
+  const result: LinkResult = { storeDir, linked: [], skipped: [], trashed: [] };
   const target = path.join(storeDir, 'node_modules');
   const previous = await readLinks(root);
   const ready = await readJsonFile<{ key: string; node: string }>(path.join(storeDir, READY_FILE));
@@ -569,6 +573,9 @@ export async function linkGroup(
       }
       await unlink(linkPath);
     } else if (state.kind === 'packages') {
+      // npm run inside a linked project leaves real copies here; move them aside, then relink.
+      const moved = await trashUnlinked(root, project.id, linkPath, options.now ?? new Date());
+      if (moved.length > 0) result.trashed.push({ projectId: project.id, packages: moved });
       await removeLinkedFolder(linkPath);
     }
     if (state.kind === 'folder') {
@@ -834,6 +841,101 @@ async function linkPackages(
     'utf8',
   );
   return linked;
+}
+
+/** How a linked `node_modules` differs from what packman linked (npm run inside the project, say). */
+export interface LinkDrift {
+  /** Linked packages that are gone. */
+  missing: string[];
+  /** Linked packages replaced by a real folder or a link elsewhere (npm update, npm install). */
+  replaced: string[];
+  /** Entries packman did not link (npm install <package>). */
+  extra: string[];
+}
+
+const OWN_ENTRIES = new Set([STORE_MARKER, '.bin', '.package-lock.json']);
+
+/** Top-level package entries of a `node_modules` folder, with `@scope/name` for scoped ones. */
+async function moduleEntries(dir: string): Promise<string[]> {
+  const out: string[] = [];
+  for (const entry of await readdir(dir, { withFileTypes: true }).catch(() => [])) {
+    if (OWN_ENTRIES.has(entry.name)) continue;
+    const full = path.join(dir, entry.name);
+    if (entry.name.startsWith('@') && !(await lstat(full)).isSymbolicLink())
+      for (const child of await readdir(full).catch(() => [] as string[]))
+        out.push(`${entry.name}/${child}`);
+    else out.push(entry.name);
+  }
+  return out.sort();
+}
+
+export function describeDrift(drift: LinkDrift): string {
+  return [
+    drift.missing.length ? t('store.driftMissing', { packages: drift.missing.join(', ') }) : '',
+    drift.replaced.length ? t('store.driftReplaced', { packages: drift.replaced.join(', ') }) : '',
+    drift.extra.length ? t('store.driftExtra', { packages: drift.extra.join(', ') }) : '',
+  ]
+    .filter(Boolean)
+    .join('; ');
+}
+
+/** Compares a linked project's `node_modules` with its link record; undefined when it matches. */
+export async function linkDrift(root: string, link: LinkRecord): Promise<LinkDrift | undefined> {
+  const linkPath = path.join(root, link.projectId, 'node_modules');
+  const drift: LinkDrift = { missing: [], replaced: [], extra: [] };
+  const pointsIntoStore = async (file: string): Promise<boolean> => {
+    try {
+      if (!(await lstat(file)).isSymbolicLink()) return false;
+      const target = path.resolve(path.dirname(file), await readlink(file));
+      return target.toLowerCase().startsWith(path.resolve(link.target).toLowerCase());
+    } catch {
+      return false;
+    }
+  };
+  if (link.mode !== 'packages') {
+    if (!existsSync(linkPath)) drift.missing.push('node_modules');
+    else if (!(await pointsIntoStore(linkPath))) drift.replaced.push('node_modules');
+  } else {
+    const expected = new Set(link.packages ?? []);
+    for (const name of expected) {
+      const file = path.join(linkPath, name);
+      if (!existsSync(file) && !(await lstat(file).catch(() => undefined)))
+        drift.missing.push(name);
+      else if (!(await pointsIntoStore(file))) drift.replaced.push(name);
+    }
+    for (const name of await moduleEntries(linkPath))
+      if (!expected.has(name)) drift.extra.push(name);
+  }
+  return drift.missing.length + drift.replaced.length + drift.extra.length > 0 ? drift : undefined;
+}
+
+/**
+ * Moves what npm put into a packman-linked folder (real package copies, packages it added) to
+ * `.packman/trash/<time>/<project>/`, so the folder can be linked again; nothing is deleted.
+ */
+async function trashUnlinked(
+  root: string,
+  projectId: string,
+  dir: string,
+  now: Date,
+): Promise<string[]> {
+  const moved: string[] = [];
+  const trash = path.join(
+    root,
+    '.packman',
+    'trash',
+    now.toISOString().replace(/[:.]/g, '-'),
+    projectId,
+  );
+  for (const name of await moduleEntries(dir)) {
+    const full = path.join(dir, name);
+    if ((await lstat(full)).isSymbolicLink()) continue;
+    const destination = path.join(trash, name);
+    await mkdir(path.dirname(destination), { recursive: true });
+    await rename(full, destination);
+    moved.push(name);
+  }
+  return moved;
 }
 
 /**
