@@ -51,7 +51,7 @@ export interface LockedPackage {
 export interface LockfileSummary {
   kind: LockfileKind;
   path: string;
-  /** npm lockfileVersion, when known. */
+  /** Format version when known: npm or pnpm lockfileVersion, 1 for classic yarn. */
   version?: number;
   /** Hash of npm package entries, including resolution and integrity metadata (excluding the root). */
   contentHash?: string;
@@ -71,6 +71,13 @@ export interface Project {
   manifest: PackageManifest;
   dependencies: DeclaredDependency[];
   lockfile?: LockfileSummary;
+  /** Locked versions the project's last passing build used (`.packman/verified`). */
+  verified?: {
+    at: string;
+    node: string;
+    script: string;
+    versions: Record<string, string>;
+  };
   /** `node_modules` state: absent, a real folder, or a link into the shared store. */
   nodeModules: 'absent' | 'folder' | 'link';
   /** Installed versions read from node_modules/<name>/package.json for declared deps. */

@@ -45,6 +45,44 @@ describe('command sequences', () => {
         ?.version,
     ).toBe('22.19.0');
   });
+  it('profile generate takes tsconfig.json from the project with the highest TypeScript', async () => {
+    const root = await workspace({
+      'old/package.json': { name: 'old', devDependencies: { typescript: '4.7.4' } },
+      'old/tsconfig.json': { compilerOptions: { target: 'es5' } },
+      'new/package.json': { name: 'new', devDependencies: { typescript: '5.3.3' } },
+      'new/tsconfig.json': `{
+  // JSONC like generated SPFx configs
+  "extends": "./node_modules/@microsoft/rush-stack-compiler-5.3/includes/tsconfig-web.json",
+  "compilerOptions": { "target": "es2017", "skipLibCheck": true, },
+  "include": ["src/**/*.ts"],
+  "files": ["src/only-here.ts"],
+}`,
+    });
+    await cli([
+      'profile',
+      'generate',
+      root,
+      '-n',
+      'base',
+      '--tsconfig-from',
+      'latest-ts',
+      '--write',
+    ]);
+    const config = JSON.parse(await readFile(path.join(root, 'packman.config.json'), 'utf8')) as {
+      profiles: Record<string, { tsconfig: object }>;
+    };
+    expect(config.profiles.base?.tsconfig).toEqual({
+      extends: './node_modules/@microsoft/rush-stack-compiler-5.3/includes/tsconfig-web.json',
+      compilerOptions: { target: 'es2017', skipLibCheck: true },
+      include: ['src/**/*.ts'],
+    });
+  });
+  it('profile generate refuses an unknown tsconfig source without writing', async () => {
+    const root = await workspace({ 'app/package.json': { name: 'app' } });
+    await cli(['profile', 'generate', root, '-n', 'base', '--tsconfig-from', 'nope', '--write']);
+    expect(process.exitCode).toBe(1);
+    expect(existsSync(path.join(root, 'packman.config.json'))).toBe(false);
+  });
   it('refuses stale previews before writing any file and gives repeated backups distinct directories', async () => {
     const root = await workspace({ 'one.txt': 'one', 'two.txt': 'external edit' });
     await expect(
@@ -72,6 +110,23 @@ describe('command sequences', () => {
     expect(await readFile(path.join(first.backupDir, 'one.txt'), 'utf8')).toBe('one');
     expect(await readFile(path.join(second.backupDir, 'one.txt'), 'utf8')).toBe('first');
   });
+  it.each([
+    [[] as string[], 1],
+    [['--no-relock'], 0],
+  ])('version edits relock by default (extra flags %j -> %i npm runs)', async (flags, runs) => {
+    const root = await workspace({
+      'app/package.json': { name: 'app', dependencies: { 'is-number': '7.0.0' } },
+      'app/package-lock.json': lockfile('app', { 'is-number': '7.0.0' }, { 'is-number': '7.0.0' }),
+      'packman.config.json': {
+        profiles: { base: { projects: ['app'], dependencies: { 'is-number': '7.0.1' } } },
+      },
+    });
+    const run = vi.spyOn(runner, 'runWithNode').mockResolvedValue({ code: 0 });
+    await cli(['profile', 'apply', root, '--apply', '-y', '--offline', ...flags]);
+    expect(await readFile(path.join(root, 'app/package.json'), 'utf8')).toContain('7.0.1');
+    expect(run).toHaveBeenCalledTimes(runs);
+    if (runs) expect(run.mock.calls[0]?.[2]).toContain('--package-lock-only');
+  });
   it('relocks an SPFx upgrade with the target Node while check still reports what is installed', async () => {
     const root = await workspace({
       'app/package.json': { name: 'app', dependencies: { '@microsoft/sp-core-library': '1.18.2' } },
@@ -91,7 +146,7 @@ describe('command sequences', () => {
       },
     });
     const run = vi.spyOn(runner, 'runWithNode').mockResolvedValue({ code: 0 });
-    await cli(['update', root, '--apply', '--relock', '-y', '--offline']);
+    await cli(['profile', 'apply', root, '--apply', '--relock', '-y', '--offline']);
     expect(run).toHaveBeenCalledTimes(1);
     expect(run.mock.calls[0]?.[0].version).toBe('22.19.0');
     const session = await openSession(root, {});
@@ -135,13 +190,13 @@ describe('command sequences', () => {
     ).toBe(true);
   });
 
-  it('does not clean modules or lockfiles when reinstall has no compatible Node', async () => {
+  it('install --clean removes nothing when a project has no compatible Node', async () => {
     const root = await workspace({
       'app/package.json': { name: 'app', engines: { node: '8' } },
       'app/package-lock.json': lockfile('app', {}, {}),
       'app/node_modules/own.txt': 'keep',
     });
-    await cli(['reinstall', root, '-y', '--offline']);
+    await cli(['install', root, '--clean', '-y', '--offline']);
     expect(process.exitCode).toBe(1);
     expect(existsSync(path.join(root, 'app/package-lock.json'))).toBe(true);
     expect(await readFile(path.join(root, 'app/node_modules/own.txt'), 'utf8')).toBe('keep');
@@ -204,7 +259,7 @@ describe('command sequences', () => {
         );
       return { code: 0 };
     });
-    await cli(['update', root, '--apply', '--relock', '--install', '-y', '--offline']);
+    await cli(['profile', 'apply', root, '--apply', '--relock', '--install', '-y', '--offline']);
     expect(run).toHaveBeenCalledTimes(2);
     expect(
       run.mock.calls.every(
@@ -222,14 +277,14 @@ describe('command sequences', () => {
       },
     });
     const run = vi.spyOn(runner, 'runWithNode').mockResolvedValue({ code: 7 });
-    await cli(['update', root, '--apply', '--install', '--offline']);
+    await cli(['profile', 'apply', root, '--apply', '--install', '--offline']);
     expect(run).not.toHaveBeenCalled();
-    await cli(['update', root, '--apply', '--install', '--relock', '-y', '--offline']);
+    await cli(['profile', 'apply', root, '--apply', '--install', '--relock', '-y', '--offline']);
     expect(run).toHaveBeenCalledTimes(1);
     expect(process.exitCode).toBe(1);
   });
 
-  it('reinstall uses install after removing the old lockfile, rather than ci', async () => {
+  it('install --clean uses install after removing the old lockfile, rather than ci', async () => {
     const root = await workspace({
       'app/package.json': { name: 'app', dependencies: { 'is-number': '7.0.0' } },
       'app/package-lock.json': lockfile('app', { 'is-number': '7.0.0' }, { 'is-number': '7.0.0' }),
@@ -240,7 +295,7 @@ describe('command sequences', () => {
       expect(existsSync(path.join(dir, 'node_modules'))).toBe(false);
       return Promise.resolve({ code: 0 });
     });
-    await cli(['reinstall', root, '-y', '--offline']);
+    await cli(['install', root, '--clean', '-y', '--offline']);
     expect(run.mock.calls[0]?.[2][0]).toBe('install');
   });
 
@@ -284,6 +339,16 @@ describe('command sequences', () => {
           JSON.stringify({ name, version: '7.0.0' }),
         );
       }
+      await writeFile(
+        path.join(dir, 'package-lock.json'),
+        JSON.stringify({
+          packages: {
+            '': {},
+            'node_modules/is-number': { version: '7.0.0' },
+            'node_modules/is-odd': { version: '3.0.1', dependencies: { 'is-number': '^7.0.0' } },
+          },
+        }),
+      );
       return { code: 0 };
     });
     await cli(['store', 'link', root, '--group', group.key, '--union', '-y', '--offline']);
@@ -293,5 +358,14 @@ describe('command sequences', () => {
     expect(
       (await readLinks(root)).find((link) => link.projectId === 'app-b')?.packages,
     ).not.toContain('is-odd');
+
+    const stdout = vi.spyOn(process.stdout, 'write').mockImplementation(() => true);
+    await cli(['store', 'status', root, '--json']);
+    const status = JSON.parse(String(stdout.mock.calls[0]?.[0])) as { projectId: string }[];
+    expect(status.map((row) => row.projectId).sort()).toEqual(['app-a', 'app-b']);
+
+    // --project/--exclude take globs like every other command.
+    await cli(['store', 'unlink', root, '-p', 'app-*', '-x', 'app-b']);
+    expect((await readLinks(root)).map((link) => link.projectId)).toEqual(['app-b']);
   });
 });

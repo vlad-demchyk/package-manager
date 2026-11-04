@@ -1,23 +1,30 @@
 import path from 'node:path';
 import { Box, Text, useApp, useInput, useWindowSize } from 'ink';
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import semver from 'semver';
 import type { ProjectReport, Report } from '../analyze.js';
-import { SEVERITY_ORDER } from '../core/findings.js';
-import type { Finding, Fix, Severity } from '../core/types.js';
+import { fix, msg, setDependency, SEVERITY_ORDER } from '../core/findings.js';
+import type { Finding, Fix, Project, Severity } from '../core/types.js';
 import { collectEdits, lineDiff, previewEdits, type FilePreview } from '../fixes/apply.js';
 import { t, tm } from '../i18n/index.js';
 import { nodeLineStatus, nodeVulnerabilities } from '../node/releases.js';
+import { alignPackage } from '../ops/align.js';
 import { versionMatrix, type MatrixRow } from '../ops/matrix.js';
+import type { OutdatedRow } from '../ops/outdated.js';
 import { allFindings, summarize } from '../report/model.js';
+import { planStore, type StorePlan } from '../store/store.js';
 import { Counts, KeyHints, List, SEVERITY_COLOR, SEVERITY_ICON, tone } from './components.js';
 
-export type Tab = 'overview' | 'projects' | 'matrix' | 'node' | 'fixes';
-const TABS: Tab[] = ['overview', 'projects', 'matrix', 'node', 'fixes'];
+/** Read-only views first; Fixes, where selected changes are reviewed and written, comes last. */
+export type Tab = 'overview' | 'projects' | 'versions' | 'outdated' | 'node' | 'store' | 'fixes';
+const TABS: Tab[] = ['overview', 'projects', 'versions', 'outdated', 'node', 'store', 'fixes'];
 const SEVERITIES: Severity[] = ['info', 'warning', 'error', 'critical'];
 
 export interface AppProps {
   load: (onProgress: (done: number, total: number, id: string) => void) => Promise<Report>;
   apply: (previews: FilePreview[]) => Promise<{ files: string[]; backupDir: string }>;
+  /** Registry lookup behind the Outdated tab, run the first time the tab opens. */
+  loadOutdated?: (projects: Project[]) => Promise<OutdatedRow[]>;
 }
 
 interface SelectedFix {
@@ -29,7 +36,7 @@ interface SelectedFix {
 const fixKey = (item: Finding, fix: Fix): string =>
   `${item.projectId ?? '*'}|${item.ruleId}|${fix.id}|${JSON.stringify(item.message.params ?? {})}`;
 
-export function App({ load, apply }: AppProps): ReactNode {
+export function App({ load, apply, loadOutdated }: AppProps): ReactNode {
   const { exit } = useApp();
   const { rows } = useWindowSize();
   const [report, setReport] = useState<Report>();
@@ -39,10 +46,14 @@ export function App({ load, apply }: AppProps): ReactNode {
   const [cursor, setCursor] = useState<Record<Tab, number>>({
     overview: 0,
     projects: 0,
-    matrix: 0,
+    versions: 0,
     node: 0,
     fixes: 0,
+    outdated: 0,
+    store: 0,
   });
+  const [outdatedRows, setOutdatedRows] = useState<OutdatedRow[]>();
+  const [outdatedError, setOutdatedError] = useState<string>();
   const [detail, setDetail] = useState<number>();
   const [detailCursor, setDetailCursor] = useState(0);
   const [minSeverity, setMinSeverity] = useState<Severity>('info');
@@ -62,6 +73,8 @@ export function App({ load, apply }: AppProps): ReactNode {
     setDetail(undefined);
     setDetailCursor(0);
     setConfirming(false);
+    setOutdatedRows(undefined);
+    setOutdatedError(undefined);
     load((done, total, id) => {
       setProgress(`[${done + 1}/${total}] ${id}`);
     })
@@ -97,6 +110,19 @@ export function App({ load, apply }: AppProps): ReactNode {
     };
   }, [tab, selected]);
 
+  useEffect(() => {
+    if (tab !== 'outdated' || !report || !loadOutdated || outdatedRows || outdatedError) return;
+    const request = loadId.current;
+    loadOutdated(report.projects.map((entry) => entry.project))
+      .then((next) => {
+        if (request === loadId.current) setOutdatedRows(next);
+      })
+      .catch((reason: unknown) => {
+        if (request === loadId.current)
+          setOutdatedError(reason instanceof Error ? reason.message : String(reason));
+      });
+  }, [tab, report, loadOutdated, outdatedRows, outdatedError]);
+
   const listHeight = Math.max(5, rows - 9);
   const projects = report?.projects ?? [];
   const workspaceFindings = (report?.workspaceFindings ?? []).filter(visible);
@@ -112,6 +138,56 @@ export function App({ load, apply }: AppProps): ReactNode {
         : [],
     [report],
   );
+  const storePlan = useMemo(
+    () => (report ? planStore(report, { union: true }) : undefined),
+    [report],
+  );
+
+  /** Selects or drops one fix that does not belong to a finding (align, outdated). */
+  const toggleFix = (key: string, item: Fix | undefined, projectId = '*'): void => {
+    if (!item || item.edits.length === 0) {
+      setNotice(t('tui.nothingToChange'));
+      return;
+    }
+    setSelected((previous) => {
+      const next = new Map(previous);
+      if (next.has(key)) next.delete(key);
+      else next.set(key, { key, projectId, fix: item });
+      return next;
+    });
+  };
+
+  /** `packman profile apply` in the TUI: every fix of a profile finding at once. */
+  const toggleProfileFixes = (): void => {
+    if (!report) return;
+    const items = allFindings(report).filter(
+      (item) => item.ruleId.startsWith('profile/') && item.fixes.length > 0,
+    );
+    if (items.length === 0) {
+      setNotice(t('tui.noProfileFixes'));
+      return;
+    }
+    const pairs = items.flatMap((item) =>
+      item.fixes.map((entry) => ({ key: fixKey(item, entry), item, fix: entry })),
+    );
+    const allSelected = pairs.every((pair) => selected.has(pair.key));
+    setSelected((previous) => {
+      const next = new Map(previous);
+      for (const pair of pairs) {
+        if (allSelected) next.delete(pair.key);
+        else
+          next.set(pair.key, {
+            key: pair.key,
+            projectId: pair.item.projectId ?? '*',
+            fix: pair.fix,
+          });
+      }
+      return next;
+    });
+    setNotice(
+      t(allSelected ? 'tui.profilesCleared' : 'tui.profilesSelected', { count: pairs.length }),
+    );
+  };
 
   const toggleFixes = (item: Finding | undefined): void => {
     if (!item || item.fixes.length === 0) return;
@@ -175,11 +251,15 @@ export function App({ load, apply }: AppProps): ReactNode {
         ? workspaceFindings.length
         : tab === 'projects'
           ? projects.length
-          : tab === 'matrix'
+          : tab === 'versions'
             ? matrixRows.length
             : tab === 'node'
               ? report.installedNodes.length
-              : previews.length;
+              : tab === 'outdated'
+                ? (outdatedRows?.length ?? 0)
+                : tab === 'store'
+                  ? (storePlan?.groups.length ?? 0)
+                  : previews.length;
 
     if (key.upArrow || input === 'k') move(-1, total);
     else if (key.downArrow || input === 'j') move(1, total);
@@ -192,6 +272,24 @@ export function App({ load, apply }: AppProps): ReactNode {
     } else if (key.return && !current && tab === 'projects') {
       setDetail(cursor.projects);
       setDetailCursor(0);
+    } else if (input === ' ' && !current && tab === 'versions') {
+      const row = matrixRows[cursor.versions];
+      if (row)
+        toggleFix(
+          `align|${row.name}`,
+          alignPackage(
+            projects.map((entry) => entry.project),
+            row.name,
+          )?.fix,
+        );
+    } else if (input === ' ' && !current && tab === 'outdated') {
+      const row = outdatedRows?.[cursor.outdated];
+      if (row)
+        toggleFix(
+          `outdated|${row.projectId}|${row.name}`,
+          bumpInMajor(projects.find((entry) => entry.project.id === row.projectId)?.project, row),
+          row.projectId,
+        );
     } else if (input === ' ') {
       toggleFixes(
         current
@@ -200,13 +298,15 @@ export function App({ load, apply }: AppProps): ReactNode {
             ? workspaceFindings[cursor.overview]
             : undefined,
       );
+    } else if (input === 'u') {
+      toggleProfileFixes();
     } else if (key.tab || key.rightArrow || key.leftArrow) {
       if (current) return;
       const step = key.leftArrow || key.shift ? -1 : 1;
       setTab(
         (value) => TABS[(TABS.indexOf(value) + step + TABS.length) % TABS.length] ?? 'overview',
       );
-    } else if (['1', '2', '3', '4', '5'].includes(input)) {
+    } else if (/^[1-7]$/.test(input)) {
       setDetail(undefined);
       setTab(TABS[Number(input) - 1] ?? 'overview');
     } else if (input === 's') {
@@ -273,10 +373,25 @@ export function App({ load, apply }: AppProps): ReactNode {
           />
         ) : tab === 'projects' ? (
           <Projects projects={projects} cursor={cursor.projects} height={listHeight} />
-        ) : tab === 'matrix' ? (
-          <MatrixTab rows={matrixRows} cursor={cursor.matrix} height={listHeight} />
+        ) : tab === 'versions' ? (
+          <VersionsTab
+            rows={matrixRows}
+            cursor={cursor.versions}
+            height={listHeight}
+            selected={selected}
+          />
         ) : tab === 'node' ? (
           <NodeTab report={report} cursor={cursor.node} height={listHeight} />
+        ) : tab === 'outdated' ? (
+          <OutdatedTab
+            rows={outdatedRows}
+            error={loadOutdated ? outdatedError : t('tui.outdatedUnavailable')}
+            cursor={cursor.outdated}
+            height={listHeight}
+            selected={selected}
+          />
+        ) : tab === 'store' ? (
+          <StoreTab report={report} plan={storePlan} cursor={cursor.store} height={listHeight} />
         ) : (
           <FixesTab
             root={report.root}
@@ -299,6 +414,7 @@ export function App({ load, apply }: AppProps): ReactNode {
           ['enter', t('tui.key.open')],
           ['esc', t('tui.key.back')],
           ['space', t('tui.key.select')],
+          ['u', t('tui.key.profiles')],
           ['s', t('tui.key.severity')],
           ['a', t('tui.key.apply')],
           ['r', t('tui.key.reload')],
@@ -557,7 +673,159 @@ function FixesTab(props: {
   );
 }
 
-function MatrixTab(props: { rows: MatrixRow[]; cursor: number; height: number }): ReactNode {
+/**
+ * Raises an exact or `^`/`~` spec to the newest release of its current major, keeping the operator.
+ * Other ranges are left to the user: rewriting them would change their meaning.
+ */
+export function bumpInMajor(project: Project | undefined, row: OutdatedRow): Fix | undefined {
+  const target = row.latestInMajor;
+  const operator = /^([\^~]?)\d+\.\d+\.\d+$/.exec(row.spec)?.[1];
+  if (!project || !target || operator === undefined) return undefined;
+  if (row.current && semver.valid(row.current) && !semver.gt(target, row.current)) return undefined;
+  const value = `${operator}${target}`;
+  if (value === row.spec) return undefined;
+  return fix(
+    'outdated/in-major',
+    msg('fix.bumpInMajor', { name: row.name, version: value }),
+    'review',
+    [setDependency(project, row.name, value)],
+  );
+}
+
+function OutdatedTab(props: {
+  rows: OutdatedRow[] | undefined;
+  error: string | undefined;
+  cursor: number;
+  height: number;
+  selected: Map<string, SelectedFix>;
+}): ReactNode {
+  const { rows, error, cursor, height, selected } = props;
+  if (error) return <Text color="red">{error}</Text>;
+  if (!rows) return <Text dimColor>{t('tui.outdatedLoading')}</Text>;
+  const row = rows[cursor];
+  return (
+    <Box flexDirection="column">
+      <List
+        items={rows}
+        selected={cursor}
+        height={Math.max(3, height - 6)}
+        empty={t('outdated.none')}
+        renderItem={(item, active) => {
+          const picked = selected.has(`outdated|${item.projectId}|${item.name}`);
+          const major =
+            item.latest && item.current && semver.valid(item.current) && semver.valid(item.latest)
+              ? semver.major(item.latest) !== semver.major(item.current)
+              : false;
+          return (
+            <Text wrap="truncate-end">
+              <Text color={picked ? 'green' : 'gray'}>{picked ? '[x] ' : '[ ] '}</Text>
+              <Text bold={active}>{item.name}</Text>
+              <Text dimColor>{`  ${item.projectId}  ${item.current ?? '-'}`}</Text>
+              {` → ${item.latestInMajor ?? '-'}`}
+              <Text {...tone(major ? 'red' : undefined)} dimColor={!major}>
+                {`  latest ${item.latest ?? '-'}`}
+              </Text>
+              {item.deprecated && <Text color="red"> deprecated</Text>}
+            </Text>
+          );
+        }}
+      />
+      {row && (
+        <Box
+          flexDirection="column"
+          borderStyle="round"
+          borderColor="gray"
+          paddingX={1}
+          marginTop={1}
+        >
+          <Text wrap="truncate-end">
+            {`${row.name} ${row.spec}: wanted ${row.wanted ?? '-'}, ${t('tui.inMajor')} ${row.latestInMajor ?? '-'}, latest ${row.latest ?? '-'}`}
+          </Text>
+          {row.deprecated && (
+            <Text color="red" wrap="truncate-end">
+              {row.deprecated}
+            </Text>
+          )}
+        </Box>
+      )}
+    </Box>
+  );
+}
+
+function StoreTab(props: {
+  report: Report;
+  plan: StorePlan | undefined;
+  cursor: number;
+  height: number;
+}): ReactNode {
+  const { report, plan, cursor, height } = props;
+  const linked = new Map((report.links ?? []).map((link) => [link.projectId, link]));
+  const groups = plan?.groups ?? [];
+  const group = groups[cursor];
+  return (
+    <Box flexDirection="column">
+      <List
+        items={groups}
+        selected={cursor}
+        height={Math.max(3, Math.min(groups.length, height - 12))}
+        empty={t('store.none')}
+        renderItem={(item, active) => {
+          const count = item.projectIds.filter((id) => linked.has(id)).length;
+          return (
+            <Text wrap="truncate-end">
+              <Text bold={active}>{item.key.slice(0, 18)}</Text>
+              <Text dimColor>
+                {`  ${item.mode} · ${item.projectIds.length} · node ${item.node?.version ?? '?'}`}
+              </Text>
+              <Text {...tone(count > 0 ? 'green' : undefined)} dimColor={count === 0}>
+                {`  ${t('tui.storeLinked', { count, total: item.projectIds.length })}`}
+              </Text>
+            </Text>
+          );
+        }}
+      />
+      {group && (
+        <Box
+          flexDirection="column"
+          borderStyle="round"
+          borderColor="gray"
+          paddingX={1}
+          marginTop={1}
+        >
+          {group.projectIds.slice(0, Math.max(3, height - 18)).map((id) => (
+            <Text key={id} wrap="truncate-end">
+              <Text color={linked.has(id) ? 'green' : 'gray'}>{linked.has(id) ? '↔ ' : '  '}</Text>
+              {id}
+            </Text>
+          ))}
+          {group.warnings.slice(0, 3).map((warning) => (
+            <Text key={warning} color="yellow" wrap="truncate-end">
+              {`! ${warning}`}
+            </Text>
+          ))}
+          <Text dimColor wrap="truncate-end">
+            {t('tui.storeHint', { key: group.key.slice(0, 12) })}
+          </Text>
+        </Box>
+      )}
+      {plan && (plan.candidates.length > 0 || plan.excluded.length > 0) && (
+        <Text dimColor wrap="truncate-end">
+          {t('tui.storeOthers', {
+            candidates: plan.candidates.length,
+            excluded: plan.excluded.length,
+          })}
+        </Text>
+      )}
+    </Box>
+  );
+}
+
+function VersionsTab(props: {
+  rows: MatrixRow[];
+  cursor: number;
+  height: number;
+  selected: Map<string, SelectedFix>;
+}): ReactNode {
   const { rows, cursor, height } = props;
   const selected = rows[cursor];
   return (
@@ -569,7 +837,11 @@ function MatrixTab(props: { rows: MatrixRow[]; cursor: number; height: number })
         empty={t('report.noFindings')}
         renderItem={(row, active) => (
           <Text wrap="truncate-end">
-            <Text color="yellow">≠ </Text>
+            {props.selected.has(`align|${row.name}`) ? (
+              <Text color="green">[x] </Text>
+            ) : (
+              <Text color="yellow">≠ </Text>
+            )}
             <Text bold={active}>{row.name}</Text>
             <Text dimColor>{`  ${row.versions.join(' · ')}`}</Text>
           </Text>

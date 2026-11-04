@@ -22,7 +22,7 @@ export const SEVERITY_ICON: Record<Severity, string> = {
 };
 
 /** Index of the first visible row so that `selected` stays inside a window of `height` rows. */
-export function windowStart(selected: number, total: number, height: number): number {
+function windowStart(selected: number, total: number, height: number): number {
   if (total <= height) return 0;
   const half = Math.floor(height / 2);
   return Math.min(Math.max(0, selected - half), total - height);

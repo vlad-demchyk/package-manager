@@ -2,7 +2,8 @@ import { existsSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 import path from 'node:path';
 import { readJsonFile } from './json.js';
-import type { LockedPackage, LockfileSummary } from './types.js';
+import { readPnpmLockfile, readYarnLockfile } from './lockfile-text.js';
+import type { LockedPackage, LockfileSummary, PackageManifest } from './types.js';
 
 interface NpmLockV2Entry {
   version?: string;
@@ -30,8 +31,14 @@ interface NpmLock {
   dependencies?: Record<string, NpmLockV1Entry>;
 }
 
-/** Finds and summarizes the lockfile of a project directory. Returns undefined when none. */
-export async function readLockfile(dir: string): Promise<LockfileSummary | undefined> {
+/**
+ * Finds and summarizes the lockfile of a project directory. Returns undefined when none.
+ * yarn.lock does not record the root specs, so they are matched against the manifest.
+ */
+export async function readLockfile(
+  dir: string,
+  manifest?: PackageManifest,
+): Promise<LockfileSummary | undefined> {
   for (const name of ['npm-shrinkwrap.json', 'package-lock.json']) {
     const file = path.join(dir, name);
     if (existsSync(file)) {
@@ -40,11 +47,11 @@ export async function readLockfile(dir: string): Promise<LockfileSummary | undef
   }
   const yarn = path.join(dir, 'yarn.lock');
   if (existsSync(yarn)) {
-    return { kind: 'yarn', path: yarn, rootSpecs: {}, packages: [] };
+    return readYarnLockfile(yarn, manifest);
   }
   const pnpm = path.join(dir, 'pnpm-lock.yaml');
   if (existsSync(pnpm)) {
-    return { kind: 'pnpm', path: pnpm, rootSpecs: {}, packages: [] };
+    return readPnpmLockfile(pnpm);
   }
   return undefined;
 }

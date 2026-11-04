@@ -1,8 +1,8 @@
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
-import os from 'node:os';
 import path from 'node:path';
 import semver from 'semver';
+import { packmanHome } from '../core/data.js';
 import type { Project } from '../core/types.js';
 
 const BULK_ENDPOINT = 'https://registry.npmjs.org/-/npm/v1/security/advisories/bulk';
@@ -44,11 +44,7 @@ interface CacheFile {
 }
 
 export function cacheDir(): string {
-  const base =
-    process.platform === 'win32' && process.env.LOCALAPPDATA
-      ? process.env.LOCALAPPDATA
-      : path.join(os.homedir(), '.cache');
-  return path.join(base, 'packman', 'cache');
+  return path.join(packmanHome(), 'cache');
 }
 
 /** name -> versions used anywhere in the workspace (lockfile, or installed when no lockfile). */

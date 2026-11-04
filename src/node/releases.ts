@@ -82,12 +82,6 @@ export function nodeVulnDataInfo(): { fetchedAt: string; source: string } {
   return { fetchedAt, source };
 }
 
-/** Latest release of the same major line, or undefined when the line is EOL. */
-export function latestInLine(version: string): string | undefined {
-  const status = nodeLineStatus(version);
-  return status.phase === 'eol' ? undefined : status.latest;
-}
-
 function safeSatisfies(version: string, range: string): boolean {
   try {
     return semver.satisfies(version, range);

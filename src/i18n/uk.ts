@@ -37,6 +37,13 @@ export const uk: Catalogue = {
   'npm.unboundedSpec': 'Необмежені версії (*, latest) роблять установку непередбачуваною',
   'npm.lockfileMissing': 'Немає lock-файлу: установка не відтворювана',
   'npm.lockfileV1': 'Lock-файл v1 (npm 5-6): перегенеруйте npm 7+ для повних метаданих',
+  'npm.treeBroken':
+    '{count} пакетів у lock-файлі отримують залежність поза своїм діапазоном: під час роботи завантажать не ту копію',
+  'npm.treePeer': '{count} peer-вимог вкладених пакетів не задоволено деревом lock-файлу',
+  'verified.recorded':
+    'Збережено перевірені набори: {projects} проєктів, {stores} спільних сховищ (.packman/verified).',
+  'npm.unverifiedVersions':
+    '{count} версій у lock-файлі відрізняються від набору, з яким {script} пройшов ({date}): не перевірені збіркою',
   'npm.lockfileDrift': 'Lock-файл не відповідає package.json ({count} пакетів)',
   'npm.notInstalled': 'Залежності не встановлені',
   'npm.installedDrift': 'Встановлені пакети відрізняються від package.json ({count})',
@@ -121,8 +128,24 @@ export const uk: Catalogue = {
 
   'tui.tab.overview': 'Огляд',
   'tui.tab.projects': 'Проєкти',
-  'tui.tab.matrix': 'Матриця',
+  'tui.tab.versions': 'Версії',
   'tui.tab.node': 'Node',
+  'tui.tab.outdated': 'Застарілі',
+  'tui.tab.store': 'Сховище',
+  'tui.key.profiles': 'профілі',
+  'tui.nothingToChange': 'Для цього рядка нічого змінювати.',
+  'tui.noProfileFixes': 'Немає відхилень від профілів (профілі в packman.config.json).',
+  'tui.profilesSelected': 'Вибрано {count} виправлень профілів: перегляньте їх у Виправленнях.',
+  'tui.profilesCleared': 'Знято вибір з {count} виправлень профілів.',
+  'tui.outdatedLoading': 'Запит до npm-реєстру…',
+  'tui.outdatedUnavailable': 'Запит до реєстру тут недоступний: запустіть packman outdated.',
+  'tui.inMajor': 'найновіша в major',
+  'tui.storeLinked': 'привʼязано {count}/{total}',
+  'tui.storeHint':
+    'Привʼязати: packman store link -g {key} --union (встановлює, потім замінює node_modules)',
+  'tui.storeOthers':
+    '{candidates} груп спершу треба вирівняти, {excluded} проєктів виключено: packman store plan',
+  'fix.bumpInMajor': 'Оновити {name} до {version}',
   'tui.tab.fixes': 'Виправлення',
   'tui.minSeverity': 'показано {severity} і серйозніше',
   'tui.key.move': 'рух',
@@ -180,6 +203,24 @@ export const uk: Catalogue = {
   'update.noProfiles':
     'У packman.config.json немає профілів: створіть його через `packman profile generate --name <імʼя> --write`.',
   'profile.notWritten': 'Не записано: додайте --write, щоб зберегти в packman.config.json.',
+  'store.seeded':
+    'Розвʼязка від перевіреного набору {date} (Node {node}); --refresh розвʼязує заново.',
+  'store.unverified':
+    '{count} версій відрізняються від перевіреного набору і ще не перевірені збіркою:',
+  'install.drift':
+    '{project}: package-lock.json не відповідає package.json; запустіть packman relock і перегляньте зміни (інакше npm сам вибере версії).',
+  'store.peers': '{count} peer-вимог не задоволено версіями групи; виправте їх у проєктах:',
+  'cli.notANumber': '{value} не є цілим числом від 0.',
+  'data.usingUpdated': 'використовується оновлена копія',
+  'data.usingBundled': 'використовується вбудована копія',
+  'data.dir': 'Тека оновлених даних: {dir}',
+  'data.file': '{name}: {before} -> {after}',
+  'data.noChanges': 'без змін',
+  'data.notWritten': 'Не записано: запустіть без --dry-run, щоб зберегти оновлені дані.',
+  'data.written': 'Збережено в {dir}; вбудовані файли не змінено.',
+  'profile.tsconfigSource': 'tsconfig.json взято з {project}',
+  'profile.tsconfigSourceMissing':
+    'Немає читабельного tsconfig.json для {project} (id проєкту або latest-ts) {reason}',
   'profile.written': 'Профіль {name} записано в {file}',
   'align.package': 'Вирівнювання {name} до {version}',
   'align.unknownProject': 'Невідомий проєкт {project}',
@@ -225,6 +266,8 @@ export const uk: Catalogue = {
   'upgrade.reactApi':
     'Для React {version} треба перевести ReactDom.render/unmount у коді на root API.',
   'upgrade.pnpMajor': 'PnPjs {from} -> {to}: перевірте зміни API й збірку.',
+  'upgrade.pnpAsyncTarget':
+    'З target {target} у tsconfig `for await` по запитах PnPjs не компілюється (TS2495): підніміть target до ES2018+ або увімкніть downlevelIteration (додавши lib es2018.asynciterable, якщо Symbol.asyncIterator невідомий).',
   'upgrade.pnpApi':
     'Код використовує прибрані API/імпорти PnPjs; замініть getAll/getPaged/Graph paged на async iterator та імпорти common/odata.',
   'upgrade.customGulp':

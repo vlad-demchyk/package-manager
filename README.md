@@ -44,23 +44,31 @@ packman upgrade             # plan convergence on the newest project stack alrea
 
 All commands accept `--project <globs...>`, `--exclude <globs...>`, `--depth <n>`, `--lang en|it|uk`.
 Commands that edit files print a diff and write only with `--apply` (backups in `.packman/backups/`,
-history in `.packman/journal.jsonl`); `--relock` regenerates the lockfiles of changed projects with
-their own Node.
+history in `.packman/journal.jsonl`). When the edits change versions, the lockfiles of the changed
+projects are regenerated with their own Node (`--no-relock` keeps them; `--relock` also relocks
+projects without version edits or lockfile).
 
-| 2.x menu                                                      | 3.0 command                                                                                                           |
-| ------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
-| Update configs (dependencies-config.js)                       | `packman update [--apply] [--relock] [--install]` with `profiles` in `packman.config.json`                            |
-| Generate dependencies config                                  | `packman profile generate --name <name> [--strategy highest\|common] [--write]`                                       |
-| Install / reinstall / clean (normal, legacy-peer-deps, force) | `packman install [--mode ...] [--lock-only]`, `packman reinstall [--lock-only]`, `packman clean [--lock] [--modules]` |
-| Compare versions between all projects                         | `packman matrix [--diverging] [--package <globs>]`, TUI tab Matrix                                                    |
-| Version alignment between projects                            | `packman align --base <a> [--to <b>] [--only ...] [--pin]`, `packman align --package <name> [--version <v>]`          |
-| npm outdated / audit / package-lock-only                      | `packman outdated`, `packman audit`, `packman relock`, `packman install --lock-only`                                  |
-| Depcheck + whitelist                                          | rules `npm/unused-*` with fixes, `packman ignore add\|remove\|list`                                                   |
-| Logs                                                          | `packman log [-n 30] [--prune <days>]`                                                                                |
-| List components, recursive search                             | `packman list`, `projects.maxDepth` / `--depth`, `projects.requiredFiles`, `projects.match`                           |
-| Workspace mode (Yarn)                                         | `packman store ...` (below)                                                                                           |
+| 2.x menu                                                      | 3.0 command                                                                                                            |
+| ------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
+| Update configs (dependencies-config.js)                       | `packman profile apply [--apply] [--no-relock] [--install]` with `profiles` in `packman.config.json`                   |
+| Generate dependencies config                                  | `packman profile generate --name <name> [--strategy highest\|common] [--tsconfig-from <project>\|latest-ts] [--write]` |
+| Install / reinstall / clean (normal, legacy-peer-deps, force) | `packman install [--mode ...] [--clean]`, `packman clean [--lock] [--modules]`                                         |
+| Compare versions between all projects                         | `packman versions [--diverging] [--package <globs>]`, TUI tab Versions                                                 |
+| Version alignment between projects                            | `packman align --base <a> [--to <b>] [--only ...] [--pin]`, `packman align --package <name> [--version <v>]`           |
+| npm outdated / audit / package-lock-only                      | `packman outdated`, `packman audit`, `packman relock`                                                                  |
+| Depcheck + whitelist                                          | rules `npm/unused-*` with fixes, `packman ignore add\|remove\|list`                                                    |
+| Logs                                                          | `packman log [-n 30] [--prune <days>]`                                                                                 |
+| List components, recursive search                             | `packman list`, `projects.maxDepth` / `--depth`, `projects.requiredFiles`, `projects.match`                            |
+| Workspace mode (Yarn)                                         | `packman store ...` (below)                                                                                            |
 
 `check` exits with code 1 when there are findings of severity `error` or worse (`--fail-on` changes it).
+
+The TUI collects fixes the same way everywhere and writes them only after a diff and a confirmation
+(tab 7 Fixes, key `a`): `space` selects the fix of a finding, aligns a diverging package in Versions
+(like `align --package`) or raises an outdated package to the newest release of its major in
+Outdated (tab 4, exact, `^` and `~` specs only); `u` selects every profile fix (like `profile apply`).
+Store (tab 6) shows the union plan and which projects are linked; linking stays a CLI command because
+it installs and replaces `node_modules`.
 
 ## What it checks
 
@@ -73,16 +81,47 @@ their own Node.
 | Groups               | projects grouped by stack version and Node line, the largest group is the baseline; inside a group every shared package must resolve to one version                                                                                                                                                                                                                                                                                                                                 |
 | SPFx core packages   | packages the official generator scaffolds for the SPFx version, toolchain (gulp/Heft), component types (from `*.manifest.json`) and React usage (`data/spfx-scaffold.json`, extracted from `@microsoft/generator-sharepoint` 1.0-1.24): never reported as unused; missing ones are errors (`spfx/core-missing`), ones present only as transitive dependencies are warnings (`spfx/core-transitive`), without lockfile they cannot be verified (`spfx/core-unverified`)              |
 | Profiles             | `profile/*`: versions, misplaced sections, missing, deprecated, scripts, engines, overrides, tsconfig leaves differing from the project's profile                                                                                                                                                                                                                                                                                                                                   |
-| Other stacks         | React, TypeScript (including TypeScript 7 with tools that need its API), Vite, Next.js, Angular, Vue, Electron, ESLint (legacy config ignored by ESLint 10), Jest, Vitest                                                                                                                                                                                                                                                                                                           |
+| Locked tree          | every dependency edge of the npm lockfile, transitive ones included, resolved the way Node does: a dependency outside its range is an error (`npm/tree-broken`), unmet peers of nested packages a warning (`npm/tree-peer`); locked versions that moved away from the set the last passing build used (`npm/unverified-versions`)                                                                                                                                                   |
+| Other stacks         | React, TypeScript (including TypeScript 7 with tools that need its API), Vite, Next.js, Angular, Vue, Electron, ESLint (legacy config ignored by ESLint 10), Jest, Vitest; Angular, Next.js and Vite majors carry Node and companion ranges from `data/frameworks.json` (TypeScript, rxjs, zone.js; React) even before installation                                                                                                                                                 |
 
 Compatibility data lives in `data/` with the date it was verified and its sources:
 `spfx.json` (SPFx 1.0 to 1.24), `node.json` (release schedule), `node-vulns.json` (Node CVEs),
-`families.json`, `network.json`, `spfx-scaffold.json`.
+`frameworks.json` (Angular 14+, Next.js 13+, Vite 4+ from the npm registry), `families.json`,
+`network.json`, `spfx-scaffold.json`.
+
+`packman data update [--dry-run]` refreshes `node.json`, `node-vulns.json` and `frameworks.json` from the
+Node release schedule, `nodejs.org/dist/index.json`, nodejs/security-wg and the npm registry, prints what changed and saves the result
+in the per-user data folder (`%LOCALAPPDATA%\packman\data`, `~/.cache/packman/data`; `PACKMAN_DATA_DIR`
+overrides it). Bundled files are never modified; an updated copy is used while it is at least as recent
+as the bundled one. A result with fewer release lines or vulnerabilities than already known is
+refused. The SPFx, scaffold, family and network files are curated by hand. `packman data status` shows
+which copy each check uses.
+
+Lockfiles: `package-lock.json`/`npm-shrinkwrap.json` (v1-v3), `yarn.lock` (classic and berry) and
+`pnpm-lock.yaml` (v5-v9). yarn and pnpm do not record a `node_modules` layout, so their packages are
+placed the way npm would hoist them; store, relock and upgrade commands still require npm lockfiles.
 
 Unused-dependency rules count as used: imports from code and styles (`~pkg`, `pkg:`), tools implied by
 config files and npm scripts (including the executables of installed packages), plugins of configured
 tools, `@types/*`, peer/optional dependencies, SPFx core packages, and packages that other packages
 require (a top-level declaration then pins a transitive version).
+
+## Verified version sets
+
+Floating ranges let npm pick newer versions on its own. packman keeps the versions a build has
+proven instead:
+
+- When `store verify` or `upgrade --verify` passes, each passing project's locked versions are saved
+  as its verified set, and a shared store whose members all passed keeps its lockfile
+  (`.packman/verified/`).
+- The next union store of the same projects is resolved from that lockfile: npm keeps those versions
+  and changes only what the manifests changed. `store link --refresh` resolves the tree fresh.
+- Every version that moved away from a verified set is listed as not verified by a build: after
+  `store link`, `relock`, `install --clean`, and in `check` (`npm/unverified-versions`).
+- `npm/range-spec` pins `^`/`~` dependencies to the verified version when there is one.
+- `install` runs `npm ci`. A lockfile out of sync with `package.json` stops the install for that
+  project with a pointer to `packman relock`, instead of a silent `npm install` that re-resolves
+  versions (`--mode force` still runs `npm install` on request).
 
 ## One target stack for the repository
 
@@ -106,7 +145,7 @@ Major API changes still need code review; build verification is available with `
 Applied upgrades save `target`, a `packman-<stack>` profile and a matching group. Generated profiles
 and groups use a `stack` filter, so future SPFx projects follow the same policy while an unrelated
 Vite/React project does not receive SPFx packages. Existing conflicting profiles block the migration.
-`check` reports target deviations; `update` enforces the saved versions. Names starting with `packman-`
+`check` reports target deviations; `profile apply` enforces the saved versions. Names starting with `packman-`
 are reserved for generated profiles. A filtered `--project` migration saves only the selected scope.
 
 ```json
@@ -136,9 +175,17 @@ packman store plan              # exact mode: identical manifests and lockfiles 
 
 How the union store works:
 
-- The store lockfile is merged from the members' lockfiles: agreed versions are kept, conflicting ones
-  resolve to the version most members lock, and `store link` lists every conflict. npm then only resolves
-  what is missing, so the store keeps the versions the projects are locked to.
+- Direct dependencies have one version for the whole group: projects that declare different versions
+  are not grouped until they are aligned (`store plan --union` lists what to align).
+- npm resolves the store tree fresh from the group manifest; members' lockfiles are not pieced
+  together (they were resolved at different times, and mixing them broke builds). Where a package
+  needs a dependency version the group cannot share, npm gives it its own nested copy.
+- Every dependency edge of the installed tree is then checked the way Node resolves it. A dependency
+  outside its range stops the link (nothing is linked); peer ranges the group does not meet are
+  listed as incompatibilities to fix in the projects. `store link` also lists the majors that moved
+  from a member's previous lockfile.
+- After a successful check the members' lockfiles are rewritten from the shared tree (backed up first),
+  so they lock the versions the projects actually run with; `--no-sync-locks` leaves them unchanged.
 - Each project gets a real `node_modules` folder with one junction per package of the transitive closure
   of its roots: declared dependencies, SPFx core packages, packages imported by code and styles, and
   packages referenced by config files (`parser`, `extends`, `plugins`, `presets`, `types`, `require`).
@@ -149,8 +196,9 @@ How the union store works:
   are backed up; modules are never moved to trash. `unlink --restore` restores those files, and
   `packman install` recreates local modules when needed. Unlink without `--restore` keeps current files.
 - If the store install fails, nothing is linked.
-- Completed stores are reused on re-link. Node versions and member lockfiles identify separate stores,
-  so a new installation does not rebuild a store that other projects are using.
+- Completed stores are reused on re-link. Node versions, member lockfiles and the store format identify
+  separate stores, so a new installation does not rebuild a store that other projects are using, and a
+  store built the old way is rebuilt.
 - Project-relative dependencies (`file:`, `link:`, `workspace:`) are excluded: moving their manifest
   into the store would change what those paths resolve to.
 
@@ -211,7 +259,7 @@ has the same size and the same normalized code as a build with the project's own
 `policy.groups[].node` selects the installed Node used by npm commands for the matching projects.
 Stack-incompatible group settings are reported and block execution. npm operations plan upgrades
 against the target manifest, even when an older stack is still installed. `check` reports the installed
-stack. Commands fail when a compatible Node is unavailable; `reinstall` checks before cleaning.
+stack. Commands fail when a compatible Node is unavailable; `install --clean` checks before cleaning.
 
 If a file changes after the preview, applying it stops so the new content can be reviewed first.
 

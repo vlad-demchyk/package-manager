@@ -5,14 +5,16 @@ import { Option, type Command } from 'commander';
 import pc from 'picocolors';
 import type { Report } from '../analyze.js';
 import { CONFIG_FILE } from '../core/config.js';
-import { editJsonText } from '../core/json.js';
+import { editJsonText, readJsonFile } from '../core/json.js';
 import type { Fix } from '../core/types.js';
 import { applyPreviews } from '../fixes/apply.js';
 import { runWithNode } from '../exec/run.js';
 import { t, tm } from '../i18n/index.js';
 import { alignPackage, alignToProject, closestProjects, diffProjects } from '../ops/align.js';
 import { executeClean, planClean } from '../ops/clean.js';
-import { generateProfile, type VersionStrategy } from '../ops/generate.js';
+import { dataStatus, updateData } from '../ops/data.js';
+import { userDataDir } from '../core/data.js';
+import { generateProfile, tsconfigSource, type VersionStrategy } from '../ops/generate.js';
 import { journal, pruneJournal, readJournal } from '../ops/journal.js';
 import { versionMatrix } from '../ops/matrix.js';
 import { outdated } from '../ops/outdated.js';
@@ -23,8 +25,10 @@ import {
   commonOptions,
   confirm,
   langOption,
+  nonNegativeInt,
   progressReporter,
   relock,
+  reportUnverified,
   reviewAndApply,
 } from './shared.js';
 
@@ -33,20 +37,11 @@ type InstallMode = 'normal' | 'legacy-peer-deps' | 'force';
 interface InstallOptions extends CommonOptions {
   yes?: boolean;
   mode?: InstallMode;
-  lockOnly?: boolean;
 }
 
-function npmArgs(
-  entry: Report['projects'][number],
-  options: { mode?: InstallMode; lockOnly?: boolean },
-): string[] {
-  // `npm ci` refuses a lockfile that no longer matches package.json (e.g. right after an alignment).
-  const drift = entry.findings.some((item) => item.ruleId === 'npm/lockfile-drift');
-  const args = options.lockOnly
-    ? ['install', '--package-lock-only', '--ignore-scripts']
-    : entry.project.lockfile?.kind === 'npm' && options.mode !== 'force' && !drift
-      ? ['ci']
-      : ['install'];
+function npmArgs(entry: Report['projects'][number], options: { mode?: InstallMode }): string[] {
+  const args =
+    entry.project.lockfile?.kind === 'npm' && options.mode !== 'force' ? ['ci'] : ['install'];
   if (options.mode === 'legacy-peer-deps') args.push('--legacy-peer-deps');
   if (options.mode === 'force') args.push('--force');
   return [...args, '--no-audit', '--no-fund'];
@@ -59,7 +54,24 @@ async function runInstall(
   options: InstallOptions,
   command: string,
 ): Promise<boolean> {
-  const plan = report.projects.map((entry) => ({ entry, args: npmArgs(entry, options) }));
+  // A lockfile out of sync with package.json would make npm re-resolve versions on its own; that
+  // is a relock to review (against the verified set), never a silent `npm install`.
+  const drifted = new Set(
+    report.projects
+      .filter(
+        (entry) =>
+          entry.project.nodeModules !== 'link' &&
+          options.mode !== 'force' &&
+          entry.findings.some((item) => item.ruleId === 'npm/lockfile-drift'),
+      )
+      .map((entry) => entry.project.id),
+  );
+  for (const id of drifted) console.error(pc.red(t('install.drift', { project: id })));
+  if (drifted.size > 0) process.exitCode = 1;
+  const plan = report.projects
+    .filter((entry) => !drifted.has(entry.project.id))
+    .map((entry) => ({ entry, args: npmArgs(entry, options) }));
+  if (plan.length === 0) return false;
   for (const { entry, args } of plan) {
     const note =
       entry.project.nodeModules === 'link' ? pc.yellow(` (${t('install.linkedSkipped')})`) : '';
@@ -127,11 +139,55 @@ export function registerCommands(program: Command): void {
       .description('npm ci/install in each project with its own Node version'),
   )
     .addOption(installModeOption())
-    .option('--lock-only', 'only update package-lock.json (npm install --package-lock-only)')
+    .option('--clean', 'remove node_modules and lockfiles first, then install (2.x reinstall)')
     .option('-y, --yes', 'do not ask for confirmation')
-    .action(async (root: string, options: InstallOptions) => {
+    .action(async (root: string, options: InstallOptions & { clean?: boolean }) => {
       const { session, report } = await quickReport(root, options, true);
-      await runInstall(session, report, options, 'install');
+      if (!options.clean) {
+        await runInstall(session, report, options, 'install');
+        return;
+      }
+      // Nothing is removed unless every project can be installed again afterwards.
+      const missing = report.projects.filter(
+        (entry) => entry.project.nodeModules !== 'link' && !entry.node.selected,
+      );
+      if (missing.length > 0) {
+        for (const entry of missing)
+          console.error(
+            `${entry.project.id}: ${t('node.notInstalled', { ranges: entry.node.effective.join(' & '), recommended: entry.node.recommended ?? '-' })}`,
+          );
+        process.exitCode = 1;
+        return;
+      }
+      const targets = planClean(
+        report.projects
+          .filter((entry) => entry.project.nodeModules !== 'link')
+          .map((entry) => entry.project),
+        { modules: true, lockfile: true },
+      );
+      for (const target of targets) console.log(`${target.projectId}: ${target.kind}`);
+      if (
+        !options.yes &&
+        !(await confirm(t('reinstall.confirm', { count: report.projects.length })))
+      ) {
+        console.log(t('cli.aborted'));
+        return;
+      }
+      await executeClean(session.root, targets);
+      await journal(session.root, {
+        command: 'install:clean',
+        projects: [...new Set(targets.map((x) => x.projectId))],
+        result: 'ok',
+      });
+      const fresh = await runAnalysis(
+        session,
+        { ...options, security: false, usage: false },
+        { targetVersions: true },
+      );
+      await runInstall(session, fresh, { ...options, yes: true }, 'install');
+      // Without lockfiles npm picked every version again: show what moved from the verified sets.
+      for (const entry of (await runAnalysis(session, { security: false, usage: false })).projects)
+        await reportUnverified(entry.project);
     });
 
   commonOptions(
@@ -176,60 +232,15 @@ export function registerCommands(program: Command): void {
       },
     );
 
+  const profile = program.command('profile').description('dependency profiles');
   commonOptions(
-    program.command('reinstall').description('clean, then install with each project Node'),
-  )
-    .option('--lock-only', 'remove only lockfiles before installing (keeps node_modules)')
-    .addOption(installModeOption())
-    .option('-y, --yes', 'do not ask for confirmation')
-    .action(async (root: string, options: InstallOptions & { lockOnly?: boolean }) => {
-      const { session, report } = await quickReport(root, options, true);
-      const missing = report.projects.filter(
-        (entry) => entry.project.nodeModules !== 'link' && !entry.node.selected,
-      );
-      if (missing.length > 0) {
-        for (const entry of missing)
-          console.error(
-            `${entry.project.id}: ${t('node.notInstalled', { ranges: entry.node.effective.join(' & '), recommended: entry.node.recommended ?? '-' })}`,
-          );
-        process.exitCode = 1;
-        return;
-      }
-      const targets = planClean(
-        report.projects
-          .filter((entry) => entry.project.nodeModules !== 'link')
-          .map((entry) => entry.project),
-        { modules: !options.lockOnly, lockfile: true },
-      );
-      for (const target of targets) console.log(`${target.projectId}: ${target.kind}`);
-      if (
-        !options.yes &&
-        !(await confirm(t('reinstall.confirm', { count: report.projects.length })))
-      ) {
-        console.log(t('cli.aborted'));
-        return;
-      }
-      await executeClean(session.root, targets);
-      await journal(session.root, {
-        command: 'reinstall:clean',
-        projects: [...new Set(targets.map((x) => x.projectId))],
-        result: 'ok',
-      });
-      const fresh = await runAnalysis(
-        session,
-        { ...options, security: false, usage: false },
-        { targetVersions: true },
-      );
-      await runInstall(session, fresh, { ...options, yes: true, lockOnly: false }, 'reinstall');
-    });
-
-  commonOptions(
-    program
-      .command('update')
+    profile
+      .command('apply')
       .description('align projects with their dependency profiles (packman.config.json)'),
   )
     .option('--apply', 'write the changes (backups in .packman/backups)')
-    .option('--relock', 'regenerate lockfiles of changed projects with their Node')
+    .option('--relock', 'regenerate lockfiles of all changed projects with their Node')
+    .option('--no-relock', 'keep lockfiles unchanged (default: relock after version edits)')
     .option('--install', 'run npm install in changed projects afterwards')
     .option('-y, --yes', 'do not ask for confirmation')
     .action(
@@ -257,7 +268,7 @@ export function registerCommands(program: Command): void {
           .flatMap((item) => item.fixes);
         const applied = await reviewAndApply(session, report, fixes, {
           ...options,
-          command: 'update',
+          command: 'profile apply',
         });
         if (applied && options.apply && options.install) {
           const fresh = await runAnalysis(
@@ -269,17 +280,11 @@ export function registerCommands(program: Command): void {
           fresh.projects = fresh.projects.filter((entry) =>
             [...affected].some((file) => file.startsWith(entry.project.dir + path.sep)),
           );
-          await runInstall(
-            session,
-            fresh,
-            { ...options, yes: true, lockOnly: false },
-            'update:install',
-          );
+          await runInstall(session, fresh, { ...options, yes: true }, 'profile apply:install');
         }
       },
     );
 
-  const profile = program.command('profile').description('dependency profiles');
   commonOptions(
     profile
       .command('generate')
@@ -292,6 +297,10 @@ export function registerCommands(program: Command): void {
         .default('highest'),
     )
     .option('--declared', 'use declared specs instead of resolved versions')
+    .option(
+      '--tsconfig-from <project>',
+      'enforce the tsconfig.json of a project, or of the one with the highest TypeScript (latest-ts)',
+    )
     .option('--write', `write the profile into ${CONFIG_FILE}`)
     .action(
       async (
@@ -300,6 +309,7 @@ export function registerCommands(program: Command): void {
           name: string;
           strategy: VersionStrategy;
           declared?: boolean;
+          tsconfigFrom?: string;
           write?: boolean;
         },
       ) => {
@@ -309,6 +319,33 @@ export function registerCommands(program: Command): void {
           console.log(t('cli.noProjects', { root: session.root }));
           return;
         }
+        let tsconfig: Record<string, unknown> | undefined;
+        if (options.tsconfigFrom !== undefined) {
+          const source = tsconfigSource(projects, options.tsconfigFrom);
+          const file = source && path.join(source.dir, 'tsconfig.json');
+          const parsed =
+            file && existsSync(file)
+              ? await readJsonFile<Record<string, unknown> | null>(file)
+              : undefined;
+          if (
+            !source ||
+            !parsed?.ok ||
+            typeof parsed.value !== 'object' ||
+            parsed.value === null ||
+            Array.isArray(parsed.value)
+          ) {
+            console.error(
+              t('profile.tsconfigSourceMissing', {
+                project: source?.id ?? options.tsconfigFrom,
+                reason: parsed && !parsed.ok ? parsed.error : '',
+              }),
+            );
+            process.exitCode = 1;
+            return;
+          }
+          tsconfig = parsed.value;
+          console.error(pc.dim(t('profile.tsconfigSource', { project: source.id })));
+        }
         const stacks = report.projects.map((entry) => primaryStack(entry.stacks));
         const nodeRanges = new Set(
           report.projects.map((entry) => entry.node.stackRanges[0]?.range).filter(Boolean),
@@ -317,6 +354,7 @@ export function registerCommands(program: Command): void {
           strategy: options.strategy,
           projectsGlob: options.project ?? projects.map((project) => project.id),
           resolved: !options.declared,
+          ...(tsconfig ? { tsconfig } : {}),
           ...(nodeRanges.size === 1 && stacks.every((stack) => stack?.provider === 'spfx')
             ? { nodeRange: [...nodeRanges][0] as string }
             : {}),
@@ -359,7 +397,8 @@ export function registerCommands(program: Command): void {
     .option('--pin', 'drop range prefixes (^ ~) from copied versions')
     .option('--include-missing', 'with --base/--to: also add packages the base does not declare')
     .option('--apply', 'write the changes (backups in .packman/backups)')
-    .option('--relock', 'regenerate lockfiles of changed projects with their Node')
+    .option('--relock', 'regenerate lockfiles of all changed projects with their Node')
+    .option('--no-relock', 'keep lockfiles unchanged (default: relock after version edits)')
     .option('-y, --yes', 'do not ask for confirmation')
     .action(
       async (
@@ -429,7 +468,9 @@ export function registerCommands(program: Command): void {
       },
     );
 
-  commonOptions(program.command('matrix').description('versions of every package in every project'))
+  commonOptions(
+    program.command('versions').description('versions of every package in every project'),
+  )
     .option('--diverging', 'only packages with more than one version')
     .option('--package <globs...>', 'only these packages')
     .option('--json', 'print as JSON')
@@ -596,17 +637,20 @@ export function registerCommands(program: Command): void {
     .description('operations recorded in .packman/journal.jsonl')
     .argument('[path]', 'workspace root', '.')
     .addOption(langOption())
-    .option('-n, --limit <n>', 'entries to show', (value) => Number.parseInt(value, 10), 30)
-    .option('--prune <days>', 'delete entries older than this many days', (value) =>
-      Number.parseInt(value, 10),
-    )
-    .action(async (root: string, options: { limit: number; prune?: number }) => {
+    .option('-n, --limit <n>', 'entries to show', nonNegativeInt, 30)
+    .option('--prune <days>', 'delete entries older than this many days', nonNegativeInt)
+    .option('--json', 'machine-readable output')
+    .action(async (root: string, options: { limit: number; prune?: number; json?: boolean }) => {
       const absRoot = path.resolve(root);
       if (options.prune !== undefined) {
         console.log(t('log.pruned', { count: await pruneJournal(absRoot, options.prune) }));
         return;
       }
       const entries = (await readJournal(absRoot)).slice(-options.limit);
+      if (options.json) {
+        process.stdout.write(`${JSON.stringify(entries, null, 2)}\n`);
+        return;
+      }
       if (entries.length === 0) console.log(t('log.empty'));
       for (const entry of entries) {
         const color =
@@ -615,6 +659,56 @@ export function registerCommands(program: Command): void {
           `${pc.dim(entry.at)} ${color(entry.result.padEnd(7))} ${entry.command.padEnd(18)} ${entry.projects.join(', ')}${entry.detail ? pc.dim(`  ${entry.detail}`) : ''}`,
         );
       }
+    });
+
+  const data = program
+    .command('data')
+    .description('Node release and vulnerability data behind the checks');
+  data
+    .command('status')
+    .description('dates of the bundled and updated data files')
+    .addOption(langOption())
+    .option('--json', 'machine-readable output')
+    .action((options: { json?: boolean }) => {
+      const rows = dataStatus();
+      if (options.json) {
+        process.stdout.write(
+          `${JSON.stringify({ dir: userDataDir() ?? null, files: rows }, null, 2)}\n`,
+        );
+        return;
+      }
+      for (const row of rows) {
+        const updated = row.updated ? `updated ${row.updated}` : row.updatable ? '-' : 'curated';
+        console.log(
+          `${row.name.padEnd(20)} bundled ${row.bundled.padEnd(10)} ${updated.padEnd(18)} ${row.active === 'updated' ? pc.green(t('data.usingUpdated')) : pc.dim(t('data.usingBundled'))}`,
+        );
+      }
+      console.log(pc.dim(t('data.dir', { dir: userDataDir() ?? '-' })));
+    });
+  data
+    .command('update')
+    .description('refresh Node release lines and Node core vulnerabilities from their sources')
+    .addOption(langOption())
+    .option('--dry-run', 'show the changes without saving them')
+    .option('--json', 'machine-readable output')
+    .action(async (options: { dryRun?: boolean; json?: boolean }) => {
+      const result = await updateData({ write: !options.dryRun });
+      if (options.json) {
+        process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
+        return;
+      }
+      for (const file of result.files) {
+        console.log(
+          pc.bold(t('data.file', { name: file.name, before: file.before, after: file.after })),
+        );
+        for (const change of file.changes) console.log(`  ${change}`);
+        if (file.changes.length === 0) console.log(pc.dim(`  ${t('data.noChanges')}`));
+      }
+      console.log(
+        options.dryRun
+          ? pc.yellow(t('data.notWritten'))
+          : pc.green(t('data.written', { dir: result.dir })),
+      );
     });
 
   commonOptions(

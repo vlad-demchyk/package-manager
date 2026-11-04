@@ -6,12 +6,13 @@ import type { Project } from '../core/types.js';
 import { runWithNode } from '../exec/run.js';
 import { backupFiles } from '../fixes/apply.js';
 import { t, tm } from '../i18n/index.js';
+import { readStoreVerified } from '../core/verified.js';
 import { journal } from '../ops/journal.js';
 import { linkGroup, planStore } from '../store/store.js';
 import { editedManifest, planUpgrade } from '../upgrade/plan.js';
 import type { UpgradePlan } from '../upgrade/types.js';
 import { openSession, runAnalysis, type CommonOptions } from './context.js';
-import { commonOptions, reviewAndApply } from './shared.js';
+import { commonOptions, recordVerifiedBuilds, reviewAndApply, type BuildResult } from './shared.js';
 
 interface UpgradeCliOptions extends CommonOptions {
   stack?: string[];
@@ -37,7 +38,8 @@ export function registerUpgrade(program: Command): void {
     .option('--node <version>', 'explicit Node version/range (default: a common installed Node)')
     .option('--json', 'print the migration plan as JSON (read-only)')
     .option('--apply', 'write the reviewed migration and repository policy')
-    .option('--relock', 'regenerate project lockfiles after migration')
+    .option('--relock', 'regenerate lockfiles of all migrated projects')
+    .option('--no-relock', 'keep lockfiles unchanged (default: relock after version edits)')
     .option('--install', 'install migrated projects')
     .option(
       '--shared',
@@ -92,7 +94,9 @@ export function registerUpgrade(program: Command): void {
         process.exitCode = 1;
         return;
       }
-      const runsNpm = options.shared || options.install || options.verify || options.relock;
+      // Version edits relock by default unless --no-relock (shared mode writes locks from the store).
+      const relocks = !options.shared && options.relock !== false;
+      const runsNpm = options.shared || options.install || options.verify || relocks;
       if (options.apply && runsNpm && !plan.node)
         throw new Error(t('upgrade.nodeMissing', { version: plan.nodeVersion ?? '?' }));
       if (options.apply) {
@@ -114,7 +118,7 @@ export function registerUpgrade(program: Command): void {
       }
       const applied = await reviewAndApply(session, report, plan.fixes, {
         ...options,
-        relock: options.shared ? false : (options.relock ?? false),
+        relock: options.shared ? false : options.relock,
         command: 'upgrade',
       });
       if (!options.apply || !applied) return;
@@ -130,13 +134,20 @@ export function registerUpgrade(program: Command): void {
         );
         const group = groups.find((item) => item.projectIds.length === migrated.length);
         if (!group) throw new Error(t('upgrade.sharedBlocked'));
+        const verified = await readStoreVerified(session.root, group.projectIds);
         const result = await linkGroup(session.root, fresh, group, {
+          ...(verified ? { seedLock: verified.lock } : {}),
           replaceExisting: true,
           syncLocks: true,
           install: async (dir, node) =>
             (await runWithNode(node, dir, ['install', '--no-audit', '--no-fund'])).code,
         });
         for (const conflict of result.conflicts ?? []) console.log(`  ~ ${conflict}`);
+        if (result.peers?.length) console.log(t('store.peers', { count: result.peers.length }));
+        for (const peer of result.peers ?? []) console.log(`    ${peer}`);
+        if (result.unverified?.length)
+          console.log(t('store.unverified', { count: result.unverified.length }));
+        for (const line of result.unverified ?? []) console.log(`    ${line}`);
         await journal(session.root, {
           command: 'upgrade:shared',
           projects: result.linked,
@@ -166,6 +177,7 @@ export function registerUpgrade(program: Command): void {
           }
         }
       }
+      const results: BuildResult[] = [];
       if (options.verify && plan.node)
         for (const id of plan.order) {
           const entry = migrated.find((project) => project.project.id === id);
@@ -183,7 +195,14 @@ export function registerUpgrade(program: Command): void {
             detail: `npm run ${migration.verifyScript}`,
           });
           if (result.code !== 0) process.exitCode = result.code;
+          results.push({
+            project: entry.project,
+            node: plan.node.version,
+            script: migration.verifyScript,
+            ok: result.code === 0,
+          });
         }
+      await recordVerifiedBuilds(session.root, results);
     });
 }
 

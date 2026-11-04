@@ -14,11 +14,7 @@ export function setLanguage(language: Language | 'auto'): Language {
   return current;
 }
 
-export function getLanguage(): Language {
-  return current;
-}
-
-export function detectLanguage(env = process.env): Language {
+function detectLanguage(env = process.env): Language {
   const locale = (
     env.PACKMAN_LANG ??
     env.LC_ALL ??

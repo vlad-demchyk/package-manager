@@ -36,6 +36,13 @@ export const en = {
   'npm.unboundedSpec': 'Unbounded versions (*, latest) make installs unpredictable',
   'npm.lockfileMissing': 'No lockfile: installs are not reproducible',
   'npm.lockfileV1': 'Lockfile v1 (npm 5-6): regenerate with npm 7+ for complete metadata',
+  'npm.treeBroken':
+    '{count} locked packages resolve a dependency outside its range: they load the wrong copy at runtime',
+  'npm.treePeer': '{count} peer requirements of nested packages are not met by the locked tree',
+  'verified.recorded':
+    'Verified sets saved: {projects} projects, {stores} shared stores (.packman/verified).',
+  'npm.unverifiedVersions':
+    '{count} locked versions differ from the set {script} last passed with ({date}): not verified by a build',
   'npm.lockfileDrift': 'Lockfile out of sync with package.json ({count} packages)',
   'npm.notInstalled': 'Dependencies are not installed',
   'npm.installedDrift': 'Installed packages differ from package.json ({count})',
@@ -123,9 +130,25 @@ export const en = {
   // CLI
   'tui.tab.overview': 'Overview',
   'tui.tab.projects': 'Projects',
-  'tui.tab.matrix': 'Matrix',
+  'tui.tab.versions': 'Versions',
   'tui.tab.node': 'Node',
   'tui.tab.fixes': 'Fixes',
+  'tui.tab.outdated': 'Outdated',
+  'tui.tab.store': 'Store',
+  'tui.key.profiles': 'profiles',
+  'tui.nothingToChange': 'Nothing to change for this row.',
+  'tui.noProfileFixes': 'No profile differences to fix (profiles in packman.config.json).',
+  'tui.profilesSelected': '{count} profile fixes selected: review them in Fixes.',
+  'tui.profilesCleared': '{count} profile fixes deselected.',
+  'tui.outdatedLoading': 'Asking the npm registry…',
+  'tui.outdatedUnavailable': 'Registry lookup is not available here: run packman outdated.',
+  'tui.inMajor': 'newest in major',
+  'tui.storeLinked': '{count}/{total} linked',
+  'tui.storeHint':
+    'Link with: packman store link -g {key} --union (installs, then replaces node_modules)',
+  'tui.storeOthers':
+    '{candidates} groups need alignment first, {excluded} projects excluded: packman store plan',
+  'fix.bumpInMajor': 'Update {name} to {version}',
   'tui.minSeverity': 'showing {severity} and worse',
   'tui.key.move': 'move',
   'tui.key.tabs': 'tabs',
@@ -183,6 +206,25 @@ export const en = {
   'update.noProfiles':
     'No profiles in packman.config.json: create one with `packman profile generate --name <name> --write`.',
   'profile.notWritten': 'Not written: add --write to save it in packman.config.json.',
+  'store.seeded':
+    'Resolving from the verified set of {date} (Node {node}); --refresh resolves fresh.',
+  'store.unverified':
+    '{count} versions differ from the verified set and are not verified by a build yet:',
+  'install.drift':
+    '{project}: package-lock.json does not match package.json; run packman relock and review the changes (npm would pick versions on its own).',
+  'store.peers':
+    '{count} peer requirements are not met by the group versions; fix them in the projects:',
+  'cli.notANumber': '{value} is not a whole number of 0 or more.',
+  'data.usingUpdated': 'using the updated copy',
+  'data.usingBundled': 'using the bundled copy',
+  'data.dir': 'Updated data folder: {dir}',
+  'data.file': '{name}: {before} -> {after}',
+  'data.noChanges': 'no changes',
+  'data.notWritten': 'Not written: run without --dry-run to save the updated data.',
+  'data.written': 'Saved to {dir}; bundled files are unchanged.',
+  'profile.tsconfigSource': 'tsconfig.json taken from {project}',
+  'profile.tsconfigSourceMissing':
+    'No readable tsconfig.json for {project} (a project id or latest-ts) {reason}',
   'profile.written': 'Profile {name} written to {file}',
   'align.package': 'Aligning {name} to {version}',
   'align.unknownProject': 'Unknown project {project}',
@@ -228,6 +270,8 @@ export const en = {
   'upgrade.reactApi':
     'React {version} needs migration of ReactDom.render/unmount to the root API in source code.',
   'upgrade.pnpMajor': 'PnPjs {from} -> {to}: review API changes and verify the build.',
+  'upgrade.pnpAsyncTarget':
+    'tsconfig target {target} cannot compile `for await` over PnPjs queries (TS2495): raise target to ES2018+ or set downlevelIteration (adding lib es2018.asynciterable if Symbol.asyncIterator is unknown).',
   'upgrade.pnpApi':
     'Source uses removed PnPjs APIs/imports; migrate getAll/getPaged/Graph paged to async iterators and replace common/odata imports.',
   'upgrade.customGulp': '{file} has custom Gulp tasks; port them to Heft before applying.',

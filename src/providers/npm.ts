@@ -5,6 +5,8 @@ import { readJsonFile } from '../core/json.js';
 import { implicitUsage } from '../scan/implicit.js';
 import { finding, fix, msg, removeDependency, setDependency } from '../core/findings.js';
 import { isTopLevel, packageNameFromLocation, requiredByOthers } from '../core/lockfile.js';
+import { treeViolations, type TreeEntry } from '../core/tree.js';
+import { versionChanges } from '../core/verified.js';
 import type { Edit, Finding, LockedPackage, Project } from '../core/types.js';
 import {
   hasPrerelease,
@@ -55,7 +57,7 @@ export const npmProvider: StackProvider = {
     };
   },
 
-  check(ctx) {
+  async check(ctx) {
     const { project } = ctx;
     return [
       ...checkSpecs(ctx),
@@ -65,9 +67,71 @@ export const npmProvider: StackProvider = {
       ...checkPeers(project),
       ...checkDeprecated(project),
       ...checkDuplicates(project),
+      ...(await checkTree(project)),
     ];
   },
 };
+
+/**
+ * Every dependency edge of the locked tree, transitive ones included: a package whose dependency
+ * resolves outside its range loads the wrong copy at runtime (an error), unmet peers of nested
+ * packages are warnings. Root edges are `npm/lockfile-drift` and direct peers `npm/peer-unsatisfied`.
+ */
+async function checkTree(project: Project): Promise<Finding[]> {
+  const lock = project.lockfile;
+  if (lock?.kind !== 'npm' || (lock.version ?? 1) < 2) return [];
+  const raw = await readJsonFile<{ packages?: Record<string, TreeEntry> }>(lock.path);
+  if (!raw.ok || !raw.value.packages) return [];
+  const direct = new Set(project.dependencies.map((dep) => `node_modules/${dep.name}`));
+  const dependent = (line: string): string => line.slice(0, line.indexOf(' -> '));
+  const checked = treeViolations(raw.value.packages);
+  const broken = checked.broken.filter((line) => dependent(line) !== '(root)');
+  const peers = checked.peers.filter(
+    (line) => dependent(line) !== '(root)' && !direct.has(dependent(line)),
+  );
+  const findings: Finding[] = [];
+  if (broken.length > 0)
+    findings.push(
+      finding(
+        'npm/tree-broken',
+        'error',
+        project,
+        msg('npm.treeBroken', { count: broken.length }),
+        {
+          evidence: broken,
+          tags: ['compatibility', 'reproducibility'],
+        },
+      ),
+    );
+  if (peers.length > 0)
+    findings.push(
+      finding('npm/tree-peer', 'warning', project, msg('npm.treePeer', { count: peers.length }), {
+        evidence: peers,
+        tags: ['compatibility'],
+      }),
+    );
+  if (project.verified) {
+    const current: Record<string, string> = {};
+    for (const [location, entry] of Object.entries(raw.value.packages))
+      if (location && entry.version && !entry.link) current[location] = entry.version;
+    const changes = versionChanges(project.verified.versions, current);
+    if (changes.length > 0)
+      findings.push(
+        finding(
+          'npm/unverified-versions',
+          'warning',
+          project,
+          msg('npm.unverifiedVersions', {
+            count: changes.length,
+            date: project.verified.at.slice(0, 10),
+            script: project.verified.script,
+          }),
+          { evidence: changes, tags: ['reproducibility'] },
+        ),
+      );
+  }
+  return findings;
+}
 
 function checkSpecs(ctx: ProjectContext): Finding[] {
   const { project, config } = ctx;
@@ -79,8 +143,12 @@ function checkSpecs(ctx: ProjectContext): Finding[] {
   if (config.policy.exactVersions && ranged.length > 0) {
     const edits: Edit[] = [];
     for (const dep of ranged) {
+      // The version the last passing build used wins over whatever happens to be locked now.
+      const verified = project.verified?.versions[`node_modules/${dep.name}`];
       const resolved = resolveVersion(project, dep.name);
-      if (resolved && resolved.source !== 'manifest')
+      if (verified && satisfies(verified, dep.spec))
+        edits.push(setDependency(project, dep.name, verified));
+      else if (resolved && resolved.source !== 'manifest')
         edits.push(setDependency(project, dep.name, resolved.version));
     }
     findings.push(
@@ -135,9 +203,10 @@ function checkLockfile(project: Project): Finding[] {
       }),
     ];
   }
-  if (lock.kind !== 'npm') return [];
   const findings: Finding[] = [];
-  if (lock.version !== undefined && lock.version < 2) {
+  // npm v1 lockfiles record no root specs; yarn and pnpm always do (yarn via descriptors).
+  const recordsRootSpecs = lock.kind !== 'npm' || (lock.version !== undefined && lock.version >= 2);
+  if (lock.kind === 'npm' && lock.version !== undefined && lock.version < 2) {
     findings.push(
       finding('npm/lockfile-v1', 'info', project, msg('npm.lockfileV1'), {
         tags: ['reproducibility'],
@@ -149,17 +218,24 @@ function checkLockfile(project: Project): Finding[] {
     if (dep.section === 'peerDependencies') continue;
     const recorded = lock.rootSpecs[dep.name];
     if (
-      lock.version !== undefined &&
-      lock.version >= 2 &&
-      recorded !== undefined &&
-      recorded !== dep.spec
+      lock.kind === 'yarn' &&
+      recorded === undefined &&
+      isRegistrySpec(dep.spec) &&
+      lock.packages.length > 0
     ) {
+      // No descriptor for this spec: yarn would re-resolve it on the next install.
+      drift.push(`${dep.name}: missing from lockfile`);
+      continue;
+    }
+    if (recordsRootSpecs && recorded !== undefined && recorded !== dep.spec) {
       drift.push(`${dep.name}: package.json ${dep.spec}, lockfile ${recorded}`);
       continue;
     }
     const locked = lock.packages.find((pkg) => pkg.name === dep.name && isTopLevel(pkg));
     if (!locked) {
-      if (lock.packages.length > 0) drift.push(`${dep.name}: missing from lockfile`);
+      // yarn and pnpm keep local (file:, link:, workspace:) packages outside the package list.
+      if (lock.packages.length > 0 && (lock.kind === 'npm' || isRegistrySpec(dep.spec)))
+        drift.push(`${dep.name}: missing from lockfile`);
     } else if (isRegistrySpec(dep.spec) && !satisfies(locked.version, dep.spec)) {
       drift.push(`${dep.name}: lockfile ${locked.version} does not satisfy ${dep.spec}`);
     }

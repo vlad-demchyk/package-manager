@@ -75,11 +75,3 @@ export function satisfies(version: string, range: string): boolean {
     return false;
   }
 }
-
-/** Compares two versions; non-semver values sort first. */
-export function compareVersions(a: string, b: string): number {
-  const va = semver.coerce(a, { includePrerelease: true });
-  const vb = semver.coerce(b, { includePrerelease: true });
-  if (!va || !vb) return va ? 1 : vb ? -1 : 0;
-  return semver.compare(va, vb);
-}

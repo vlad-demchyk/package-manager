@@ -12,6 +12,30 @@ export interface GenerateOptions {
   nodeRange?: string;
   /** Use resolved versions (installed/lockfile) instead of declared specs. */
   resolved: boolean;
+  /** tsconfig.json the profile enforces, read with {@link tsconfigForProfile}. */
+  tsconfig?: Record<string, unknown>;
+}
+
+/** Keys of a tsconfig that only make sense for the project they come from. */
+const PROJECT_LOCAL_TSCONFIG_KEYS = ['files', 'references'];
+
+/**
+ * Picks the project whose tsconfig.json becomes the profile's: an explicit project id, or
+ * `latest-ts` for the project with the highest TypeScript (2.x `findLatestTypeScriptComponent`).
+ */
+export function tsconfigSource(projects: Project[], from: string): Project | undefined {
+  if (from !== 'latest-ts') return projects.find((project) => project.id === from);
+  return projects
+    .map((project) => ({ project, version: resolveVersion(project, 'typescript')?.version }))
+    .filter((entry): entry is { project: Project; version: string } => entry.version !== undefined)
+    .sort((a, b) => compareLoose(a.version, b.version))
+    .at(-1)?.project;
+}
+
+function tsconfigForProfile(tsconfig: Record<string, unknown>): Record<string, unknown> {
+  return Object.fromEntries(
+    Object.entries(tsconfig).filter(([key]) => !PROJECT_LOCAL_TSCONFIG_KEYS.includes(key)),
+  );
 }
 
 /**
@@ -68,5 +92,6 @@ export function generateProfile(projects: Project[], options: GenerateOptions): 
     }
   }
   if (options.nodeRange) profile.engines.node = options.nodeRange;
+  if (options.tsconfig) profile.tsconfig = tsconfigForProfile(options.tsconfig);
   return profile;
 }

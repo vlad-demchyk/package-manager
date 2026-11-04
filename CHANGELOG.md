@@ -13,6 +13,42 @@
 - Per-project npm locks can be synchronized from the shared tree for independent installation later.
 - Migration resolves the ESLint parser/plugin family from the target config's actual dependencies and
   handles deprecated TypeScript compiler options.
+- `yarn.lock` (classic and berry) and `pnpm-lock.yaml` (v5-v9) are read: resolved versions, dev
+  flags, peers, engines and deprecations feed the same checks and advisories as npm lockfiles, laid out
+  the way npm would hoist them. Drift reports specs missing from yarn descriptors or pnpm specifiers.
+- `packman data update [--dry-run]` and `packman data status`: Node release lines and Node core
+  vulnerabilities are refreshed from their public sources into the per-user data folder; bundled data
+  stays unchanged and is used unless the update is at least as recent.
+- Commands without a workspace session (`data`, `log`, `ignore`) detect the output language like the
+  others instead of always printing English; the test suite pins English and bundled data.
+- `check` checks every dependency edge of npm lockfiles, transitive ones included:
+  `npm/tree-broken` (a package would load a dependency outside its range) and `npm/tree-peer`.
+- Verified version sets: passing `store verify`/`upgrade --verify` builds save the locked versions
+  in `.packman/verified`; the next union store resolves from them (`--refresh` for a fresh tree),
+  versions that move away are reported (`npm/unverified-versions`, after relock and links), and
+  `npm/range-spec` pins ranges to verified versions. `install` stops on a lockfile out of sync
+  instead of falling back to `npm install`.
+- `data/frameworks.json`: Node and companion ranges per Angular (14+), Next.js (13+) and Vite (4+)
+  major, read from the npm registry and refreshed by `data update`; they feed Node selection and
+  `constraint/package` before anything is installed.
+- CLI: `update` is `profile apply`, `matrix` is `versions`, `reinstall` is `install --clean`,
+  `--lock-only` is `relock`. TUI tabs: Overview, Projects, Versions, Outdated, Node, Store, Fixes.
+- Union stores are resolved fresh by npm from the group manifest instead of piecing members'
+  lockfiles together path by path, which mixed a parent from one lockfile with nested packages of
+  another (an anima build failed with `Unknown keyword formatMinimum`). Every dependency edge of the
+  installed tree is checked: a broken edge stops the link, unmet peers are reported as project
+  incompatibilities, and majors that moved from members' lockfiles are listed. Store keys and link
+  records carry the store format, so stores built the old way are rebuilt rather than reused.
+- `store link --union` rewrites members' lockfiles from the checked tree by default
+  (`--no-sync-locks` opts out). `fix`, `update`, `align` and `upgrade` relock changed projects after
+  version edits by default (`--no-relock` opts out).
+- `upgrade` warns (`pnp-async-target`) when PnPjs code must move to async iterators but tsconfig
+  targets below ES2018 without `downlevelIteration`: `for await` fails there with TS2495.
+- TUI: align from Matrix, Outdated tab with in-major bumps, `u` for profile fixes, read-only Store tab.
+- CLI: `store unlink` takes `--project`/`--exclude` globs; `store plan`, `store status` and `log` have
+  `--json`; `spfx` accepts `--lang`.
+- `profile generate --tsconfig-from <project|latest-ts>` puts a project's tsconfig.json (without
+  `files` and `references`) into the profile; `latest-ts` picks the highest TypeScript, as 2.x did.
 
 ## 3.0.0-alpha.0
 

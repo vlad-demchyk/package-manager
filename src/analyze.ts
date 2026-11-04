@@ -345,8 +345,14 @@ function packageConstraintFindings(
   constraints: Constraint[],
   existing: Finding[],
 ): Finding[] {
+  // Packages another rule already reported: `name: ...` evidence, or `x requires name@range` peers.
   const reported = new Set(
-    existing.flatMap((item) => item.evidence.map((line) => line.split(':')[0])),
+    existing.flatMap((item) =>
+      item.evidence.flatMap((line) => [
+        line.split(':')[0],
+        ...(/ requires ((?:@[^/\s]+\/)?[^@\s]+)@/.exec(line)?.slice(1) ?? []),
+      ]),
+    ),
   );
   const findings: Finding[] = [];
   for (const constraint of constraints) {

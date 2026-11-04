@@ -1,20 +1,43 @@
 import path from 'node:path';
 import { createInterface } from 'node:readline/promises';
-import { Option, type Command } from 'commander';
+import { InvalidArgumentError, Option, type Command } from 'commander';
 import pc from 'picocolors';
 import type { Report } from '../analyze.js';
-import type { Fix, Risk } from '../core/types.js';
+import type { Fix, Project, Risk } from '../core/types.js';
+import {
+  lockVersions,
+  recordProjectVerified,
+  recordStoreVerified,
+  versionChanges,
+} from '../core/verified.js';
 import { runWithNode } from '../exec/run.js';
 import { applyPreviews, collectEdits, lineDiff, previewEdits } from '../fixes/apply.js';
 import { t } from '../i18n/index.js';
 import { journal } from '../ops/journal.js';
+import { readLinks } from '../store/store.js';
 import { runAnalysis, type Session } from './context.js';
 
 export const RISK_ORDER: Record<Risk, number> = { safe: 0, review: 1, breaking: 2 };
 
+const DEPENDENCY_FIELDS = [
+  'dependencies',
+  'devDependencies',
+  'optionalDependencies',
+  'peerDependencies',
+  'overrides',
+];
+
 /** `--lang`; commands apply it through a preAction hook on the program. */
 export function langOption(): Option {
   return new Option('--lang <language>', 'output language').choices(['auto', 'en', 'it', 'uk']);
+}
+
+/** Commander parser for counts such as `--depth` and `--limit`: rejects `abc`, `-1` and `2.5`. */
+export function nonNegativeInt(value: string): number {
+  if (!/^\d+$/.test(value.trim())) {
+    throw new InvalidArgumentError(t('cli.notANumber', { value }));
+  }
+  return Number.parseInt(value, 10);
 }
 
 export function commonOptions(command: Command): Command {
@@ -22,10 +45,8 @@ export function commonOptions(command: Command): Command {
     .argument('[path]', 'workspace root', '.')
     .option('-p, --project <globs...>', 'only these project ids or globs')
     .option('-x, --exclude <globs...>', 'leave out these project ids or globs')
-    .option('--depth <n>', 'how deep to search for projects', (value) => Number.parseInt(value, 10))
-    .addOption(
-      new Option('--lang <language>', 'output language').choices(['auto', 'en', 'it', 'uk']),
-    )
+    .option('--depth <n>', 'how deep to search for projects', nonNegativeInt)
+    .addOption(langOption())
     .option('--offline', 'do not use the network (advisories from cache only)')
     .option('--no-security', 'skip the npm advisories lookup')
     .option('--no-usage', 'skip the source scan (undeclared/unused imports, network usage)');
@@ -57,8 +78,11 @@ export async function confirm(question: string): Promise<boolean> {
 export interface ApplyOptions {
   apply?: boolean;
   yes?: boolean;
-  /** Regenerate the lockfile of every changed project (`npm install --package-lock-only`). */
-  relock?: boolean;
+  /**
+   * `npm install --package-lock-only` after writing: true relocks every changed project, false
+   * never, undefined relocks the changed projects with an npm lockfile when versions were edited.
+   */
+  relock?: boolean | undefined;
   command: string;
 }
 
@@ -131,7 +155,15 @@ export async function reviewAndApply(
     result: 'ok',
     detail: `backup ${path.relative(session.root, result.backupDir)}`,
   });
-  if (options.relock) {
+  // A lockfile must follow the versions it locks: version edits relock by default (`--no-relock` opts
+  // out); `--relock` also relocks projects whose other files changed or that had no lockfile yet.
+  const versionEdits = collectEdits(fixes).some(
+    (edit) =>
+      'path' in edit &&
+      path.basename(edit.file) === 'package.json' &&
+      DEPENDENCY_FIELDS.includes(String(edit.path[0])),
+  );
+  if (options.relock ?? versionEdits) {
     // Pins, engines and stack versions may themselves have changed in these edits.
     const fresh = await runAnalysis(
       session,
@@ -140,8 +172,9 @@ export async function reviewAndApply(
     );
     const changed = fresh.projects.filter(
       (entry) =>
-        result.files.some((file) => file.startsWith(entry.project.dir + path.sep)) ||
-        entry.node.requirements.some((requirement) => result.files.includes(requirement.file)),
+        (options.relock === true || entry.project.lockfile?.kind === 'npm') &&
+        (result.files.some((file) => file.startsWith(entry.project.dir + path.sep)) ||
+          entry.node.requirements.some((requirement) => result.files.includes(requirement.file))),
     );
     const failures = await relock(
       session,
@@ -151,6 +184,51 @@ export async function reviewAndApply(
     return failures === 0;
   }
   return true;
+}
+
+export interface BuildResult {
+  project: Project;
+  node: string;
+  script: string;
+  ok: boolean;
+}
+
+/**
+ * After builds: every project that passed keeps its locked versions as its verified set, and a
+ * shared store whose linked members all passed keeps its lockfile to seed the next store of the group.
+ */
+export async function recordVerifiedBuilds(root: string, results: BuildResult[]): Promise<void> {
+  let projects = 0;
+  for (const result of results) {
+    const lock = result.project.lockfile;
+    if (!result.ok || lock?.kind !== 'npm') continue;
+    if (
+      await recordProjectVerified(root, result.project.id, lock.path, {
+        node: result.node,
+        script: result.script,
+      })
+    )
+      projects++;
+  }
+  const passed = new Set(results.filter((result) => result.ok).map((result) => result.project.id));
+  const byStore = new Map<string, string[]>();
+  for (const link of await readLinks(root))
+    byStore.set(link.target, [...(byStore.get(link.target) ?? []), link.projectId]);
+  let stores = 0;
+  for (const [target, ids] of byStore) {
+    const node = results.find((result) => ids.includes(result.project.id))?.node;
+    if (!node || !ids.every((id) => passed.has(id))) continue;
+    if (
+      await recordStoreVerified(
+        root,
+        ids,
+        path.join(path.dirname(target), 'package-lock.json'),
+        node,
+      )
+    )
+      stores++;
+  }
+  if (projects > 0) console.log(pc.green(t('verified.recorded', { projects, stores })));
 }
 
 /** `npm install --package-lock-only` with each project's Node (2.x "verifica rapida"). */
@@ -188,6 +266,7 @@ export async function relock(
       '--no-fund',
     ]);
     if (run.code !== 0) failures++;
+    else await reportUnverified(entry.project);
     await journal(session.root, {
       command: 'relock',
       projects: [entry.project.id],
@@ -197,4 +276,16 @@ export async function relock(
   }
   if (failures > 0) process.exitCode = 1;
   return failures;
+}
+
+/** Prints the locked versions of a project that moved away from its verified set, if it has one. */
+export async function reportUnverified(project: Project): Promise<void> {
+  if (!project.verified || project.lockfile?.kind !== 'npm') return;
+  const current = await lockVersions(project.lockfile.path);
+  if (!current) return;
+  const changes = versionChanges(project.verified.versions, current);
+  if (changes.length === 0) return;
+  console.log(pc.yellow(`${project.id}: ${t('store.unverified', { count: changes.length })}`));
+  for (const line of changes.slice(0, 40)) console.log(pc.yellow(`    ${line}`));
+  if (changes.length > 40) console.log(pc.dim(`    … +${changes.length - 40}`));
 }

@@ -18,15 +18,19 @@ import semver from 'semver';
 import type { ProjectReport, Report } from '../analyze.js';
 import { readJsonFile } from '../core/json.js';
 import { isTopLevel, readNpmLockfile } from '../core/lockfile.js';
+import { treeViolations, type TreeEntry } from '../core/tree.js';
+import { lockVersions, versionChanges } from '../core/verified.js';
 import type { PackageManifest, Project } from '../core/types.js';
 import type { InstalledNode } from '../node/toolchain.js';
 import { STORE_MARKER } from '../core/discovery.js';
 import { backupFiles } from '../fixes/apply.js';
 
-export const STORE_DIR = path.join('.packman', 'store');
+const STORE_DIR = path.join('.packman', 'store');
 const LINKS_FILE = path.join('.packman', 'links.json');
 const TRASH_DIR = path.join('.packman', 'trash');
 const READY_FILE = '.packman-ready.json';
+/** Result of the edge check of a completed store: peer incompatibilities to report on re-link. */
+const CHECK_FILE = '.packman-check.json';
 
 /** Dependency-shaped fields that must be identical for projects to share one install. */
 const SHARED_FIELDS = [
@@ -85,6 +89,8 @@ export interface LinkRecord {
   nodeVersion?: string;
   /** Manifest key of the project when it was linked; a different key means the link is stale. */
   manifestKey?: string;
+  /** {@link UNION_STORE_VERSION} the union store was built with; absent on older links. */
+  storeVersion?: number;
   /** `folder`: node_modules is one junction; `packages`: a folder with one junction per needed package. */
   mode?: 'folder' | 'packages';
   /** Packages linked in `packages` mode (closure of `roots`). */
@@ -103,6 +109,14 @@ function canonical(value: unknown): string {
   }
   return JSON.stringify(value);
 }
+
+/**
+ * How union stores are built, part of every union store key and link record: a completed store is
+ * reused on re-link, so a store built the old way must get a new key to be rebuilt.
+ * 3: npm resolves the store tree fresh from the group manifest, checked edge by edge
+ * (1-2 pieced members' lockfiles together and could mix a parent with another lock's nested packages).
+ */
+const UNION_STORE_VERSION = 3;
 
 const hash = (text: string): string => createHash('sha256').update(text).digest('hex').slice(0, 16);
 
@@ -142,6 +156,8 @@ export function planStore(report: Report, options: { union?: boolean } = {}): St
           record &&
           project &&
           record.key === first.key &&
+          // A union store built the older way is rebuilt, never kept for its existing links.
+          (group.mode !== 'union' || record.storeVersion === UNION_STORE_VERSION) &&
           record.nodeVersion === group.node?.version &&
           record.manifestKey === manifestKey(project.manifest) &&
           record.lockKey === lockFingerprint(project)
@@ -241,7 +257,7 @@ function planUnion(report: Report): StorePlan {
     const first = eligible[0];
     const node = first?.node.selected;
     const group: StoreGroup = {
-      key: `u-${hash(canonical({ manifest: storeManifest, overrides: first?.project.manifest.overrides ?? {}, node: node?.version, locks: eligible.map((entry) => [entry.project.id, lockFingerprint(entry.project) ?? null]) }))}`,
+      key: `u-${hash(canonical({ store: UNION_STORE_VERSION, manifest: storeManifest, overrides: first?.project.manifest.overrides ?? {}, node: node?.version, locks: eligible.map((entry) => [entry.project.id, lockFingerprint(entry.project) ?? null]) }))}`,
       mode: 'union',
       projectIds: ids,
       manifest: storeManifest,
@@ -352,12 +368,21 @@ export interface LinkOptions {
   now?: Date;
   /** Write per-project npm locks from the completed union installation, after a repository upgrade. */
   syncLocks?: boolean;
+  /** Union mode: the group's verified store lockfile to resolve from instead of a fresh tree. */
+  seedLock?: Record<string, unknown>;
 }
 
 export interface LinkResult {
   storeDir: string;
-  /** Packages whose locked versions differ between members (union mode): `name: v1 (a, b) | v2 (c)`. */
+  /**
+   * Union mode: top-level packages the fresh store resolves to another major than a member's own
+   * lockfile had, `name: old (members) -> new`. The members' locks change to the group's versions.
+   */
   conflicts?: string[];
+  /** Peer ranges the installed tree does not satisfy: incompatibilities to fix in the projects. */
+  peers?: string[];
+  /** Seeded stores: versions npm moved away from the verified set; not verified by a build yet. */
+  unverified?: string[];
   linked: string[];
   skipped: { projectId: string; reason: string }[];
 }
@@ -434,16 +459,23 @@ export async function linkGroup(
       Object.assign(manifest, group.manifest);
       const overrides = members[0]?.manifest.overrides;
       if (overrides) manifest.overrides = overrides;
-      // Without a lockfile npm would re-resolve every range to today's latest; the merged lockfile keeps
-      // the versions the projects are locked to, and npm only resolves what is missing.
-      const merged = await mergeLockfiles(members, storeName, manifest);
-      if (merged) {
-        await writeFile(
-          path.join(storeDir, 'package-lock.json'),
-          `${JSON.stringify(merged.lock, null, 2)}\n`,
-          'utf8',
-        );
-        result.conflicts = merged.conflicts;
+      // Members' lockfiles were resolved at different times and cannot be pieced together path by
+      // path. The group's verified store lockfile (one tree a build passed with) seeds npm, which
+      // keeps those versions and resolves only what the manifests changed; without one, npm resolves
+      // the tree fresh. A package whose dependencies cannot use the group's version gets its own
+      // nested copy either way.
+      const lockPath = path.join(storeDir, 'package-lock.json');
+      if (options.seedLock) {
+        const seed = structuredClone(options.seedLock) as {
+          name?: string;
+          packages?: Record<string, { name?: string }>;
+        };
+        seed.name = storeName;
+        const rootEntry = seed.packages?.[''];
+        if (rootEntry) rootEntry.name = storeName;
+        await writeFile(lockPath, `${JSON.stringify(seed, null, 2)}\n`, 'utf8');
+      } else {
+        await rm(lockPath, { force: true });
       }
     }
     await writeFile(
@@ -457,12 +489,40 @@ export async function linkGroup(
       throw new Error(`npm ci failed in ${storeDir} (exit ${code}); nothing was linked`);
     if (!existsSync(target))
       throw new Error(`installation created no node_modules in ${storeDir}; nothing was linked`);
+    const tree = await readJsonFile<{ packages?: Record<string, TreeEntry> }>(
+      path.join(storeDir, 'package-lock.json'),
+    );
+    if (!tree.ok || !tree.value.packages)
+      throw new Error(`installation wrote no package-lock.json in ${storeDir}; nothing was linked`);
+    const checked = treeViolations(tree.value.packages);
+    if (checked.broken.length > 0)
+      throw new Error(
+        `store ${group.key} has dependencies outside their ranges; nothing was linked:\n  ${checked.broken.slice(0, 20).join('\n  ')}`,
+      );
+    await writeFile(path.join(storeDir, CHECK_FILE), JSON.stringify({ peers: checked.peers }));
+    if (options.seedLock) {
+      const seeded: Record<string, string> = {};
+      for (const [location, entry] of Object.entries(
+        (options.seedLock.packages ?? {}) as Record<string, { version?: string; link?: boolean }>,
+      ))
+        if (location && entry.version && !entry.link) seeded[location] = entry.version;
+      const installed = await lockVersions(path.join(storeDir, 'package-lock.json'));
+      result.unverified = installed ? versionChanges(seeded, installed) : [];
+    }
     await writeFile(
       path.join(storeDir, READY_FILE),
       JSON.stringify({ key: group.key, node: group.node.version }),
     );
   }
 
+  const check = await readJsonFile<{ peers?: string[] }>(path.join(storeDir, CHECK_FILE));
+  if (check.ok && check.value.peers?.length) result.peers = check.value.peers;
+  if (group.mode === 'union') {
+    const changes = await lockChanges(members, path.join(storeDir, 'package-lock.json'));
+    if (changes.length > 0) result.conflicts = changes;
+  }
+
+  // Only a tree that passed the edge check above is ever written back into the projects.
   if (options.syncLocks) await syncProjectLocks(root, members, storeDir);
 
   let links = [...previous];
@@ -478,6 +538,7 @@ export async function linkGroup(
       manifestKey: manifestKey(project.manifest),
       mode: linkMode,
       nodeVersion: group.node.version,
+      ...(group.mode === 'union' ? { storeVersion: UNION_STORE_VERSION } : {}),
     };
     const currentLock = options.syncLocks
       ? await readNpmLockfile(
@@ -543,11 +604,7 @@ export async function linkGroup(
 }
 
 /** Recreate independent project locks from the shared tree; keep nested and hoisted resolutions. */
-export async function syncProjectLocks(
-  root: string,
-  members: Project[],
-  storeDir: string,
-): Promise<void> {
+async function syncProjectLocks(root: string, members: Project[], storeDir: string): Promise<void> {
   const parsed = await readJsonFile<{
     lockfileVersion?: number;
     packages?: Record<string, LockEntry>;
@@ -705,7 +762,7 @@ export async function unlinkProjects(
 }
 
 /** What a project needs from the store: its own declarations plus packages its stack needs implicitly. */
-export function neededPackages(project: Project, roots: string[]): string[] {
+function neededPackages(project: Project, roots: string[]): string[] {
   const names = project.dependencies
     .filter((dep) => dep.section !== 'peerDependencies')
     .map((dep) => dep.name);
@@ -809,67 +866,41 @@ interface LockEntry {
 }
 
 /**
- * Merges the members' npm v2/v3 lockfiles into one for the store: entries that agree are kept,
- * conflicting versions resolve to the version locked by most members (ties: the first member).
+ * Top-level packages that the store resolves to another major than a member's own lockfile had:
+ * `name: old (members) -> new`. These are the versions the members move to with the group.
  */
-export async function mergeLockfiles(
-  members: Project[],
-  storeName: string,
-  manifest: Record<string, unknown>,
-): Promise<{ lock: Record<string, unknown>; conflicts: string[] } | undefined> {
-  const locks: { project: Project; packages: Record<string, LockEntry> }[] = [];
+export async function lockChanges(members: Project[], storeLock: string): Promise<string[]> {
+  const store = await readJsonFile<{ packages?: Record<string, LockEntry> }>(storeLock);
+  if (!store.ok || !store.value.packages) return [];
+  const resolved = store.value.packages;
+  const previous = new Map<string, Map<string, string[]>>();
   for (const project of members) {
-    if (project.lockfile?.kind !== 'npm' || (project.lockfile.version ?? 1) < 2) continue;
-    const parsed = await readJsonFile<{ packages?: Record<string, LockEntry> }>(
-      project.lockfile.path,
+    if (project.lockfile?.kind !== 'npm') continue;
+    const own = await readJsonFile<{ packages?: Record<string, LockEntry> }>(project.lockfile.path);
+    for (const [location, entry] of Object.entries(own.ok ? (own.value.packages ?? {}) : {})) {
+      const now = resolved[location]?.version;
+      if (
+        !location.startsWith('node_modules/') ||
+        location.includes('/node_modules/', 'node_modules/'.length) ||
+        !entry.version ||
+        !now ||
+        semver.valid(entry.version) === null ||
+        semver.valid(now) === null ||
+        semver.major(entry.version) === semver.major(now)
+      )
+        continue;
+      const byVersion = previous.get(location) ?? new Map<string, string[]>();
+      byVersion.set(entry.version, [...(byVersion.get(entry.version) ?? []), project.id]);
+      previous.set(location, byVersion);
+    }
+  }
+  return [...previous.entries()]
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(
+      ([location, byVersion]) =>
+        `${location.slice('node_modules/'.length)}: ${[...byVersion.entries()].map(([version, ids]) => `${version} (${ids.join(', ')})`).join(' | ')} -> ${resolved[location]?.version ?? '?'}`,
     );
-    if (parsed.ok && parsed.value.packages)
-      locks.push({ project, packages: parsed.value.packages });
-  }
-  if (locks.length === 0) return undefined;
-  const candidates = new Map<string, Map<string, { entry: LockEntry; projects: string[] }>>();
-  for (const { project, packages } of locks) {
-    for (const [location, entry] of Object.entries(packages)) {
-      if (location === '' || entry.version === undefined) continue;
-      const byVersion =
-        candidates.get(location) ?? new Map<string, { entry: LockEntry; projects: string[] }>();
-      const current = byVersion.get(entry.version) ?? { entry, projects: [] };
-      current.projects.push(project.id);
-      byVersion.set(entry.version, current);
-      candidates.set(location, byVersion);
-    }
-  }
-  const packages: Record<string, LockEntry> = {
-    '': {
-      name: storeName,
-      version: '0.0.0',
-      ...(manifest.dependencies ? { dependencies: manifest.dependencies } : {}),
-      ...(manifest.devDependencies ? { devDependencies: manifest.devDependencies } : {}),
-      ...(manifest.optionalDependencies
-        ? { optionalDependencies: manifest.optionalDependencies }
-        : {}),
-    },
-  };
-  const conflicts: string[] = [];
-  for (const [location, byVersion] of [...candidates.entries()].sort(([a], [b]) =>
-    a.localeCompare(b),
-  )) {
-    const options = [...byVersion.values()].sort((a, b) => b.projects.length - a.projects.length);
-    const chosen = options[0];
-    if (!chosen) continue;
-    packages[location] = chosen.entry;
-    if (options.length > 1 && !location.includes('/node_modules/', 'node_modules/'.length)) {
-      conflicts.push(
-        `${location.slice('node_modules/'.length)}: ${options.map((option) => `${option.entry.version ?? '?'} (${option.projects.join(', ')})`).join(' | ')}`,
-      );
-    }
-  }
-  return {
-    lock: { name: storeName, version: '0.0.0', lockfileVersion: 3, requires: true, packages },
-    conflicts,
-  };
 }
-
 /**
  * Stores that no recorded link points to, plus (with `trash`) moved node_modules folders whose
  * projects no longer reference them. Nothing referenced by `.packman/links.json` is ever returned.

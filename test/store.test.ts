@@ -7,12 +7,14 @@ import { configSchema } from '../src/core/config.js';
 import { discoverWorkspace } from '../src/core/discovery.js';
 import {
   linkGroup,
+  lockChanges,
   planStore,
   pruneTargets,
   readLinks,
   storeClosure,
   unlinkProjects,
 } from '../src/store/store.js';
+import { treeViolations } from '../src/core/tree.js';
 import { fakeNodes, lockfile, makeWorkspace, TODAY } from './helpers.js';
 
 const manifest = (name: string, react = '18.3.1'): object => ({
@@ -62,6 +64,10 @@ async function fakeInstall(dir: string): Promise<number> {
   await writeFile(
     path.join(dir, 'node_modules', 'react', 'package.json'),
     '{"name":"react","version":"18.3.1"}',
+  );
+  await writeFile(
+    path.join(dir, 'package-lock.json'),
+    JSON.stringify({ packages: { '': {}, 'node_modules/react': { version: '18.3.1' } } }),
   );
   return 0;
 }
@@ -122,6 +128,22 @@ describe('store plan', () => {
     if (!locked) throw new Error('locked package expected');
     locked.version = '18.3.2';
     expect(planStore(report, { union: true }).groups[0]?.key).not.toBe(before);
+  });
+
+  it('keeps an existing union key only for links made with the current merge', async () => {
+    const { root, report } = await setup();
+    const group = planStore(report, { union: true }).groups[0];
+    if (!group) throw new Error('group expected');
+    await linkGroup(root, report, group, { replaceExisting: true, install: fakeInstall });
+    const links = (await readLinks(root)).map((link) => ({ ...link, key: 'u-older-store' }));
+    report.links = links;
+    expect(planStore(report, { union: true }).groups[0]?.key).toBe('u-older-store');
+    report.links = links.map((link) => {
+      const copy = { ...link };
+      delete copy.storeVersion;
+      return copy;
+    });
+    expect(planStore(report, { union: true }).groups[0]?.key).toBe(group.key);
   });
 
   it('excludes exact members with no installed Node', async () => {
@@ -367,5 +389,113 @@ describe('store dependency closure', () => {
       'hoisted',
       'root',
     ]);
+  });
+});
+
+describe('store tree check', () => {
+  it('finds the anima breakage: schema-utils@2 resolving ajv-keywords@5 nested under it', () => {
+    const { broken, peers } = treeViolations({
+      '': { dependencies: { 'copy-webpack-plugin': '6.0.4' } },
+      'node_modules/copy-webpack-plugin': {
+        version: '6.0.4',
+        dependencies: { 'schema-utils': '^2.7.0' },
+      },
+      'node_modules/schema-utils': {
+        version: '2.7.1',
+        dependencies: { ajv: '^6.12.4', 'ajv-keywords': '^3.5.2' },
+      },
+      'node_modules/schema-utils/node_modules/ajv-keywords': {
+        version: '5.1.0',
+        peerDependencies: { ajv: '^8.8.2' },
+      },
+      'node_modules/schema-utils/node_modules/ajv': { version: '8.18.0' },
+      'node_modules/ajv': { version: '6.12.6' },
+      'node_modules/ajv-keywords': { version: '3.5.2', peerDependencies: { ajv: '^6.9.1' } },
+    });
+    expect(broken).toEqual([
+      'node_modules/schema-utils -> ajv@^6.12.4: 8.18.0',
+      'node_modules/schema-utils -> ajv-keywords@^3.5.2: 5.1.0',
+    ]);
+    expect(peers).toEqual([]);
+  });
+
+  it('accepts own nested copies, reports peers and ignores optional or non-registry edges', () => {
+    const { broken, peers } = treeViolations({
+      '': { dependencies: { a: '^1.0.0', alias: 'npm:b@^1.0.0' } },
+      'node_modules/a': {
+        version: '1.2.0',
+        dependencies: { b: '^2.0.0' },
+        peerDependencies: { react: '^18.0.0', vue: '^3.0.0' },
+        peerDependenciesMeta: { vue: { optional: true } },
+      },
+      'node_modules/a/node_modules/b': { version: '2.1.0' },
+      'node_modules/b': { version: '1.0.0' },
+      'node_modules/react': { version: '17.0.2' },
+      'node_modules/fsevents': { version: '2.3.3', optional: true, dependencies: { gone: '^1' } },
+    });
+    expect(broken).toEqual([]);
+    expect(peers).toEqual(['node_modules/a -> react@^18.0.0: 17.0.2']);
+  });
+
+  it('lists the majors the store moves members to', async () => {
+    const { root, report } = await setup();
+    const storeLock = path.join(root, 'store-lock.json');
+    await writeFile(
+      storeLock,
+      JSON.stringify({ packages: { 'node_modules/react': { version: '19.3.1' } } }),
+    );
+    const members = report.projects.map((entry) => entry.project);
+    expect(await lockChanges(members, storeLock)).toEqual([
+      'react: 18.3.1 (app-a, app-b, app-d) -> 19.3.1',
+    ]);
+  });
+});
+
+describe('store link tree check', () => {
+  it('refuses to link a tree with a dependency outside its range and links nothing', async () => {
+    const { root, report } = await setup();
+    const group = planStore(report, { union: true }).groups[0];
+    if (!group) throw new Error('group expected');
+    const install = async (dir: string): Promise<number> => {
+      await fakeInstall(dir);
+      await writeFile(
+        path.join(dir, 'package-lock.json'),
+        JSON.stringify({
+          packages: {
+            '': {},
+            'node_modules/react': { version: '18.3.1', dependencies: { 'loose-envify': '^1.1.0' } },
+            'node_modules/loose-envify': { version: '2.0.0' },
+          },
+        }),
+      );
+      return 0;
+    };
+    await expect(
+      linkGroup(root, report, group, { replaceExisting: true, install }),
+    ).rejects.toThrow('node_modules/react -> loose-envify@^1.1.0: 2.0.0');
+    expect(await readLinks(root)).toEqual([]);
+  });
+
+  it('links a tree with peer gaps and reports them as incompatibilities', async () => {
+    const { root, report } = await setup();
+    const group = planStore(report, { union: true }).groups[0];
+    if (!group) throw new Error('group expected');
+    const install = async (dir: string): Promise<number> => {
+      await fakeInstall(dir);
+      await writeFile(
+        path.join(dir, 'package-lock.json'),
+        JSON.stringify({
+          packages: {
+            '': {},
+            'node_modules/react': { version: '18.3.1' },
+            'node_modules/old-ui': { version: '1.0.0', peerDependencies: { react: '^16.0.0' } },
+          },
+        }),
+      );
+      return 0;
+    };
+    const result = await linkGroup(root, report, group, { replaceExisting: true, install });
+    expect(result.peers).toEqual(['node_modules/old-ui -> react@^16.0.0: 18.3.1']);
+    expect((await readLinks(root)).length).toBeGreaterThan(0);
   });
 });

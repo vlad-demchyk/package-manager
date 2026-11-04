@@ -10,7 +10,7 @@ import type { ProjectContext } from '../providers/types.js';
 import { primaryStack } from './groups.js';
 
 /** Profiles that apply to a project, merged in declaration order (later profiles win). */
-export function profileFor(
+function profileFor(
   config: PackmanConfig,
   projectId: string,
   stack?: string,
@@ -47,7 +47,7 @@ export function profileFor(
 }
 
 /** True when a declared spec already matches the profile version (exact profile versions must be identical). */
-export function specMatches(spec: string, wanted: string): boolean {
+function specMatches(spec: string, wanted: string): boolean {
   if (spec === wanted) return true;
   if (isExactSpec(wanted)) return false;
   const min = minVersionOf(spec);
@@ -264,7 +264,7 @@ async function tsconfigFindings(
 }
 
 /** Flattens nested objects to leaf paths; arrays are leaves. */
-export function leaves(
+function leaves(
   value: Record<string, unknown>,
   prefix: string[] = [],
 ): { path: string[]; value: unknown }[] {

@@ -294,13 +294,28 @@ export async function spfxMigration(
       ) ||
       (graph4 && /@pnp\/graph/.test(text) && /\.\s*paged\s*(?:<[^>]+>)?\s*\(/.test(text)),
   );
-  if (desiredPnp && semver.major(desiredPnp) >= 4 && removedPnp.length > 0)
+  if (desiredPnp && semver.major(desiredPnp) >= 4 && removedPnp.length > 0) {
     issues.push({
       code: 'pnp-api',
       level: 'blocker',
       message: msg('upgrade.pnpApi'),
       files: removedPnp.map((source) => path.relative(project.dir, source.file)),
     });
+    // `for await` over PnPjs queries fails with TS2495 below ES2018 unless iteration is downlevelled.
+    const options = tsconfig.ok ? tsconfig.value.compilerOptions : undefined;
+    const tsTarget = typeof options?.target === 'string' ? options.target.toLowerCase() : undefined;
+    if (
+      tsTarget &&
+      ['es3', 'es5', 'es6', 'es2015', 'es2016', 'es2017'].includes(tsTarget) &&
+      options?.downlevelIteration !== true
+    )
+      issues.push({
+        code: 'pnp-async-target',
+        level: 'review',
+        message: msg('upgrade.pnpAsyncTarget', { target: String(options?.target) }),
+        files: ['tsconfig.json'],
+      });
+  }
   return { edits, issues };
 }
 

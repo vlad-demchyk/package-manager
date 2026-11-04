@@ -36,6 +36,13 @@ export const it: Catalogue = {
   'npm.unboundedSpec': 'Versioni illimitate (*, latest) rendono le installazioni imprevedibili',
   'npm.lockfileMissing': 'Nessun lockfile: le installazioni non sono riproducibili',
   'npm.lockfileV1': 'Lockfile v1 (npm 5-6): rigenerarlo con npm 7+ per metadati completi',
+  'npm.treeBroken':
+    '{count} pacchetti del lockfile risolvono una dipendenza fuori dal range: a runtime caricano la copia sbagliata',
+  'npm.treePeer': '{count} requisiti peer di pacchetti annidati non soddisfatti dal lockfile',
+  'verified.recorded':
+    'Set verificati salvati: {projects} progetti, {stores} store condivisi (.packman/verified).',
+  'npm.unverifiedVersions':
+    '{count} versioni del lockfile diverse dal set con cui {script} è passato ({date}): non verificate da una build',
   'npm.lockfileDrift': 'Lockfile non allineato con package.json ({count} pacchetti)',
   'npm.notInstalled': 'Dipendenze non installate',
   'npm.installedDrift': 'Pacchetti installati diversi da package.json ({count})',
@@ -121,8 +128,26 @@ export const it: Catalogue = {
 
   'tui.tab.overview': 'Panoramica',
   'tui.tab.projects': 'Progetti',
-  'tui.tab.matrix': 'Matrice',
+  'tui.tab.versions': 'Versioni',
   'tui.tab.node': 'Node',
+  'tui.tab.outdated': 'Obsoleti',
+  'tui.tab.store': 'Store',
+  'tui.key.profiles': 'profili',
+  'tui.nothingToChange': 'Niente da cambiare per questa riga.',
+  'tui.noProfileFixes':
+    'Nessuna differenza dai profili da correggere (profili in packman.config.json).',
+  'tui.profilesSelected': '{count} correzioni dei profili selezionate: verificarle in Correzioni.',
+  'tui.profilesCleared': '{count} correzioni dei profili deselezionate.',
+  'tui.outdatedLoading': 'Interrogazione del registry npm…',
+  'tui.outdatedUnavailable':
+    'Interrogazione del registry non disponibile qui: eseguire packman outdated.',
+  'tui.inMajor': 'più recente nella major',
+  'tui.storeLinked': '{count}/{total} collegati',
+  'tui.storeHint':
+    'Collegare con: packman store link -g {key} --union (installa, poi sostituisce node_modules)',
+  'tui.storeOthers':
+    '{candidates} gruppi da allineare prima, {excluded} progetti esclusi: packman store plan',
+  'fix.bumpInMajor': 'Aggiornare {name} a {version}',
   'tui.tab.fixes': 'Correzioni',
   'tui.minSeverity': 'mostra {severity} e superiori',
   'tui.key.move': 'sposta',
@@ -180,6 +205,25 @@ export const it: Catalogue = {
   'update.noProfiles':
     'Nessun profilo in packman.config.json: crearne uno con `packman profile generate --name <nome> --write`.',
   'profile.notWritten': 'Non scritto: aggiungere --write per salvarlo in packman.config.json.',
+  'store.seeded':
+    'Risoluzione dal set verificato del {date} (Node {node}); --refresh risolve da zero.',
+  'store.unverified':
+    '{count} versioni diverse dal set verificato, non ancora verificate da una build:',
+  'install.drift':
+    '{project}: package-lock.json non corrisponde a package.json; eseguire packman relock e verificare le modifiche (npm sceglierebbe le versioni da solo).',
+  'store.peers':
+    '{count} requisiti peer non soddisfatti dalle versioni del gruppo; correggerli nei progetti:',
+  'cli.notANumber': '{value} non è un numero intero maggiore o uguale a 0.',
+  'data.usingUpdated': 'in uso la copia aggiornata',
+  'data.usingBundled': 'in uso la copia inclusa',
+  'data.dir': 'Cartella dei dati aggiornati: {dir}',
+  'data.file': '{name}: {before} -> {after}',
+  'data.noChanges': 'nessuna modifica',
+  'data.notWritten': 'Non scritto: eseguire senza --dry-run per salvare i dati aggiornati.',
+  'data.written': 'Salvato in {dir}; i file inclusi non sono stati modificati.',
+  'profile.tsconfigSource': 'tsconfig.json preso da {project}',
+  'profile.tsconfigSourceMissing':
+    'Nessun tsconfig.json leggibile per {project} (id di progetto o latest-ts) {reason}',
   'profile.written': 'Profilo {name} scritto in {file}',
   'align.package': 'Allineamento di {name} a {version}',
   'align.unknownProject': 'Progetto sconosciuto {project}',
@@ -227,6 +271,8 @@ export const it: Catalogue = {
   'upgrade.reactApi':
     'React {version} richiede la migrazione di ReactDom.render/unmount alla root API nel codice.',
   'upgrade.pnpMajor': 'PnPjs {from} -> {to}: verificare le API e la build.',
+  'upgrade.pnpAsyncTarget':
+    'Con target {target} in tsconfig `for await` sulle query PnPjs non compila (TS2495): portare target a ES2018+ oppure impostare downlevelIteration (aggiungendo lib es2018.asynciterable se Symbol.asyncIterator non è noto).',
   'upgrade.pnpApi':
     'Il codice usa API/import PnPjs rimossi; migrare getAll/getPaged/Graph paged agli iteratori asincroni e sostituire common/odata.',
   'upgrade.customGulp':

@@ -43,7 +43,7 @@ export async function runAnalysis(
   options: CommonOptions,
   extra: Partial<AnalyzeOptions> = {},
 ): Promise<Report> {
-  // A session survives writes (update/install, reinstall and TUI reloads).
+  // A session survives writes (profile apply, install --clean and TUI reloads).
   // Reload both configuration and projects instead of analyzing the pre-write snapshot.
   session.loaded = await loadConfig(session.root);
   session.workspace = await discoverWorkspace(session.root, {

@@ -5,6 +5,7 @@ import picomatch from 'picomatch';
 import { ALWAYS_IGNORED_DIRS, type PackmanConfig } from './config.js';
 import { readJsonFile } from './json.js';
 import { readLockfile } from './lockfile.js';
+import { readProjectVerified } from './verified.js';
 import { mapLimit } from './concurrency.js';
 import {
   DEPENDENCY_SECTIONS,
@@ -120,10 +121,12 @@ export async function loadProject(root: string, dir: string): Promise<Project | 
     installed,
     isRoot: id === '.',
   };
-  const lockfile = await readLockfile(dir);
+  const lockfile = await readLockfile(dir, manifest);
   if (lockfile) {
     project.lockfile = lockfile;
   }
+  const verified = await readProjectVerified(root, id);
+  if (verified) project.verified = verified;
   return project;
 }
 
@@ -171,7 +174,7 @@ async function readInstalledVersions(
   return installed;
 }
 
-export function toProjectId(root: string, dir: string): string {
+function toProjectId(root: string, dir: string): string {
   const rel = path.relative(root, dir);
   return rel === '' ? '.' : rel.split(path.sep).join('/');
 }

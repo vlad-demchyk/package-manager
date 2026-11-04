@@ -413,6 +413,35 @@ describe('explicit SPFx migrations and blockers', () => {
     );
   });
 
+  it('warns that async iterators over PnPjs need ES2018+ or downlevelIteration', async () => {
+    const asyncTarget = async (compilerOptions: object) => {
+      const files = { ...spfx('old', '1.18.2'), ...spfx('new', '1.21.1') };
+      (files['old/package.json'] as { dependencies: Record<string, string> }).dependencies[
+        '@pnp/sp'
+      ] = '3.26.0';
+      (files['new/package.json'] as { dependencies: Record<string, string> }).dependencies[
+        '@pnp/sp'
+      ] = '4.12.0';
+      files['old/tsconfig.json'] = { compilerOptions };
+      const { report } = await setup({
+        ...files,
+        'old/src/data.ts': 'const page = await query.getPaged<T[]>();',
+      });
+      const plan = await planUpgrade(report, { config: config(), fetchImpl: registry });
+      return plan.projects
+        .find((project) => project.id === 'old')
+        ?.issues.find((issue) => issue.code === 'pnp-async-target');
+    };
+    expect(await asyncTarget({ target: 'es5' })).toMatchObject({
+      level: 'review',
+      message: { params: { target: 'es5' } },
+      files: ['tsconfig.json'],
+    });
+    expect(await asyncTarget({ target: 'ES2017' })).toBeDefined();
+    expect(await asyncTarget({ target: 'es2020' })).toBeUndefined();
+    expect(await asyncTarget({ target: 'es5', downlevelIteration: true })).toBeUndefined();
+  });
+
   it('generates Heft configuration only for an explicit newer target', async () => {
     const { root, report } = await setup({
       ...spfx('app', '1.21.1'),

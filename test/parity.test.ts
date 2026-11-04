@@ -333,6 +333,32 @@ describe('npm tools (2.x experimental 4)', () => {
   });
 });
 
+/**
+ * Stands in for npm resolving a store without a lockfile: the fake "registry" answers with the versions
+ * the fixtures lock, and package-lock.json is written the way npm writes it.
+ */
+async function resolveLikeNpm(
+  dir: string,
+): Promise<{ packages: Record<string, { version?: string }> }> {
+  expect(existsSync(path.join(dir, 'package-lock.json'))).toBe(false);
+  const manifest = JSON.parse(await readFile(path.join(dir, 'package.json'), 'utf8')) as Record<
+    string,
+    unknown
+  >;
+  const packages: Record<string, { version?: string }> = { '': manifest };
+  for (const project of ['spfx-webpart-121', 'spfx-extension-121']) {
+    const own = JSON.parse(
+      await readFile(path.join(root, project, 'package-lock.json'), 'utf8'),
+    ) as {
+      packages: Record<string, { version?: string }>;
+    };
+    for (const [location, value] of Object.entries(own.packages))
+      if (location && !(location in packages)) packages[location] = value;
+  }
+  const lock = { lockfileVersion: 3, packages };
+  await writeFile(path.join(dir, 'package-lock.json'), JSON.stringify(lock));
+  return lock;
+}
 describe('shared store with per-project links', () => {
   it('links each project only to what it needs and resolves through the store', async () => {
     // Align the two 1.21.1 projects first, as `store plan --union` asks.
@@ -369,6 +395,7 @@ describe('shared store with per-project links', () => {
         await writeFile(path.join(pkgDir, 'index.js'), `module.exports = ${JSON.stringify(name)};`);
       }
       await mkdir(path.join(dir, 'node_modules', '.bin'), { recursive: true });
+      await resolveLikeNpm(dir);
       return 0;
     };
     const result = await linkGroup(root, report, group, { replaceExisting: false, install });
@@ -424,11 +451,14 @@ describe('fix idempotency (rule <-> fix wiring)', () => {
 });
 
 describe('store regressions found on real repositories', () => {
-  /** Stands in for `npm install` in the store: materializes every top-level entry of the merged lockfile. */
+  /**
+   * Stands in for `npm install` in the store: the store has no lockfile yet (npm resolves it), so the
+   * fake "registry" answers with the versions the fixtures lock, writes package-lock.json like npm
+   * and materializes every top-level entry.
+   */
   const installFromLock = async (dir: string): Promise<number> => {
-    const lock = JSON.parse(await readFile(path.join(dir, 'package-lock.json'), 'utf8')) as {
-      packages: Record<string, { version?: string }>;
-    };
+    const lock = await resolveLikeNpm(dir);
+
     for (const [location, value] of Object.entries(lock.packages)) {
       if (!location || location.slice('node_modules/'.length).includes('/node_modules/')) continue;
       const pkgDir = path.join(dir, location);
@@ -461,7 +491,7 @@ describe('store regressions found on real repositories', () => {
     return { report, group };
   }
 
-  it('seeds the store with the versions locked by the projects and links the transitive closure', async () => {
+  it("resolves the store fresh, without the members' lockfiles, and links the transitive closure", async () => {
     const { report, group } = await alignedUnionGroup();
     const result = await linkGroup(root, report, group, {
       replaceExisting: false,

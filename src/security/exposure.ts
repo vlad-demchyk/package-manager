@@ -27,7 +27,7 @@ export interface NetworkUsage {
 const REQUEST_SERVERS = ['express', '@nestjs/core', 'fastify', 'koa', '@hapi/hapi', 'next', 'hono'];
 
 /** Projects that accept incoming HTTP requests, where Node HTTP/TLS CVEs are directly reachable. */
-export function acceptsRequests(project: Project): boolean {
+function acceptsRequests(project: Project): boolean {
   return project.dependencies.some(
     (dep) => dep.section === 'dependencies' && REQUEST_SERVERS.includes(dep.name),
   );
