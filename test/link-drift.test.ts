@@ -47,8 +47,10 @@ describe('git hooks', () => {
 
 describe('linked node_modules drift', () => {
   it('matches right after linking', async () => {
-    const { root, cleanup, link } = await linkedWorkspace();
+    const { root, cleanup, modules, link } = await linkedWorkspace();
     try {
+      // Tool caches next to the links are not packages.
+      await mkdir(path.join(modules, '.vite-temp'));
       expect(await linkDrift(root, link)).toBeUndefined();
     } finally {
       await cleanup();

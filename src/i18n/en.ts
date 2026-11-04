@@ -182,7 +182,7 @@ export const en = {
   'sp.dryRun': 'Dry run: nothing written. Use --apply to create it.',
   'sp.confirmSeed': 'Create {count} lists, columns, items and files on {site}?',
   'sp.confirmClean': 'Delete what packman created on {site}?',
-  'sp.noGulp': 'no gulp toolchain installed (Heft projects are not supported yet)',
+  'sp.noGulp': 'neither gulp nor heft is installed in the project',
   'store.linkStale':
     'package.json changed since the project was linked; the shared store does not have the new versions yet',
   'store.linkDrift':
@@ -198,6 +198,9 @@ export const en = {
   'hooks.foreign':
     'left as is, not written by packman: {file}. Add packman store status --check to it by hand.',
   'hooks.removed': 'hook removed: {file}',
+  'spfx.tsconfigCompiler':
+    'tsconfig.json extends {extends}, but the project builds with {expected}',
+  'fix.tsconfigExtends': 'Point tsconfig.json extends to {compiler}',
   'store.none': 'No group of identical projects can share an install yet.',
   'store.groupNotFound': 'Group {group} not found; run `packman store plan`.',
   'store.linkPlan': '{count} projects will share one install built with Node {node}:',

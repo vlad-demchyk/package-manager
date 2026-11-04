@@ -435,6 +435,8 @@ describe('fix idempotency (rule <-> fix wiring)', () => {
       'npm/not-installed',
       'npm/installed-drift',
       'npm/lockfile-missing',
+      // The pinned line takes effect after installation (it judges the resolved version).
+      'spfx/library-target-mismatch',
     ]);
     const fixable = before.projects
       .flatMap((p) => p.findings.map((f) => ({ project: p.project.id, finding: f })))

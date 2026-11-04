@@ -186,6 +186,28 @@ export function planNode(
   if (selected) plan.selected = selected;
 
   if (effective.length > 0 && !selected) {
+    // An exact engines pin (18.18.2) nobody has installed, while an installed Node fits the stack:
+    // offer the stack range instead of the pin (review: the pin may have been deliberate).
+    const exactEngines = engines && semver.valid(engines.range) ? engines.range : undefined;
+    const fits = exactEngines
+      ? pickNode(
+          installed,
+          effective.filter((range) => range !== exactEngines),
+        )
+      : undefined;
+    const widen =
+      exactEngines && fits && primary
+        ? [
+            fix('node/set-engines', msg('fix.setEngines', { range: primary.range }), 'review', [
+              {
+                kind: 'json-set',
+                file: project.manifestPath,
+                path: ['engines', 'node'],
+                value: primary.range,
+              },
+            ]),
+          ]
+        : [];
     findings.push(
       finding(
         'node/not-installed',
@@ -197,6 +219,14 @@ export function planNode(
         }),
         {
           tags: ['node'],
+          fixes: widen,
+          ...(fits
+            ? {
+                evidence: [
+                  `${fits.version} fits ${primary?.range ?? ''} (${primary?.source ?? ''})`,
+                ],
+              }
+            : {}),
         },
       ),
     );

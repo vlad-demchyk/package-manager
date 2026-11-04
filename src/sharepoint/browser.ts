@@ -193,6 +193,7 @@ export function browserClient(page: Page, site: string): SpClient {
   const base = site.replace(/\/$/, '');
   return {
     site: base,
+    at: (relative: string) => browserClient(page, `${base}/${relative.replace(/^\/+|\/+$/g, '')}`),
     request: <T>(
       method: SpMethod,
       apiPath: string,

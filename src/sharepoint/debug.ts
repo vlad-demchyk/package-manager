@@ -162,6 +162,18 @@ export async function servePort(project: Project): Promise<number> {
   return parsed.ok ? (parsed.value.port ?? 4321) : 4321;
 }
 
+/**
+ * How the project serves its debug build: `gulp serve` (SPFx up to 1.21 and gulp-based 1.22) or
+ * `heft start` (Heft toolchain, SPFx 1.22+); both serve the same manifests on the serve.json port.
+ */
+export function devServerCommand(dir: string): string[] | undefined {
+  const gulp = path.join(dir, 'node_modules', 'gulp', 'bin', 'gulp.js');
+  if (existsSync(gulp)) return [gulp, 'serve', '--nobrowser'];
+  const heft = path.join(dir, 'node_modules', '@rushstack', 'heft', 'bin', 'heft');
+  if (existsSync(heft)) return [heft, 'start', '--nobrowser'];
+  return undefined;
+}
+
 export interface DevServer {
   manifestsUrl: string;
   components: DebugComponent[];
@@ -178,14 +190,15 @@ export async function startDevServer(
   const origin = `https://localhost:${port}`;
   if ((await get(`${origin}/temp/build/manifests.js`)).status !== 0)
     throw new Error(`port ${port} is already in use; stop the other dev server first`);
-  const gulp = path.join(project.dir, 'node_modules', 'gulp', 'bin', 'gulp.js');
+  const command = devServerCommand(project.dir);
+  if (!command) throw new Error('no gulp or heft in node_modules');
   const env = {
     ...process.env,
     PATH: `${path.dirname(node.executable)}${path.delimiter}${process.env.PATH ?? ''}`,
   };
   const log = createWriteStream(logFile);
   log.on('error', () => undefined);
-  const child: ChildProcess = spawn(node.executable, [gulp, 'serve', '--nobrowser'], {
+  const child: ChildProcess = spawn(node.executable, command, {
     cwd: project.dir,
     env,
     windowsHide: true,

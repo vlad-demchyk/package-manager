@@ -180,7 +180,7 @@ export const uk: Catalogue = {
   'sp.dryRun': 'Пробний прогін: нічого не записано. Додайте --apply, щоб створити.',
   'sp.confirmSeed': 'Створити {count} списків, колонок, записів і файлів на {site}?',
   'sp.confirmClean': 'Видалити те, що packman створив на {site}?',
-  'sp.noGulp': 'gulp не встановлено (проєкти на Heft поки не підтримуються)',
+  'sp.noGulp': 'у проєкті не встановлено ні gulp, ні heft',
   'store.linkStale':
     'package.json змінився після привʼязки; у спільному сховищі ще немає нових версій',
   'store.linkDrift':
@@ -197,6 +197,8 @@ export const uk: Catalogue = {
   'hooks.foreign':
     'не змінено, цей хук написав не packman: {file}. Додайте в нього packman store status --check вручну.',
   'hooks.removed': 'хук прибрано: {file}',
+  'spfx.tsconfigCompiler': 'tsconfig.json розширює {extends}, але проєкт збирається з {expected}',
+  'fix.tsconfigExtends': 'Перевести extends у tsconfig.json на {compiler}',
   'store.none': 'Поки жодна група ідентичних проєктів не може мати спільну установку.',
   'store.groupNotFound': 'Групу {group} не знайдено; запустіть `packman store plan`.',
   'store.linkPlan': '{count} проєктів матимуть одну установку, зібрану з Node {node}:',

@@ -1,8 +1,8 @@
-import { existsSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import semver from 'semver';
 import { finding, fix, msg, removeDependency, setDependency } from '../../core/findings.js';
-import { readJsonFile } from '../../core/json.js';
+import { parseJsonc, readJsonFile } from '../../core/json.js';
 import { isTopLevel } from '../../core/lockfile.js';
 import type { Constraint, Edit, Finding, StackInfo } from '../../core/types.js';
 import { majorOf, resolveVersion } from '../../core/versions.js';
@@ -322,10 +322,28 @@ function checkCompiler(ctx: ProjectContext, entry: SpfxVersion, toolchain: Toolc
     const expectedName = `@microsoft/${expected.compiler}`;
     const wrong = declaredRsc.filter((dep) => dep.name !== expectedName);
     const target = compilers[expected.compiler];
+    // tsconfig extends the compiler's includes; it must follow the package or the build fails.
+    const tsconfig = path.join(project.dir, 'tsconfig.json');
+    const parsed = existsSync(tsconfig)
+      ? parseJsonc<{ extends?: unknown }>(readFileSync(tsconfig, 'utf8'), tsconfig)
+      : undefined;
+    const extendsPath =
+      parsed?.ok && typeof parsed.value.extends === 'string' ? parsed.value.extends : '';
+    const extendsEdit: Edit | undefined =
+      /rush-stack-compiler-[\d.]+/.test(extendsPath) &&
+      !extendsPath.includes(`${expected.compiler}/`)
+        ? {
+            kind: 'json-set',
+            file: tsconfig,
+            path: ['extends'],
+            value: extendsPath.replace(/rush-stack-compiler-[\d.]+/, expected.compiler),
+          }
+        : undefined;
     if (wrong.length > 0 || (declaredRsc.length === 0 && toolchain === 'gulp')) {
       const edits: Edit[] = wrong.flatMap((dep) => removeDependency(project, dep.name));
       if (target)
         edits.push(setDependency(project, expectedName, target.version, 'devDependencies'));
+      if (extendsEdit) edits.push(extendsEdit);
       findings.push(
         finding(
           'spfx/compiler-mismatch',
@@ -348,6 +366,27 @@ function checkCompiler(ctx: ProjectContext, entry: SpfxVersion, toolchain: Toolc
                   ),
                 ]
               : [],
+            tags: ['spfx', 'typescript'],
+          },
+        ),
+      );
+    } else if (extendsEdit && 'value' in extendsEdit) {
+      findings.push(
+        finding(
+          'spfx/tsconfig-compiler',
+          'error',
+          project,
+          msg('spfx.tsconfigCompiler', { extends: extendsPath, expected: expected.compiler }),
+          {
+            evidence: [tsconfig],
+            fixes: [
+              fix(
+                'spfx/tsconfig-extends',
+                msg('fix.tsconfigExtends', { compiler: expected.compiler }),
+                'safe',
+                [extendsEdit],
+              ),
+            ],
             tags: ['spfx', 'typescript'],
           },
         ),
@@ -506,6 +545,8 @@ function checkPnpLibraries(ctx: ProjectContext, entry: SpfxVersion): Finding[] {
     }
     const newer = semver.gt(builtFor, projectVersion);
     const suggested = libraryRangeFor(library.package, entry.version);
+    // The first release of the line built for this SPFx version, exact like every SPFx pin.
+    const pinned = suggested ? semver.minVersion(suggested)?.version : undefined;
     findings.push(
       finding(
         'spfx/library-target-mismatch',
@@ -518,7 +559,20 @@ function checkPnpLibraries(ctx: ProjectContext, entry: SpfxVersion): Finding[] {
           spfx: entry.version,
           suggested: suggested ?? '-',
         }),
-        { tags: ['spfx', 'pnp'] },
+        {
+          tags: ['spfx', 'pnp'],
+          // The line built for this SPFx version; the store's verified set pins the exact release.
+          fixes: pinned
+            ? [
+                fix(
+                  'spfx/library-target',
+                  msg('fix.alignGroup', { name: library.package, version: pinned }),
+                  'review',
+                  [setDependency(project, library.package, pinned)],
+                ),
+              ]
+            : [],
+        },
       ),
     );
   }

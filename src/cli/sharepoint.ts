@@ -12,7 +12,12 @@ import {
   waitForSite,
   DEFAULT_DEBUG_PORT,
 } from '../sharepoint/browser.js';
-import { checkComponent, startDevServer, type ComponentResult } from '../sharepoint/debug.js';
+import {
+  checkComponent,
+  devServerCommand,
+  startDevServer,
+  type ComponentResult,
+} from '../sharepoint/debug.js';
 import {
   FIXTURES_FILE,
   fixturesSchema,
@@ -286,12 +291,7 @@ export function registerSharePoint(program: Command): void {
             `${site}/${(await browserClient(page, site).request<{ WelcomePage: string }>('GET', '/_api/web?$select=WelcomePage')).data.WelcomePage}`;
           for (const entry of entries) {
             const id = entry.project.id;
-            const toolchain = entry.stacks.find((stack) => stack.provider === 'spfx')?.details
-              .toolchain;
-            if (
-              toolchain === 'heft' ||
-              !existsSync(path.join(entry.project.dir, 'node_modules', 'gulp'))
-            ) {
+            if (!devServerCommand(entry.project.dir)) {
               results.push({ project: id, status: 'skipped', reason: t('sp.noGulp') });
               continue;
             }

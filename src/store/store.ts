@@ -859,7 +859,8 @@ const OWN_ENTRIES = new Set([STORE_MARKER, '.bin', '.package-lock.json']);
 async function moduleEntries(dir: string): Promise<string[]> {
   const out: string[] = [];
   for (const entry of await readdir(dir, { withFileTypes: true }).catch(() => [])) {
-    if (OWN_ENTRIES.has(entry.name)) continue;
+    // Tools keep caches here (.vite-temp, .cache, .tmp); package names never start with a dot.
+    if (OWN_ENTRIES.has(entry.name) || entry.name.startsWith('.')) continue;
     const full = path.join(dir, entry.name);
     if (entry.name.startsWith('@') && !(await lstat(full)).isSymbolicLink())
       for (const child of await readdir(full).catch(() => [] as string[]))

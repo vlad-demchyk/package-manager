@@ -183,7 +183,7 @@ export const it: Catalogue = {
   'sp.dryRun': 'Prova: nulla è stato scritto. Usa --apply per crearlo.',
   'sp.confirmSeed': 'Creare {count} liste, colonne, elementi e file su {site}?',
   'sp.confirmClean': 'Eliminare ciò che packman ha creato su {site}?',
-  'sp.noGulp': 'toolchain gulp non installata (i progetti Heft non sono ancora supportati)',
+  'sp.noGulp': 'né gulp né heft sono installati nel progetto',
   'store.linkStale':
     'package.json è cambiato dopo il collegamento; lo store condiviso non ha ancora le nuove versioni',
   'store.linkDrift':
@@ -200,6 +200,8 @@ export const it: Catalogue = {
   'hooks.foreign':
     "lasciato com'è, non scritto da packman: {file}. Aggiungi a mano packman store status --check.",
   'hooks.removed': 'hook rimosso: {file}',
+  'spfx.tsconfigCompiler': 'tsconfig.json estende {extends}, ma il progetto compila con {expected}',
+  'fix.tsconfigExtends': 'Fai estendere a tsconfig.json {compiler}',
   'store.none': "Nessun gruppo di progetti identici può ancora condividere un'installazione.",
   'store.groupNotFound': 'Gruppo {group} non trovato; eseguire `packman store plan`.',
   'store.linkPlan': "{count} progetti condivideranno un'installazione con Node {node}:",

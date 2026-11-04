@@ -123,9 +123,20 @@ export function alignPackage(
   }
   if (!target) return undefined;
   const wanted = target;
-  const edits = users
-    .filter((project) => declared(project, name)?.spec !== wanted)
-    .map((project) => setDependency(project, name, wanted));
+  // Every section that declares the package (a package in both dependencies and devDependencies
+  // would otherwise keep a second version); peer ranges are a contract, not an install.
+  const edits: Edit[] = users.flatMap((project) =>
+    project.dependencies
+      .filter(
+        (dep) => dep.name === name && dep.section !== 'peerDependencies' && dep.spec !== wanted,
+      )
+      .map((dep) => ({
+        kind: 'json-set' as const,
+        file: project.manifestPath,
+        path: [dep.section, name],
+        value: wanted,
+      })),
+  );
   return {
     version: wanted,
     fix: fix(

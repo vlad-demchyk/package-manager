@@ -8,7 +8,9 @@ import {
   placeholderPng,
   type Fixtures,
   type ListFixture,
+  type ScopeFixture,
 } from './fixtures.js';
+import { findList, seedContentTypes, seedPages } from './pages.js';
 
 export type SpMethod = 'GET' | 'POST' | 'MERGE' | 'DELETE';
 
@@ -26,6 +28,8 @@ export interface SpClient {
     body?: unknown,
     binary?: Buffer,
   ): Promise<SpResponse<T>>;
+  /** The same client for a subsite (`relative` below this site). */
+  at?(relative: string): SpClient;
 }
 
 /** What a seed created, so `clean` removes exactly that and nothing a person added. */
@@ -36,10 +40,14 @@ export interface SeedRecord {
   items: { list: string; id: number }[];
   files: string[];
   folders: string[];
+  contentTypes: { web: string; id: string; list?: string }[];
+  pages: { web: string; list: string; id: number }[];
+  /** Subsites: deleted whole when packman created them, otherwise cleaned by their own record. */
+  webs: { url: string; created: boolean; record: SeedRecord }[];
 }
 
 export interface SeedAction {
-  kind: 'list' | 'field' | 'item' | 'file' | 'folder';
+  kind: 'list' | 'field' | 'item' | 'file' | 'folder' | 'web' | 'contentType' | 'page';
   target: string;
   outcome: 'created' | 'removed' | 'exists' | 'planned' | 'skipped' | 'failed';
   detail?: string;
@@ -48,14 +56,25 @@ export interface SeedAction {
 const RECORD_FILE = path.join('.packman', 'sharepoint', 'seeded.json');
 
 export function emptyRecord(site: string): SeedRecord {
-  return { site, lists: [], fields: [], items: [], files: [], folders: [] };
+  return {
+    site,
+    lists: [],
+    fields: [],
+    items: [],
+    files: [],
+    folders: [],
+    contentTypes: [],
+    pages: [],
+    webs: [],
+  };
 }
 
 export async function readRecord(root: string, site: string): Promise<SeedRecord> {
   const file = path.join(root, RECORD_FILE);
   if (!existsSync(file)) return emptyRecord(site);
   const all = JSON.parse(await readFile(file, 'utf8')) as Record<string, SeedRecord>;
-  return all[site] ?? emptyRecord(site);
+  // Records written before subsites and pages existed lack those keys.
+  return { ...emptyRecord(site), ...all[site] };
 }
 
 export async function writeRecord(root: string, record: SeedRecord): Promise<void> {
@@ -152,6 +171,63 @@ export async function seed(
   fixtures: Fixtures,
   options: { apply: boolean; now?: Date; record: SeedRecord },
 ): Promise<SeedAction[]> {
+  const actions = await seedScope(client, fixtures, options);
+  for (const web of fixtures.webs) {
+    const target = `${web.url}/`;
+    const sub = client.at?.(web.url);
+    if (!sub) {
+      actions.push({ kind: 'web', target, outcome: 'failed', detail: 'no subsite client' });
+      continue;
+    }
+    let entry = options.record.webs.find((item) => item.url === web.url);
+    const probe = await sub.request('GET', '/_api/web?$select=Id');
+    if (probe.status >= 400) {
+      if (!options.apply) {
+        actions.push({
+          kind: 'web',
+          target,
+          outcome: 'planned',
+          detail: `${web.template}, ${web.lists.length} lists, ${web.contentTypes.length} content types, ${web.pages.length} pages`,
+        });
+        continue;
+      }
+      const error = failed(
+        await client.request('POST', '/_api/web/webinfos/add', {
+          parameters: {
+            Url: web.url,
+            Title: web.title,
+            Description: 'packman test data',
+            Language: web.language,
+            WebTemplate: web.template,
+            UseUniquePermissions: false,
+          },
+        }),
+      );
+      if (error) {
+        actions.push({ kind: 'web', target, outcome: 'failed', detail: error });
+        continue;
+      }
+      entry = { url: web.url, created: true, record: emptyRecord(sub.site) };
+      options.record.webs.push(entry);
+      actions.push({ kind: 'web', target, outcome: 'created', detail: web.template });
+    } else actions.push({ kind: 'web', target, outcome: 'exists' });
+    if (!entry) {
+      entry = { url: web.url, created: false, record: emptyRecord(sub.site) };
+      options.record.webs.push(entry);
+    }
+    entry.record = { ...emptyRecord(sub.site), ...entry.record };
+    const inner = await seedScope(sub, web, { ...options, record: entry.record });
+    actions.push(...inner.map((action) => ({ ...action, target: `${target}${action.target}` })));
+  }
+  return actions;
+}
+
+/** Lists, files, content types and pages of one site or subsite. */
+async function seedScope(
+  client: SpClient,
+  fixtures: ScopeFixture,
+  options: { apply: boolean; now?: Date; record: SeedRecord },
+): Promise<SeedAction[]> {
   const actions: SeedAction[] = [];
   const record = options.record;
   const now = options.now ?? new Date();
@@ -167,7 +243,7 @@ export async function seed(
   );
   const listIds = new Map(existing.data.value.map((list) => [list.Title.toLowerCase(), list.Id]));
   const lookups = new Map<string, Map<string, number>>();
-  const aadId = JSON.stringify(fixtures.lists).includes('"@aad"')
+  const aadId = JSON.stringify([fixtures.lists, fixtures.pages]).includes('"@aad"')
     ? await signedInObjectId(client)
     : undefined;
 
@@ -422,6 +498,22 @@ export async function seed(
       ...(error ? { detail: error } : {}),
     });
   }
+  // Content types before pages: a page gets its content type when it is created.
+  actions.push(
+    ...(await seedContentTypes(client, fixtures.contentTypes, {
+      apply: options.apply,
+      web: '',
+      record,
+    })),
+  );
+  actions.push(
+    ...(await seedPages(client, fixtures.pages, {
+      apply: options.apply,
+      web: '',
+      context: { now, userId: user.data.Id, lookups, ...(aadId ? { aadId } : {}) },
+      record,
+    })),
+  );
   return actions;
 }
 
@@ -442,6 +534,48 @@ export async function clean(client: SpClient, record: SeedRecord): Promise<SeedA
       ...(error ? { detail: error } : {}),
     });
   };
+  // Subsites first: one packman created goes whole, with everything in it.
+  for (const web of record.webs) {
+    const sub = client.at?.(web.url);
+    if (!sub) continue;
+    if (web.created) result('web', `${web.url}/`, await sub.request('DELETE', '/_api/web'));
+    else
+      actions.push(
+        ...(await clean(sub, web.record)).map((action) => ({
+          ...action,
+          target: `${web.url}/${action.target}`,
+        })),
+      );
+  }
+  for (const page of record.pages) {
+    const list = await findList(client, page.list);
+    if (list)
+      result(
+        'page',
+        `${page.list}: ${page.id}`,
+        await client.request('DELETE', `/_api/web/lists(guid'${list.id}')/items(${page.id})`),
+      );
+  }
+  for (const ct of record.contentTypes) {
+    // The library holds a child of the site content type; remove it before the site one.
+    const list = ct.list ? await findList(client, ct.list) : undefined;
+    if (list) {
+      const onList = await client.request<{ value: { StringId: string }[] }>(
+        'GET',
+        `/_api/web/lists(guid'${list.id}')/contenttypes?$select=StringId`,
+      );
+      for (const child of onList.data.value.filter((entry) => entry.StringId.startsWith(ct.id)))
+        await client.request(
+          'DELETE',
+          `/_api/web/lists(guid'${list.id}')/contenttypes('${odata(child.StringId)}')`,
+        );
+    }
+    result(
+      'contentType',
+      ct.id,
+      await client.request('DELETE', `/_api/web/contenttypes('${odata(ct.id)}')`),
+    );
+  }
   const ownLists = new Set(record.lists);
   for (const item of record.items.filter((entry) => !ownLists.has(entry.list)))
     result(

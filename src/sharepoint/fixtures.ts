@@ -67,16 +67,64 @@ const componentSchema = z.object({
   note: z.string().optional(),
 });
 
+/** Content type id of modern site pages; page content types derive from it. */
+export const SITE_PAGE_CONTENT_TYPE = '0x0101009D1CB255DA76424F860D91F20E6C4118';
+
+const contentTypeSchema = z.object({
+  name: z.string().min(1),
+  /** Parent content type id (default: Site Page). */
+  parent: z.string().default(SITE_PAGE_CONTENT_TYPE),
+  /** Library or list the content type is added to, with its columns. */
+  list: z.string().default('Site Pages'),
+  fields: z.array(fieldSchema).default([]),
+});
+
+const pageSchema = z.object({
+  /** File name in the pages library, e.g. `test-news-1.aspx`. */
+  name: z.string().regex(/^[\w.-]+\.aspx$/i),
+  title: z.string().min(1),
+  /** Name of a content type of the library (declared in `contentTypes` or built in). */
+  contentType: z.string().optional(),
+  /** Column values, same conventions as list items. */
+  fields: z.record(z.string(), z.unknown()).default({}),
+  /** Promote to a news post (PromotedState 2). */
+  news: z.boolean().default(false),
+  list: z.string().default('Site Pages'),
+});
+
+const scope = {
+  lists: z.array(listSchema).default([]),
+  files: z.array(fileSchema).default([]),
+  contentTypes: z.array(contentTypeSchema).default([]),
+  pages: z.array(pageSchema).default([]),
+};
+
+const webSchema = z.object({
+  /** Path below the site, e.g. `comunicazioni`. */
+  url: z.string().regex(/^[\w-]+$/),
+  title: z.string().min(1),
+  /** LCID: list titles follow it (1040 makes the pages library "Pagine del sito"). */
+  language: z.number().int().default(1033),
+  template: z.string().default('STS#3'),
+  ...scope,
+});
+
 export const fixturesSchema = z.object({
   /** Dev site the data belongs to. Never a production site: components write to these lists. */
   site: z.url().optional(),
-  lists: z.array(listSchema).default([]),
-  files: z.array(fileSchema).default([]),
+  ...scope,
+  /** Subsites with their own lists, files, content types and pages. */
+  webs: z.array(webSchema).default([]),
   /** Per component alias (e.g. `EventoWebPart`): how `sharepoint test` hosts it. */
   components: z.record(z.string(), componentSchema).default({}),
 });
 
 export type Fixtures = z.infer<typeof fixturesSchema>;
+export type WebFixture = Fixtures['webs'][number];
+export type ContentTypeFixture = Fixtures['contentTypes'][number];
+export type PageFixture = Fixtures['pages'][number];
+/** What one site or subsite holds. */
+export type ScopeFixture = Pick<Fixtures, 'lists' | 'files' | 'contentTypes' | 'pages'>;
 export type ListFixture = Fixtures['lists'][number];
 export type FieldFixture = ListFixture['fields'][number];
 export type FileFixture = Fixtures['files'][number];
