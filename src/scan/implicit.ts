@@ -3,6 +3,7 @@ import { readdir, readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { readJsonFile } from '../core/json.js';
 import type { Project } from '../core/types.js';
+import { stripComments } from './sources.js';
 
 /** Config files whose presence implies tooling packages (ported from the 2.x depcheck whitelist). */
 const CONFIG_IMPLIES: [RegExp, string[]][] = [
@@ -65,15 +66,12 @@ export async function implicitUsage(project: Project): Promise<ImplicitUsage> {
       if (!pattern.test(path.basename(file))) continue;
       for (const name of implied) mark(name, `config ${path.basename(file)}`);
     }
-    if (CONFIG_TEXT.test(path.basename(file))) {
-      const text = await readFile(file, 'utf8').catch(() => '');
-      for (const name of declared) {
-        if (text.includes(`"${name}`) || text.includes(`'${name}`) || text.includes(`/${name}/`)) {
-          mark(name, `referenced in ${path.relative(project.dir, file)}`);
-        }
-      }
-    }
   }
+  // Packages named by string in build and lint configs (`loader: 'babel-loader'` in gulpfile.js,
+  // `extends` in .eslintrc, tsconfig `types`): the tool loads them, so they are used. Comments are
+  // stripped first, so a commented-out loader does not keep its package.
+  for (const [name, file] of await configReferenceMap(project.dir))
+    if (declared.includes(name)) mark(name, `referenced in ${path.relative(project.dir, file)}`);
 
   for (const [tool, pattern] of PLUGIN_PATTERNS) {
     if (!usage.packages.has(tool) && !declared.includes(tool)) continue;
@@ -125,7 +123,7 @@ function escapeRegExp(text: string): string {
 
 /** JS config files whose string literals name packages loaded by tools (parsers, plugins, presets). */
 const JS_CONFIG =
-  /^(\.eslintrc\.[cm]?js|eslint\.config\.[cm]?js|gulpfile\.[cm]?js|babel\.config\.[cm]?js|jest\.config\.[cm]?js|webpack\.config\.[cm]?js|postcss\.config\.[cm]?js|\.prettierrc\.[cm]?js)$/;
+  /^(\.eslintrc\.[cm]?js|eslint\.config\.[cm]?[jt]s|gulpfile\.[cm]?js|babel\.config\.[cm]?js|jest\.config\.[cm]?[jt]s|webpack(?:\.[\w-]+)?\.config\.[cm]?[jt]s|postcss\.config\.[cm]?js|\.prettierrc\.[cm]?js|vite\.config\.[cm]?[jt]s)$/;
 /** Keys whose values name packages that tools load: ESLint, Babel, Jest, TypeScript, webpack. */
 const PACKAGE_KEYS =
   /["']?\b(parser|extends|plugins|presets|preset|types|loader|testEnvironment|transform)\b["']?\s*:\s*(\[[^\]]*\]|\{[^}]*\}|["'`][^"'`]+["'`])/g;
@@ -152,16 +150,23 @@ function toPackageName(spec: string): string | undefined {
  * Callers keep only the names that exist as installed packages.
  */
 export async function configReferences(projectDir: string): Promise<string[]> {
-  const names = new Set<string>();
-  const add = (spec: string): void => {
-    const name = toPackageName(spec.trim());
-    if (name) names.add(name);
-  };
+  return [...(await configReferenceMap(projectDir)).keys()].sort();
+}
+
+/** Package name -> the first config file that references it. */
+export async function configReferenceMap(projectDir: string): Promise<Map<string, string>> {
+  const names = new Map<string, string>();
   for (const file of await listConfigFiles(projectDir)) {
     const base = path.basename(file);
     const isConfigJson = base.endsWith('.json') && path.basename(path.dirname(file)) === 'config';
-    if (!JS_CONFIG.test(base) && !CONFIG_TEXT.test(base) && !isConfigJson) continue;
-    const text = await readFile(file, 'utf8').catch(() => '');
+    const isJs = JS_CONFIG.test(base);
+    if (!isJs && !CONFIG_TEXT.test(base) && !isConfigJson) continue;
+    const raw = await readFile(file, 'utf8').catch(() => '');
+    const text = isJs ? stripComments(raw) : raw;
+    const add = (spec: string): void => {
+      const name = toPackageName(spec.trim());
+      if (name && !names.has(name)) names.set(name, file);
+    };
     for (const match of text.matchAll(REQUIRE)) add(match[1] ?? '');
     for (const match of text.matchAll(PACKAGE_KEYS)) {
       for (const quoted of (match[2] ?? '').matchAll(QUOTED)) {
@@ -171,5 +176,5 @@ export async function configReferences(projectDir: string): Promise<string[]> {
       }
     }
   }
-  return [...names].sort();
+  return names;
 }

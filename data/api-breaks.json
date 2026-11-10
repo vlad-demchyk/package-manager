@@ -1,0 +1,534 @@
+{
+  "verifiedAt": "2026-11-10",
+  "sources": [
+    "https://pnp.github.io/pnpjs/v2/transition-guide/",
+    "https://github.com/pnp/pnpjs/blob/version-2/CHANGELOG.md",
+    "https://pnp.github.io/pnpjs/v3/transition-guide/",
+    "https://github.com/pnp/pnpjs/blob/version-3/CHANGELOG.md",
+    "https://pnp.github.io/pnpjs/transition-guide/",
+    "https://github.com/pnp/pnpjs/blob/main/CHANGELOG.md",
+    "https://pnp.github.io/pnpjs/concepts/batching/",
+    "https://react.dev/blog/2022/03/08/react-18-upgrade-guide",
+    "https://legacy.reactjs.org/blog/2017/09/26/react-v16.0.html",
+    "https://github.com/microsoft/fluentui/blob/master/docs/react-wiki-archive/Version-8-release-notes.md",
+    "https://learn.microsoft.com/en-us/sharepoint/dev/spfx/use-msgraph",
+    "https://github.com/microsoftgraph/msgraph-sdk-javascript/releases/tag/2.0.0",
+    "https://github.com/microsoftgraph/msgraph-sdk-javascript/blob/dev/changelogs/v3-upgrade-guide.md",
+    "https://pnp.github.io/sp-dev-fx-controls-react/guides/migrate-from-v1/",
+    "https://pnp.github.io/sp-dev-fx-controls-react/about/release-notes/",
+    "https://pnp.github.io/sp-dev-fx-property-controls/about/release-notes/",
+    "https://learn.microsoft.com/en-us/sharepoint/dev/spfx/toolchain/migrate-gulptoolchain-hefttoolchain"
+  ],
+  "notes": {
+    "model": "A break applies when a package moves from a version below `since` to one at or above it (or back). `old` patterns are the API of versions below `since`; `new` patterns the API from `since` on. Regexes run on comment-stripped source text; `requires` must also match in the same file. `kind` removed means the old API no longer exists (error when the new version is installed), deprecated means it still runs with warnings. `verified: false` on a break or a pattern marks facts not confirmed against the listed sources: they are reported as warnings only.",
+    "check": "`check: false` keeps a break out of `api/migration-required` because another rule already owns it; it still annotates version changes and upgrade plans."
+  },
+  "breaks": [
+    {
+      "id": "pnpjs-2",
+      "packages": ["@pnp/sp", "@pnp/graph", "@pnp/common", "@pnp/odata", "@pnp/logging", "@pnp/nodejs"],
+      "since": "2.0.0",
+      "title": "PnPjs 2: selective imports and factory functions",
+      "guide": "https://pnp.github.io/pnpjs/v2/transition-guide/",
+      "verified": true,
+      "steps": [
+        "Import each feature you use: import \"@pnp/sp/webs\"; import \"@pnp/sp/lists\"; import \"@pnp/sp/items\"; (or import { sp } from \"@pnp/sp/presets/all\" to start).",
+        "Classes became factories: import { Web, IWeb } from \"@pnp/sp/webs\"; const web: IWeb = Web(url); (no `new`).",
+        "@pnp/sp-taxonomy and @pnp/sp-clientsvc are no longer provided; read taxonomy through @pnp/sp/taxonomy (2.0.6+).",
+        "Interfaces are prefixed with I (IWeb, IList, IItems); query chains starting from sp are unchanged."
+      ],
+      "old": [
+        {
+          "id": "pnpjs1.root-class-import",
+          "regex": "import\\s*\\{[^}]*\\b(?:Web|Site|Lists?|Items?|Folders?|Files?|Fields?|Views?|ContentTypes?|ClientSideWebpart|ClientSidePage|SearchQuery|PermissionKind|SiteUsers?|SiteGroups?)\\b[^}]*\\}\\s*from\\s*[\"']@pnp/sp[\"']",
+          "what": "class import from the @pnp/sp root: v2 exports factories from sub-modules such as @pnp/sp/webs",
+          "kind": "removed"
+        },
+        {
+          "id": "pnpjs1.new-class",
+          "regex": "\\bnew\\s+(?:Web|Site|List|Item|Folder|File|ClientSideWebpart)\\s*\\(",
+          "requires": "@pnp/sp",
+          "what": "`new Web(...)`: v2 uses factory functions without `new`",
+          "kind": "removed"
+        },
+        {
+          "id": "pnpjs1.taxonomy-clientsvc",
+          "regex": "[\"']@pnp/(?:sp-taxonomy|sp-clientsvc)(?:/[\\w/-]+)?[\"']",
+          "what": "@pnp/sp-taxonomy and @pnp/sp-clientsvc are not provided in v2",
+          "kind": "removed"
+        }
+      ],
+      "new": [
+        {
+          "id": "pnpjs2.sub-module-import",
+          "regex": "[\"']@pnp/(?:sp|graph)/[\\w-]+(?:/[\\w-]+)*[\"']",
+          "what": "selective import from a @pnp/sp or @pnp/graph sub-module (v2+)"
+        }
+      ]
+    },
+    {
+      "id": "pnpjs-3",
+      "packages": ["@pnp/sp", "@pnp/graph", "@pnp/common", "@pnp/odata", "@pnp/core", "@pnp/queryable", "@pnp/logging", "@pnp/nodejs", "@pnp/msaljsclient"],
+      "since": "3.0.0",
+      "title": "PnPjs 3: spfi()/graphfi() instances, @pnp/core and @pnp/queryable, invokable queries",
+      "guide": "https://pnp.github.io/pnpjs/v3/transition-guide/",
+      "verified": true,
+      "steps": [
+        "Replace the global `sp` object and `sp.setup({ spfxContext })` with an instance: import { spfi, SPFx } from \"@pnp/sp\"; const sp = spfi().using(SPFx(this.context)); (graph: graphfi().using(SPFx(context))).",
+        "Rename packages: @pnp/common -> @pnp/core, @pnp/odata -> @pnp/queryable; @pnp/sp-commonjs, @pnp/graph-commonjs, @pnp/sp-addinhelpers and @pnp/config-store are dropped.",
+        "Call queryables instead of .get(): sp.web.lists.getByTitle(\"x\").items() instead of .items.get().",
+        "Batching: import \"@pnp/sp/batching\"; const [batchedSP, execute] = sp.batched(); queue calls on batchedSP, then await execute() (createBatch/inBatch are gone).",
+        "Renamed methods: getFolderByServerRelativeUrl -> getFolderByServerRelativePath, getFileByServerRelativeUrl -> getFileByServerRelativePath, folders.add/files.add -> addUsingPath, copyTo/moveTo -> copyByPath/moveByPath, search.execute -> search.run.",
+        "Logging listeners are factories: ConsoleListener() instead of new ConsoleListener(); ITypedHash is Record<string, T>."
+      ],
+      "old": [
+        {
+          "id": "pnpjs2.global-sp",
+          "regex": "import\\s*\\{[^}]*\\b(?:sp|graph)\\b[^}]*\\}\\s*from\\s*[\"']@pnp/(?:sp|graph)(?:/presets/all)?[\"']",
+          "what": "global `sp`/`graph` object import: v3 creates instances with spfi()/graphfi()",
+          "kind": "removed"
+        },
+        {
+          "id": "pnpjs2.sp-setup",
+          "regex": "\\b(?:sp|graph)\\s*\\.\\s*setup\\s*\\(",
+          "requires": "@pnp/(?:sp|graph)",
+          "what": "sp.setup({ spfxContext }): v3 configures an instance with .using(SPFx(context))",
+          "kind": "removed"
+        },
+        {
+          "id": "pnpjs2.get-method",
+          "regex": "\\.(?:web|webs|lists?|items?|fields?|folders?|files?|views?|site|currentUser|siteUsers|siteGroups|hubsites?|navigation|profiles|utility|select|filter|expand|top|orderBy|skip|getById|getByTitle|getByName|getByUrl|getByEmail|getByLoginName)\\s*(?:\\([^()]*\\))?\\s*\\.get\\s*(?:<[^>]*>)?\\s*\\(\\s*\\)",
+          "requires": "@pnp/(?:sp|graph)",
+          "what": ".get() on a PnPjs queryable: v3 invokes the queryable as a function",
+          "kind": "removed"
+        },
+        {
+          "id": "pnpjs2.common-odata",
+          "regex": "[\"']@pnp/(?:common|odata)(?:/[\\w/-]+)?[\"']",
+          "what": "@pnp/common and @pnp/odata were renamed to @pnp/core and @pnp/queryable",
+          "kind": "removed"
+        },
+        {
+          "id": "pnpjs2.batch",
+          "regex": "\\.inBatch\\s*\\(|\\b(?:sp|graph|web)\\s*\\.\\s*createBatch\\s*\\(",
+          "requires": "@pnp/(?:sp|graph)",
+          "what": "createBatch()/inBatch(): v3 batches with sp.batched() from @pnp/sp/batching",
+          "kind": "removed"
+        },
+        {
+          "id": "pnpjs2.renamed-methods",
+          "regex": "\\.(?:getFolderByServerRelativeUrl|getFileByServerRelativeUrl)\\s*\\(|\\.(?:folders|files)\\s*\\.\\s*add\\s*\\(",
+          "requires": "@pnp/sp",
+          "what": "getFolderByServerRelativeUrl/getFileByServerRelativeUrl and folders.add/files.add were replaced by *ByServerRelativePath and addUsingPath",
+          "kind": "removed"
+        },
+        {
+          "id": "pnpjs2.typed-hash",
+          "regex": "\\bITypedHash\\b",
+          "what": "ITypedHash was removed; use Record<string, T>",
+          "kind": "removed"
+        },
+        {
+          "id": "pnpjs2.dropped-packages",
+          "regex": "[\"']@pnp/(?:sp-commonjs|graph-commonjs|sp-addinhelpers|config-store)(?:/[\\w/-]+)?[\"']",
+          "what": "@pnp/*-commonjs, @pnp/sp-addinhelpers and @pnp/config-store are not published for v3",
+          "kind": "removed"
+        },
+        {
+          "id": "pnpjs2.new-listener",
+          "regex": "\\bnew\\s+(?:ConsoleListener|FunctionListener)\\s*\\(",
+          "what": "logging listeners are factory functions in v3 (drop `new`)",
+          "kind": "removed"
+        },
+        {
+          "id": "pnpjs2.using-caching",
+          "regex": "\\.usingCaching\\s*\\(",
+          "requires": "@pnp/(?:sp|graph)",
+          "what": ".usingCaching(): v3 uses .using(Caching()) from @pnp/queryable",
+          "kind": "removed",
+          "verified": false
+        }
+      ],
+      "new": [
+        {
+          "id": "pnpjs3.spfi",
+          "regex": "\\b(?:spfi|graphfi)\\s*\\(|import\\s*\\{[^}]*\\b(?:spfi|graphfi|SPFx)\\b[^}]*\\}\\s*from\\s*[\"']@pnp/(?:sp|graph)[\"']",
+          "what": "spfi()/graphfi() instance (v3+)"
+        },
+        {
+          "id": "pnpjs3.core-queryable",
+          "regex": "[\"']@pnp/(?:core|queryable)(?:/[\\w/-]+)?[\"']",
+          "what": "@pnp/core or @pnp/queryable import (v3+)"
+        },
+        {
+          "id": "pnpjs3.batched",
+          "regex": "\\.batched\\s*\\(|[\"']@pnp/(?:sp|graph)/batching[\"']",
+          "what": "batched() API (v3+)"
+        }
+      ]
+    },
+    {
+      "id": "pnpjs-4",
+      "packages": ["@pnp/sp", "@pnp/graph", "@pnp/core", "@pnp/queryable", "@pnp/logging", "@pnp/nodejs", "@pnp/msaljsclient"],
+      "since": "4.0.0",
+      "title": "PnPjs 4: async iterators replace getAll/getPaged, add/update return the payload",
+      "guide": "https://pnp.github.io/pnpjs/transition-guide/",
+      "verified": true,
+      "steps": [
+        "Replace items.getAll()/getPaged() and the @pnp/sp/items/get-all import with the async iterator: for await (const page of sp.web.lists.getByTitle(\"x\").items.top(500)) { ... } (@pnp/graph: .paged() too).",
+        "add()/update() no longer return { data, item }: add() returns the created object (newItem.Id instead of newItem.data.Id); update() returns void, read the item again if you need it.",
+        "Taxonomy moved to @pnp/graph/taxonomy; @pnp/sp/favorites is removed (use graph favorites).",
+        "@pnp/graph: GraphQueryableCollection/GraphQueryableInstance are GraphCollection/GraphInstance; @pnp/graph/onedrive is @pnp/graph/files and @pnp/graph/outlook is @pnp/graph/mail.",
+        "Node 18 or newer is required to run the library outside the browser; @pnp/msaljsclient uses @azure/msal-browser 3."
+      ],
+      "old": [
+        {
+          "id": "pnpjs3.get-all",
+          "regex": "\\.getAll\\s*(?:<[^>]*>)?\\s*\\(|[\"']@pnp/sp/items/get-all[\"']",
+          "requires": "@pnp/sp",
+          "what": "items.getAll() and @pnp/sp/items/get-all were removed in v4 (async iterator)",
+          "kind": "removed"
+        },
+        {
+          "id": "pnpjs3.get-paged",
+          "regex": "\\.getPaged\\s*(?:<[^>]*>)?\\s*\\(|\\bPagedItemCollection\\b",
+          "requires": "@pnp/sp",
+          "what": "items.getPaged() and PagedItemCollection were removed in v4 (async iterator)",
+          "kind": "removed"
+        },
+        {
+          "id": "pnpjs3.graph-paged",
+          "regex": "\\.paged\\s*(?:<[^>]*>)?\\s*\\(",
+          "requires": "@pnp/graph",
+          "what": "graph collection .paged() was removed in v4 (async iterator)",
+          "kind": "removed"
+        },
+        {
+          "id": "pnpjs3.add-update-result",
+          "regex": "\\bI(?:Item|List|Web|Folder|File|Field|View|ContentType|Group|User|Attachment|Navigation)(?:Add|Update)Result(?:Data)?\\b|\\.(?:add|update)\\s*\\((?:[^()]|\\([^()]*\\))*\\)\\s*\\)*\\s*\\.(?:data|item)\\b",
+          "requires": "@pnp/(?:sp|graph)",
+          "what": "add()/update() results with .data/.item: v4 returns the payload (add) or void (update)",
+          "kind": "removed"
+        },
+        {
+          "id": "pnpjs3.sp-taxonomy",
+          "regex": "[\"']@pnp/sp/taxonomy[\"']",
+          "what": "@pnp/sp/taxonomy was removed in v4; use @pnp/graph/taxonomy",
+          "kind": "removed"
+        },
+        {
+          "id": "pnpjs3.sp-favorites",
+          "regex": "[\"']@pnp/sp/favorites[\"']",
+          "what": "@pnp/sp/favorites was removed in v4; use graph favorites",
+          "kind": "removed"
+        },
+        {
+          "id": "pnpjs3.graph-renamed-modules",
+          "regex": "[\"']@pnp/graph/(?:onedrive|outlook)(?:/[\\w/-]+)?[\"']",
+          "what": "@pnp/graph/onedrive and @pnp/graph/outlook are @pnp/graph/files and @pnp/graph/mail in v4",
+          "kind": "removed"
+        },
+        {
+          "id": "pnpjs3.graph-queryable-names",
+          "regex": "\\bI?GraphQueryable(?:Collection|Instance)\\b",
+          "what": "GraphQueryableCollection/GraphQueryableInstance are GraphCollection/GraphInstance in v4",
+          "kind": "removed"
+        }
+      ],
+      "new": [
+        {
+          "id": "pnpjs4.async-iterator",
+          "regex": "for\\s+await\\s*\\(",
+          "requires": "@pnp/(?:sp|graph)",
+          "what": "async iteration over a PnPjs collection (v4)"
+        },
+        {
+          "id": "pnpjs4.graph-renamed",
+          "regex": "\\bI?Graph(?:Collection|Instance)\\b|[\"']@pnp/graph/(?:files|mail|taxonomy)(?:/[\\w/-]+)?[\"']",
+          "what": "v4 @pnp/graph names (GraphCollection, @pnp/graph/files, @pnp/graph/mail, @pnp/graph/taxonomy)"
+        }
+      ]
+    },
+    {
+      "id": "react-16",
+      "packages": ["react", "react-dom"],
+      "since": "16.0.0",
+      "title": "React 16: PropTypes, createClass and addons left the core package",
+      "guide": "https://legacy.reactjs.org/blog/2017/09/26/react-v16.0.html",
+      "verified": true,
+      "steps": [
+        "React.PropTypes -> import PropTypes from 'prop-types'.",
+        "React.createClass -> import createReactClass from 'create-react-class'.",
+        "React.DOM -> react-dom-factories; react-addons-test-utils -> react-dom/test-utils; shallow renderer -> react-test-renderer/shallow.",
+        "react/lib/* and react-dom/lib/* internals no longer exist; unstable_handleError is componentDidCatch."
+      ],
+      "old": [
+        {
+          "id": "react15.proptypes",
+          "regex": "\\bReact\\s*\\.\\s*PropTypes\\b",
+          "what": "React.PropTypes was removed in 16 (prop-types package)",
+          "kind": "removed"
+        },
+        {
+          "id": "react15.create-class",
+          "regex": "\\bReact\\s*\\.\\s*createClass\\s*\\(",
+          "what": "React.createClass was removed in 16 (create-react-class package)",
+          "kind": "removed"
+        },
+        {
+          "id": "react15.addons",
+          "regex": "[\"']react-addons-[\\w-]+[\"']|[\"']react(?:-dom)?/lib/[\\w/-]+[\"']",
+          "what": "react-addons-* and react/lib internals are not shipped with React 16",
+          "kind": "removed"
+        }
+      ],
+      "new": [
+        {
+          "id": "react16.did-catch",
+          "regex": "\\bcomponentDidCatch\\s*\\(|\\b(?:ReactDOM|ReactDom)\\s*\\.\\s*createPortal\\s*\\(",
+          "what": "componentDidCatch or createPortal (React 16+)"
+        }
+      ]
+    },
+    {
+      "id": "react-18",
+      "packages": ["react", "react-dom"],
+      "since": "18.0.0",
+      "title": "React 18: createRoot replaces ReactDOM.render",
+      "guide": "https://react.dev/blog/2022/03/08/react-18-upgrade-guide",
+      "verified": true,
+      "steps": [
+        "import { createRoot } from 'react-dom/client'; const root = createRoot(container); root.render(<App />); keep the root in a field.",
+        "unmountComponentAtNode(container) -> root.unmount(); hydrate -> hydrateRoot.",
+        "The render callback is gone: run the code in a useEffect of the rendered component.",
+        "@types/react 18: declare children?: React.ReactNode explicitly in props (codemod: npx types-react-codemod)."
+      ],
+      "old": [
+        {
+          "id": "react17.render",
+          "regex": "\\b(?:ReactDom|ReactDOM)\\s*\\.\\s*(?:render|hydrate|unmountComponentAtNode)\\s*\\(|import\\s*\\{[^}]*\\b(?:render|hydrate|unmountComponentAtNode)\\b[^}]*\\}\\s*from\\s*[\"']react-dom[\"']",
+          "what": "ReactDOM.render/hydrate/unmountComponentAtNode run in React 17 mode under React 18 and are removed in React 19",
+          "kind": "deprecated"
+        }
+      ],
+      "new": [
+        {
+          "id": "react18.create-root",
+          "regex": "[\"']react-dom/client[\"']|\\b(?:createRoot|hydrateRoot)\\s*\\(",
+          "what": "react-dom/client root API (React 18+)"
+        }
+      ]
+    },
+    {
+      "id": "react-19",
+      "packages": ["react", "react-dom"],
+      "since": "19.0.0",
+      "title": "React 19: the legacy ReactDOM.render API is removed",
+      "guide": "https://react.dev/blog/2024/04/25/react-19-upgrade-guide",
+      "verified": false,
+      "steps": [
+        "Move every ReactDOM.render/hydrate/unmountComponentAtNode call to the react-dom/client root API before upgrading."
+      ],
+      "old": [
+        {
+          "id": "react18.legacy-render",
+          "regex": "\\b(?:ReactDom|ReactDOM)\\s*\\.\\s*(?:render|hydrate|unmountComponentAtNode|findDOMNode)\\s*\\(|import\\s*\\{[^}]*\\b(?:render|hydrate|unmountComponentAtNode|findDOMNode)\\b[^}]*\\}\\s*from\\s*[\"']react-dom[\"']",
+          "what": "ReactDOM.render/hydrate/unmountComponentAtNode/findDOMNode are removed in React 19 (not verified against the upgrade guide)",
+          "kind": "removed"
+        }
+      ],
+      "new": []
+    },
+    {
+      "id": "fluent-8",
+      "packages": ["@fluentui/react"],
+      "replaces": ["office-ui-fabric-react", "@uifabric/utilities", "@uifabric/styling", "@uifabric/icons", "@uifabric/react-hooks", "@uifabric/merge-styles", "@uifabric/foundation", "@uifabric/file-type-icons", "@uifabric/set-version", "@uifabric/example-data"],
+      "since": "8.0.0",
+      "title": "Fluent UI React 8: office-ui-fabric-react and @uifabric/* were renamed to @fluentui/*",
+      "guide": "https://github.com/microsoft/fluentui/blob/master/docs/react-wiki-archive/Version-8-migration-guide.md",
+      "verified": true,
+      "steps": [
+        "Replace office-ui-fabric-react with @fluentui/react in package.json and in every import (import { Button } from '@fluentui/react'); remove the office-ui-fabric-react dependency so only one copy is bundled.",
+        "Rename @uifabric/* imports to their @fluentui/* packages (for example @uifabric/utilities -> @fluentui/utilities, @uifabric/react-hooks -> @fluentui/react-hooks, @uifabric/styling -> @fluentui/style-utilities).",
+        "Fabric and Customizer are deprecated: wrap the tree in ThemeProvider.",
+        "Several components became function components: class extension, findDOMNode and reading component state are no longer supported."
+      ],
+      "old": [
+        {
+          "id": "fabric7.import",
+          "regex": "[\"']office-ui-fabric-react(?:/[\\w/.-]+)?[\"']",
+          "what": "office-ui-fabric-react import: the package is @fluentui/react from version 8",
+          "kind": "removed"
+        },
+        {
+          "id": "fabric7.uifabric",
+          "regex": "[\"']@uifabric/[\\w-]+(?:/[\\w/.-]+)?[\"']",
+          "what": "@uifabric/* packages were moved to the @fluentui scope",
+          "kind": "removed"
+        },
+        {
+          "id": "fabric7.fabric-customizer",
+          "regex": "<(?:Fabric|Customizer)\\b",
+          "requires": "office-ui-fabric-react|@fluentui/react",
+          "what": "Fabric and Customizer are deprecated in favour of ThemeProvider",
+          "kind": "deprecated"
+        }
+      ],
+      "new": [
+        {
+          "id": "fluent8.theme-provider",
+          "regex": "import\\s*\\{[^}]*\\bThemeProvider\\b[^}]*\\}\\s*from\\s*[\"']@fluentui/react[\"']",
+          "what": "ThemeProvider from @fluentui/react (version 8+)"
+        }
+      ]
+    },
+    {
+      "id": "graph-client-2",
+      "packages": ["@microsoft/microsoft-graph-client"],
+      "since": "2.0.0",
+      "title": "Microsoft Graph JavaScript client 2: ImplicitMSALAuthenticationProvider and no bundled polyfills",
+      "guide": "https://github.com/microsoftgraph/msgraph-sdk-javascript/releases/tag/2.0.0",
+      "verified": true,
+      "steps": [
+        "MSALAuthenticationProvider is ImplicitMSALAuthenticationProvider and takes an MSAL UserAgentApplication instance plus MSALAuthenticationProviderOptions.",
+        "Fetch and Promise polyfills are no longer bundled; graph-js-sdk-web.js and graph-js-sdk-core.js became graph-js-sdk.js.",
+        "Callbacks no longer receive the raw response: use .responseType(ResponseType.RAW)."
+      ],
+      "old": [
+        {
+          "id": "graph1.msal-provider",
+          "regex": "\\bMSALAuthenticationProvider\\b(?!Options)",
+          "what": "MSALAuthenticationProvider was renamed to ImplicitMSALAuthenticationProvider in 2.0",
+          "kind": "removed"
+        },
+        {
+          "id": "graph1.bundles",
+          "regex": "graph-js-sdk-(?:web|core)\\.js",
+          "what": "graph-js-sdk-web.js and graph-js-sdk-core.js are not shipped from 2.0",
+          "kind": "removed"
+        }
+      ],
+      "new": [
+        {
+          "id": "graph2.implicit-provider",
+          "regex": "\\bImplicitMSALAuthenticationProvider\\b|\\bResponseType\\s*\\.\\s*RAW\\b",
+          "what": "ImplicitMSALAuthenticationProvider or ResponseType.RAW (2.x)"
+        }
+      ]
+    },
+    {
+      "id": "graph-client-3",
+      "packages": ["@microsoft/microsoft-graph-client"],
+      "since": "3.0.0",
+      "title": "Microsoft Graph JavaScript client 3: implicit-flow provider removed",
+      "guide": "https://github.com/microsoftgraph/msgraph-sdk-javascript/blob/dev/changelogs/v3-upgrade-guide.md",
+      "verified": true,
+      "steps": [
+        "ImplicitMSALAuthenticationProvider and MSALAuthenticationProviderOptions are removed: use AuthCodeMSALBrowserAuthenticationProvider (@azure/msal-browser) or a custom authentication provider.",
+        "The timeout option of FetchOptions is gone: cancel requests with an AbortSignal.",
+        "LargeFileUploadTask takes a FileObject that implements sliceFile (FileUpload or StreamUpload); graph-es-sdk.js is no longer shipped."
+      ],
+      "old": [
+        {
+          "id": "graph2.implicit-provider-removed",
+          "regex": "\\bImplicitMSALAuthenticationProvider\\b|\\bMSALAuthenticationProviderOptions\\b",
+          "what": "ImplicitMSALAuthenticationProvider and MSALAuthenticationProviderOptions were removed in 3.0",
+          "kind": "removed"
+        }
+      ],
+      "new": [
+        {
+          "id": "graph3.providers",
+          "regex": "\\bAuthCodeMSALBrowserAuthenticationProvider\\b|\\bTokenCredentialAuthenticationProvider\\b|[\"']@microsoft/microsoft-graph-client/authProviders/",
+          "what": "3.x authentication providers"
+        }
+      ]
+    },
+    {
+      "id": "spfx-graph-client-v3",
+      "packages": ["@microsoft/sp-http"],
+      "since": "1.15.0",
+      "title": "SPFx 1.15: MSGraphClientV3 replaces MSGraphClient",
+      "guide": "https://learn.microsoft.com/en-us/sharepoint/dev/spfx/use-msgraph",
+      "verified": true,
+      "steps": [
+        "import { MSGraphClientV3 } from '@microsoft/sp-http'; and request it with this.context.msGraphClientFactory.getClient('3').",
+        "MSGraphClientV3 wraps @microsoft/microsoft-graph-client 3; review callback signatures and auth providers accordingly."
+      ],
+      "old": [
+        {
+          "id": "spfx114.msgraphclient",
+          "regex": "import\\s*\\{[^}]*\\bMSGraphClient\\b[^}]*\\}\\s*from\\s*[\"']@microsoft/sp-http[\"']|msGraphClientFactory\\s*\\.\\s*getClient\\s*\\(\\s*\\)",
+          "what": "MSGraphClient / getClient() without a version wrap Graph client 1 and are replaced by MSGraphClientV3 / getClient('3')",
+          "kind": "deprecated"
+        }
+      ],
+      "new": [
+        {
+          "id": "spfx115.msgraphclient-v3",
+          "regex": "\\bMSGraphClientV3\\b|getClient\\s*\\(\\s*[\"']3[\"']\\s*\\)",
+          "what": "MSGraphClientV3 (SPFx 1.15+)"
+        }
+      ]
+    },
+    {
+      "id": "spfx-heft",
+      "packages": ["@microsoft/sp-core-library"],
+      "since": "1.24.0",
+      "title": "SPFx 1.24: the gulp toolchain is not supported, builds run on Heft",
+      "guide": "https://learn.microsoft.com/en-us/sharepoint/dev/spfx/toolchain/migrate-gulptoolchain-hefttoolchain",
+      "verified": true,
+      "check": false,
+      "steps": [
+        "Remove gulpfile.js, @microsoft/sp-build-web and gulp; add @rushstack/heft and @microsoft/spfx-web-build-rig with config/rig.json (packman upgrade writes these).",
+        "Port custom gulp tasks to Heft plugins; scripts become heft build / heft start / heft package-solution --production."
+      ],
+      "old": [
+        {
+          "id": "spfx-gulp.build-web",
+          "regex": "require\\(\\s*[\"']@microsoft/sp-build-web[\"']\\s*\\)|\\bbuild\\.initialize\\s*\\(",
+          "what": "gulpfile.js with @microsoft/sp-build-web: the gulp toolchain is not supported on SPFx 1.24",
+          "kind": "removed"
+        }
+      ],
+      "new": []
+    },
+    {
+      "id": "pnp-controls-2",
+      "packages": ["@pnp/spfx-controls-react", "@pnp/spfx-property-controls"],
+      "since": "2.0.0",
+      "title": "PnP reusable controls 2: SPFx 1.11, React 16.8.5, Fabric 6, SharePoint Online only",
+      "guide": "https://pnp.github.io/sp-dev-fx-controls-react/guides/migrate-from-v1/",
+      "verified": true,
+      "steps": [
+        "Version 2 targets SharePoint Framework 1.11 and SharePoint Online only; keep 1.x for on-premises.",
+        "Align react/react-dom to 16.8.5, @types/react 16.8.8 and office-ui-fabric-react 6.214.0 (or the versions your SPFx release pins).",
+        "PeoplePicker: isRequired is now required; errorMessage is a static message and onGetErrorMessage validates dynamically."
+      ],
+      "old": [
+        {
+          "id": "pnpcontrols1.people-picker-required",
+          "regex": "<PeoplePicker\\b[^>]*\\bisRequired\\b",
+          "requires": "@pnp/spfx-controls-react",
+          "what": "PeoplePicker isRequired was renamed to required in controls 2",
+          "kind": "removed"
+        }
+      ],
+      "new": []
+    },
+    {
+      "id": "pnp-controls-3",
+      "packages": ["@pnp/spfx-controls-react", "@pnp/spfx-property-controls"],
+      "since": "3.0.0",
+      "title": "PnP reusable controls 3: SPFx 1.12 and Fluent UI 7",
+      "guide": "https://pnp.github.io/sp-dev-fx-controls-react/about/release-notes/",
+      "verified": true,
+      "steps": [
+        "Version 3 requires SharePoint Framework 1.12.1 or newer and Fluent UI 7 (@fluentui/react 7 / office-ui-fabric-react 7); later 3.x lines follow newer SPFx minors (spfx/library-target-mismatch).",
+        "Upgrade the SPFx project first (packman upgrade), then move the controls to the line built for that SPFx version."
+      ],
+      "old": [],
+      "new": []
+    }
+  ]
+}

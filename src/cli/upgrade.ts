@@ -25,6 +25,7 @@ interface UpgradeCliOptions extends CommonOptions {
   install?: boolean;
   shared?: boolean;
   verify?: boolean;
+  policy?: boolean;
 }
 
 export function registerUpgrade(program: Command): void {
@@ -46,6 +47,10 @@ export function registerUpgrade(program: Command): void {
       'install once, delete local modules and link the migrated group; back up manifests/locks only',
     )
     .option('--verify', 'install and run the build/test script of every migrated project')
+    .option(
+      '--no-policy',
+      'do not write targets, profiles or groups to packman.config.json (migrate the projects only)',
+    )
     .option('-y, --yes', 'do not ask for confirmation')
     .action(async (root: string, options: UpgradeCliOptions) => {
       if (options.json && options.apply) throw new Error(t('upgrade.jsonReadOnly'));
@@ -63,6 +68,7 @@ export function registerUpgrade(program: Command): void {
         ...(options.node ? { node: options.node } : {}),
         persistTarget: !options.project && !options.exclude,
         shared: options.shared === true,
+        policy: options.policy !== false,
       });
       if (plan.projects.length === 0) throw new Error(t('upgrade.noProjects'));
       if (options.shared) checkShared(report, plan);
@@ -221,6 +227,19 @@ function printPlan(plan: UpgradePlan, shared: boolean): void {
     for (const issue of project.issues) console.log(`  ${issue.level}: ${tm(issue.message)}`);
     for (const issue of project.issues)
       if (issue.files?.length) console.log(`    ${issue.files.join(', ')}`);
+    if (project.codeChanges.length > 0) {
+      console.log(`  ${t('upgrade.codeChanges')}`);
+      for (const change of project.codeChanges) {
+        console.log(
+          `    ${change.package} ${change.from} -> ${change.to}: ${change.title}${change.verified ? '' : ' (unverified)'}`,
+        );
+        console.log(`      ${change.guide}`);
+        for (const place of change.places.slice(0, 8)) console.log(`      ${place}`);
+        if (change.places.length > 8) console.log(`      ... +${change.places.length - 8}`);
+        if (change.places.length === 0) console.log(`      ${t('upgrade.noOldApi')}`);
+        for (const step of change.steps) console.log(`      -> ${step}`);
+      }
+    }
   }
 }
 

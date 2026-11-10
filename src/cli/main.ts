@@ -17,6 +17,8 @@ import { allFindings, toJson } from '../report/model.js';
 import { renderText } from '../report/text.js';
 import { openSession, runAnalysis, type CommonOptions } from './context.js';
 import { registerCommands } from './commands.js';
+import { registerAdd } from './add.js';
+import { registerCompat } from './compat.js';
 import { registerHooks } from './hooks.js';
 import { registerSharePoint } from './sharepoint.js';
 import { registerUpgrade } from './upgrade.js';
@@ -25,10 +27,9 @@ import {
   confirm,
   langOption,
   progressReporter,
-  recordVerifiedBuilds,
   reviewAndApply,
   RISK_ORDER,
-  type BuildResult,
+  verifyProjects,
 } from './shared.js';
 import { existsSync, readFileSync } from 'node:fs';
 import { readJsonFile } from '../core/json.js';
@@ -232,6 +233,9 @@ export function buildProgram(): Command {
             pc.yellow(`    ${t('store.alignFirst', { packages: candidate.packages.join(', ') })}`),
           );
       }
+      // align picks the most common version; packages whose peer ranges exclude it move with fix.
+      if (plan.candidates.some((candidate) => candidate.packages?.length))
+        console.log(pc.dim(t('store.alignOrder')));
       if (plan.groups.length === 0) console.log(t('store.none'));
     });
 
@@ -323,6 +327,7 @@ export function buildProgram(): Command {
         if (result.peers?.length)
           console.log(pc.yellow(t('store.peers', { count: result.peers.length })));
         for (const peer of result.peers ?? []) console.log(pc.yellow(`    ${peer}`));
+        for (const warning of result.lockWarnings ?? []) console.log(pc.yellow(`  ! ${warning}`));
         if (result.unverified?.length)
           console.log(pc.yellow(t('store.unverified', { count: result.unverified.length })));
         for (const line of result.unverified ?? []) console.log(pc.yellow(`    ${line}`));
@@ -442,37 +447,14 @@ export function buildProgram(): Command {
     .action(async (root: string, options: CommonOptions & { script: string }) => {
       const session = await openSession(root, options);
       const report = await runAnalysis(session, { ...options, security: false, usage: false });
-      const linked = report.projects.filter((entry) => entry.project.nodeModules === 'link');
-      const results: BuildResult[] = [];
-      for (const entry of linked) {
-        if (!entry.node.selected) {
-          console.error(
-            `${entry.project.id}: ${t('node.notInstalled', { ranges: entry.node.effective.join(' & '), recommended: entry.node.recommended ?? '-' })}`,
-          );
-          process.exitCode = 1;
-          continue;
-        }
-        console.log(pc.bold(`\n> ${entry.project.id}: npm run ${options.script}`));
-        const result = await runWithNode(entry.node.selected, entry.project.dir, [
-          'run',
-          options.script,
-        ]);
-        console.log(result.code === 0 ? pc.green('ok') : pc.red(`exit ${result.code}`));
-        if (result.code !== 0) process.exitCode = result.code;
-        await journal(session.root, {
-          command: 'store verify',
-          projects: [entry.project.id],
-          result: result.code === 0 ? 'ok' : 'failed',
-          detail: `npm run ${options.script} (node ${entry.node.selected.version}) exit ${result.code}`,
-        });
-        results.push({
-          project: entry.project,
-          node: entry.node.selected.version,
-          script: options.script,
-          ok: result.code === 0,
-        });
+      const linked = report.projects
+        .filter((entry) => entry.project.nodeModules === 'link')
+        .map((entry) => entry.project.id);
+      if (linked.length === 0) {
+        console.log(t('store.noLinks'));
+        return;
       }
-      await recordVerifiedBuilds(session.root, results);
+      await verifyProjects(session, report, linked, options.script);
     });
 
   store
@@ -596,6 +578,8 @@ export function buildProgram(): Command {
 
   registerCommands(program);
   registerUpgrade(program);
+  registerCompat(program);
+  registerAdd(program);
   registerSharePoint(program);
   registerHooks(program);
   return program;

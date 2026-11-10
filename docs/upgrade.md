@@ -136,6 +136,18 @@ for the project's component types and React usage:
 
 Sources are read from `src/` with comments stripped.
 
+### Code changes required
+
+For every family, each project's version edits are compared with `data/api-breaks.json` (see
+[Rules: API breaks](rules.md#api-breaks)). A dependency moved across a documented break (PnPjs
+2/3/4, React 16/18/19, Fluent UI 8, Graph client 2/3, `MSGraphClientV3`, PnP controls 2/3, SPFx
+1.24 Heft) adds an entry to the project's **Code changes required** block: package, from and to
+versions, the break, the guide, the `file:line` places of the project's source that use the API
+being left (or a note that none was found), and the migration steps. When places exist the project
+also gets an `api-migration` issue (level `review`) with the files. `--json` carries the same data as
+`projects[].codeChanges`. The checks above (`pnp-api`, `react-api`) stay blockers for APIs that are
+known to break the build.
+
 ## Repository policy
 
 The plan also carries fix `upgrade/policy` for `packman.config.json`:
@@ -173,6 +185,7 @@ Every issue has a code, a level (`blocker` or `review`) and a message. Besides t
 | `profile-conflict`                                             | blocker | A hand-written profile contradicts the migration.                                                            |
 | `cycle`                                                        | blocker | A dependency cycle between local projects; build order is ambiguous.                                         |
 | `framework-review`                                             | review  | Non-SPFx framework version change.                                                                           |
+| `api-migration`                                                | review  | A version edit crosses a documented API break and the source uses the old API; see the code changes block.   |
 | `no-build`                                                     | blocker | With `--verify`: a non-SPFx project has no `build`/`test` script.                                            |
 | `shared-family`, `shared-excluded`, `shared-lock`              | blocker | With `--shared`: see below.                                                                                  |
 

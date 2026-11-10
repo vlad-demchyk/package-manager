@@ -32,7 +32,9 @@ import {
 } from '../sharepoint/requirements.js';
 import {
   clean,
+  emptyRecord,
   readRecord,
+  recordEntries,
   resolveItemRefs,
   seed,
   writeRecord,
@@ -213,15 +215,13 @@ export function registerSharePoint(program: Command): void {
       const absRoot = path.resolve(root);
       const site = siteOf(options, await readFixtures(absRoot));
       const record = await readRecord(absRoot, site);
-      const count =
-        record.lists.length + record.items.length + record.fields.length + record.files.length;
-      if (count === 0) {
+      // Everything the record holds, subsites, pages and content types included.
+      const entries = recordEntries(record);
+      if (entries.length === 0) {
         console.log(t('clean.nothing'));
         return;
       }
-      console.log(
-        `${record.lists.length} lists, ${record.items.length} items, ${record.fields.length} columns, ${record.files.length} files`,
-      );
+      for (const entry of entries) console.log(`  ${entry}`);
       if (!options.yes && !(await confirm(t('sp.confirmClean', { site })))) {
         console.log(t('cli.aborted'));
         return;
@@ -231,15 +231,7 @@ export function registerSharePoint(program: Command): void {
         const actions = await clean(browserClient(page, site), record);
         printActions(actions);
         const failures = actions.filter((action) => action.outcome === 'failed').length;
-        if (failures === 0)
-          await writeRecord(absRoot, {
-            ...record,
-            lists: [],
-            fields: [],
-            items: [],
-            files: [],
-            folders: [],
-          });
+        if (failures === 0) await writeRecord(absRoot, emptyRecord(site));
         else process.exitCode = 1;
         await journal(absRoot, {
           command: 'sharepoint clean',
@@ -328,6 +320,7 @@ export function registerSharePoint(program: Command): void {
                   : undefined;
                 const result = await checkComponent(page, {
                   ...(query ? { query } : {}),
+                  ...(settings ? { fixture: settings } : {}),
                   known: settings?.known ?? [],
                   properties: options.properties ?? false,
                   project: id,
@@ -346,7 +339,7 @@ export function registerSharePoint(program: Command): void {
                         ? pc.yellow
                         : pc.red;
                   console.log(
-                    `  ${color(result.status.padEnd(10))} ${component.alias} ${pc.dim(`${result.bundles} bundles`)}`,
+                    `  ${color(result.status.padEnd(10))} ${component.alias} ${pc.dim(`${result.bundles} bundles${result.page ? `, ${result.page}` : ''}`)}`,
                   );
                   for (const issue of result.issues.filter((item) => item.kind !== 'host'))
                     console.log(`    ${pc.dim(issue.kind.padEnd(7))} ${issue.text.split('\n')[0]}`);

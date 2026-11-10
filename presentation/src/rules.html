@@ -1,0 +1,54 @@
+<!-- {"title": "packman rules", "description": "Reference of packman rules: search, filter by prefix and severity, fixes and their risk."} -->
+<p class="eyebrow">Reference</p>
+<h1>Rules</h1>
+<p class="lead">
+  Every finding has a rule id. <code>packman fix --rule &lt;id&gt;</code> selects it and
+  <code>checks.disabled</code> in the configuration turns it off. A fix id is selected with
+  <code>fix --fix &lt;id&gt;</code>. Finding and fix titles come from the message catalogue
+  <code>src/i18n/en.ts</code>; the trigger conditions come from <code>docs/rules.md</code>, checked
+  against the ids in the code.
+</p>
+<div class="callout">
+  <p>
+    <strong>Risk:</strong> <span class="badge risk-safe">safe</span> a mechanical edit;
+    <span class="badge risk-review">review</span> check the diff and the build;
+    <span class="badge risk-breaking">breaking</span> crosses a major version.
+    <code>fix</code> takes only safe fixes by default, the rest with <code>--risk review</code> or
+    <code>--risk breaking</code>.
+  </p>
+  <p>
+    <strong>Severity:</strong> <span class="badge sev-critical">critical</span>
+    <span class="badge sev-error">error</span> <span class="badge sev-warning">warning</span>
+    <span class="badge sev-info">info</span>. <code>check</code> exits with 1 from
+    <code>error</code> up (<code>--fail-on</code>).
+  </p>
+</div>
+<div class="rules-controls" role="search" aria-label="Rule filter">
+  <label class="visually-hidden" for="rules-q">Search rules</label>
+  <input
+    id="rules-q"
+    type="search"
+    placeholder="Search: id, title, condition, fix (for example, lockfile or compiler)"
+  />
+  <div class="chips" id="rules-prefix" role="group" aria-label="Prefix"></div>
+  <div class="chips" id="rules-sev" role="group" aria-label="Severity"></div>
+  <span class="count" id="rules-count" aria-live="polite"></span>
+</div>
+<div id="rules-list"><p>The reference needs JavaScript.</p></div>
+<h2 id="fix-ids">Fix ids without a finding</h2>
+<p>These fixes do not belong to a rule: commands or the TUI create them.</p>
+<div id="fix-only"></div>
+<h2 id="disable">How to turn a rule off</h2>
+<div class="code" data-lang="json">
+  <pre><code>{
+  "checks": {
+    "disabled": ["npm/range-spec", "spfx/upgrade-available"],
+    "ignoreUnused": ["tslib"],
+    "ignorePaths": ["src/legacy/**"]
+  }
+}</code></pre>
+</div>
+<p>
+  <code>policy.exactVersions: false</code> turns <code>npm/range-spec</code> off;
+  <code>packman ignore add &lt;package&gt;</code> adds to <code>checks.ignoreUnused</code>.
+</p>

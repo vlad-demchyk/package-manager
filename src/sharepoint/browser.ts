@@ -7,7 +7,8 @@ import type { SpClient, SpMethod, SpResponse } from './seed.js';
 /**
  * A Chromium browser driven over the DevTools protocol. packman never sees a password or token:
  * the person signs in to SharePoint in this browser, and REST calls run inside the signed-in page.
- * The profile lives in `~/.packman/browser` so the sign-in survives between runs.
+ * The profile lives in `browser/` of the per-user packman folder (`packmanHome()`), so the sign-in
+ * survives between runs.
  */
 export interface Page {
   send<T = unknown>(method: string, params?: Record<string, unknown>): Promise<T>;
@@ -20,6 +21,28 @@ export interface Page {
 export const DEFAULT_DEBUG_PORT = 9333;
 
 const sleep = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms));
+
+/** Longest wait for one DevTools command (an `evaluate` includes the promise it awaits). */
+export const COMMAND_TIMEOUT_MS = 120_000;
+
+/** What a hung browser tells the person; restarting it keeps the sign-in (it is in the profile). */
+export const BROWSER_STUCK =
+  'The packman browser does not answer; close it (or end the msedge/chrome process using the packman profile) and run again.';
+
+/** `promise`, or a rejection with `message` after `ms`. */
+export function withTimeout<T>(promise: Promise<T>, ms: number, message: string): Promise<T> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  return Promise.race([
+    promise,
+    new Promise<never>((_, reject) => {
+      timer = setTimeout(() => {
+        reject(new Error(message));
+      }, ms);
+    }),
+  ]).finally(() => {
+    clearTimeout(timer);
+  });
+}
 
 export function browserExecutable(): string | undefined {
   const candidates =
@@ -128,12 +151,20 @@ async function connectPage(socketUrl: string): Promise<Page> {
       for (const listener of listeners)
         listener({ method: data.method, params: data.params ?? {} });
   };
-  const send = <T>(method: string, params: Record<string, unknown> = {}): Promise<T> =>
-    new Promise<T>((resolve, reject) => {
-      const id = ++next;
+  // A command the browser never answers (a request stuck in its network stack) must not hang
+  // packman: it fails after COMMAND_TIMEOUT_MS with a message that says what to do.
+  const send = <T>(method: string, params: Record<string, unknown> = {}): Promise<T> => {
+    const id = ++next;
+    const answer = new Promise<T>((resolve, reject) => {
       pending.set(id, { resolve: resolve as (value: unknown) => void, reject });
       socket.send(JSON.stringify({ id, method, params }));
     });
+    return withTimeout(
+      answer,
+      COMMAND_TIMEOUT_MS,
+      `${method}: no answer in ${COMMAND_TIMEOUT_MS / 1000} s. ${BROWSER_STUCK}`,
+    ).finally(() => pending.delete(id));
+  };
   const evaluate = async <T>(expression: string): Promise<T> => {
     const result = await send<{
       result: { value: T };
@@ -165,26 +196,46 @@ export async function waitForSite(
   site: string,
   timeoutMs = 300_000,
   onWait?: () => void,
+  probeMs = 15_000,
 ): Promise<void> {
   const host = new URL(site).host.toLowerCase();
   const started = Date.now();
   let told = false;
+  // Whether the last probe got no answer at all: a stuck browser, not a missing sign-in.
+  let stuck = false;
+  const probe = <T>(promise: Promise<T>): Promise<T | undefined> => {
+    const left = Math.max(1, Math.min(probeMs, timeoutMs - (Date.now() - started)));
+    return withTimeout(promise, left, 'no answer').then(
+      (value) => {
+        stuck = false;
+        return value;
+      },
+      (error: unknown) => {
+        stuck = error instanceof Error && error.message === 'no answer';
+        return undefined;
+      },
+    );
+  };
   while (Date.now() - started < timeoutMs) {
-    const current = await page.url().catch(() => '');
+    const current = (await probe(page.url())) ?? '';
     if (current && new URL(current).host.toLowerCase() === host) {
-      const signedIn = await page
-        .evaluate<number>(
-          `fetch(${JSON.stringify(`${site}/_api/web?$select=Id`)}, { headers: { accept: 'application/json' } }).then(r => r.status)`,
-        )
-        .catch(() => 0);
+      const signedIn = await probe(
+        page.evaluate<number>(
+          `fetch(${JSON.stringify(`${site}/_api/web?$select=Id`)}, { headers: { accept: 'application/json' }, signal: AbortSignal.timeout(${probeMs}) }).then(r => r.status, (e) => (e && e.name === 'TimeoutError' ? -1 : 0))`,
+        ),
+      );
       if (signedIn === 200) return;
+      // The page answered but its request never did: the browser's network is stuck.
+      if (signedIn === -1) stuck = true;
     }
-    if (!told) {
+    if (!told && !stuck) {
       onWait?.();
       told = true;
     }
+    if (Date.now() - started + 2000 >= timeoutMs) break;
     await sleep(2000);
   }
+  if (stuck) throw new Error(`${site}: ${BROWSER_STUCK}`);
   throw new Error(`Not signed in to ${site} within ${Math.round(timeoutMs / 1000)} s.`);
 }
 

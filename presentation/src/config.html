@@ -1,0 +1,558 @@
+<!-- {"title": "packman configuration", "description": "packman.config.json, packman.sharepoint.json, environment variables and the files packman writes."} -->
+<p class="eyebrow">Configuration</p>
+<h1>Settings</h1>
+<p class="lead">
+  Everything is optional: without the files the defaults apply. The schemas are checked against
+  <code>src/core/config.ts</code> and <code>src/sharepoint/fixtures.ts</code>. An invalid
+  <code>packman.config.json</code> stops the command with exit code 2 and the name of the key.
+</p>
+
+<h2 id="config">packman.config.json</h2>
+<p>
+  Lives at the workspace root. <code>packman init</code> creates it (with groups right away with
+  <code>--with-groups</code>); <code>profile generate --write</code> adds profiles,
+  <code>upgrade --apply</code> the target, <code>ignore add</code> the ignore list.
+</p>
+<div class="table-wrap">
+  <table>
+    <thead>
+      <tr>
+        <th scope="col">Key</th>
+        <th scope="col">Type</th>
+        <th scope="col">Default</th>
+        <th scope="col">What it sets</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><code>language</code></td>
+        <td><code>auto</code>, <code>en</code>, <code>it</code>, <code>uk</code></td>
+        <td><code>auto</code></td>
+        <td>
+          Language when <code>--lang</code> is not given. <code>auto</code>:
+          <code>PACKMAN_LANG</code>, <code>LC_ALL</code>, <code>LC_MESSAGES</code>,
+          <code>LANG</code>, then the OS locale.
+        </td>
+      </tr>
+      <tr>
+        <td><code>projects</code></td>
+        <td>object</td>
+        <td>see below</td>
+        <td>Project discovery.</td>
+      </tr>
+      <tr>
+        <td><code>policy</code></td>
+        <td>object</td>
+        <td>see below</td>
+        <td>Exact versions and version groups.</td>
+      </tr>
+      <tr>
+        <td><code>profiles</code></td>
+        <td>name → profile</td>
+        <td><code>{}</code></td>
+        <td>Dependency profiles (2.x <code>dependencies-config.js</code>).</td>
+      </tr>
+      <tr>
+        <td><code>target</code></td>
+        <td>object</td>
+        <td><code>{}</code></td>
+        <td>Repository target versions.</td>
+      </tr>
+      <tr>
+        <td><code>checks</code></td>
+        <td>object</td>
+        <td>see below</td>
+        <td>Disabled rules and scan exclusions.</td>
+      </tr>
+      <tr>
+        <td><code>$schema</code></td>
+        <td>string</td>
+        <td>-</td>
+        <td>Ignored, allowed for editors.</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+<h3 id="projects">projects</h3>
+<div class="table-wrap">
+  <table>
+    <thead>
+      <tr>
+        <th scope="col">Key</th>
+        <th scope="col">Default</th>
+        <th scope="col">What it sets</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><code>include</code></td>
+        <td><code>["**"]</code></td>
+        <td>Glob masks of project ids (picomatch).</td>
+      </tr>
+      <tr>
+        <td><code>exclude</code></td>
+        <td><code>[]</code></td>
+        <td>Masks to skip.</td>
+      </tr>
+      <tr>
+        <td><code>maxDepth</code></td>
+        <td><code>4</code></td>
+        <td>Search depth, 0-12; <code>--depth</code> overrides it.</td>
+      </tr>
+      <tr>
+        <td><code>includeRoot</code></td>
+        <td><code>false</code></td>
+        <td>
+          Also analyze the root <code>package.json</code>. A repository whose root is the only
+          project is always analyzed.
+        </td>
+      </tr>
+      <tr>
+        <td><code>requiredFiles</code></td>
+        <td><code>[]</code></td>
+        <td>
+          Files or folders a project must have, for example <code>["src", "tsconfig.json"]</code>.
+        </td>
+      </tr>
+      <tr>
+        <td><code>match</code></td>
+        <td>-</td>
+        <td>A regular expression for the project id.</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+<p>
+  Never walked: folders starting with <code>.</code>, <code>node_modules</code>, <code>.git</code>,
+  <code>.packman</code>, <code>dist</code>, <code>lib</code>, <code>lib-amd</code>,
+  <code>lib-commonjs</code>, <code>lib-dts</code>, <code>lib-esm</code>, <code>temp</code>,
+  <code>release</code>, <code>coverage</code>, <code>.next</code>, <code>.turbo</code>,
+  <code>.cache</code>.
+</p>
+
+<h3 id="policy">policy</h3>
+<div class="table-wrap">
+  <table>
+    <thead>
+      <tr>
+        <th scope="col">Key</th>
+        <th scope="col">Default</th>
+        <th scope="col">What it sets</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><code>exactVersions</code></td>
+        <td><code>true</code></td>
+        <td>
+          Report <code>^</code>, <code>~</code> and other ranges (<code>npm/range-spec</code>);
+          <code>false</code> turns the rule off.
+        </td>
+      </tr>
+      <tr>
+        <td><code>groups[].name</code></td>
+        <td>required</td>
+        <td>Group name.</td>
+      </tr>
+      <tr>
+        <td><code>groups[].stack</code></td>
+        <td>-</td>
+        <td>
+          Only projects with this primary stack (<code>spfx</code>, <code>react</code>, ... or
+          <code>node</code> when there is no stack).
+        </td>
+      </tr>
+      <tr>
+        <td><code>groups[].projects</code></td>
+        <td>required</td>
+        <td>Project id masks (at least one).</td>
+      </tr>
+      <tr>
+        <td><code>groups[].node</code></td>
+        <td>-</td>
+        <td>
+          Node version or range of the group (valid semver). It becomes a requirement of every
+          member; npm commands use a Node that satisfies it.
+        </td>
+      </tr>
+      <tr>
+        <td><code>groups[].pins</code></td>
+        <td><code>{}</code></td>
+        <td>Versions every member must be on; otherwise <code>policy/pin-violation</code>.</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+<ul>
+  <li>
+    A project belongs to the first group whose masks and <code>stack</code> match it. The primary
+    stack is the first one found of <code>spfx</code>, <code>angular</code>, <code>next</code>,
+    <code>electron</code>, <code>vue</code>, <code>vite</code>, <code>react</code>,
+    <code>typescript</code>, <code>eslint</code>, <code>vitest</code>, <code>jest</code>.
+  </li>
+  <li>
+    The rest is grouped automatically as
+    <code>&lt;stack&gt;@&lt;version&gt; / node &lt;major&gt;</code>. The group with the most
+    projects becomes the baseline.
+  </li>
+  <li>
+    In a group of two or more projects, a package in several versions gives
+    <code>policy/group-divergence</code> with a target: the most common version, the highest on a
+    tie.
+  </li>
+</ul>
+
+<h3 id="profiles">profiles</h3>
+<div class="table-wrap">
+  <table>
+    <thead>
+      <tr>
+        <th scope="col">Key</th>
+        <th scope="col">What it does</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><code>stack</code>, <code>projects</code></td>
+        <td>Which projects it applies to (masks are required).</td>
+      </tr>
+      <tr>
+        <td><code>dependencies</code></td>
+        <td>Version in <code>dependencies</code> when the package is declared or imported.</td>
+      </tr>
+      <tr>
+        <td><code>devDependencies</code></td>
+        <td>Always present in <code>devDependencies</code> with this version.</td>
+      </tr>
+      <tr>
+        <td><code>conditionalDevDependencies</code></td>
+        <td>Version in <code>devDependencies</code> when the package is declared or imported.</td>
+      </tr>
+      <tr>
+        <td><code>deprecated</code></td>
+        <td>Remove from every dependency section.</td>
+      </tr>
+      <tr>
+        <td><code>scripts</code>, <code>engines</code>, <code>overrides</code></td>
+        <td>Set as given.</td>
+      </tr>
+      <tr>
+        <td><code>tsconfig</code></td>
+        <td>Merged into <code>tsconfig.json</code> leaf by leaf (arrays are leaves).</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+<p>
+  Every profile whose masks and stack match applies; they merge in declaration order, the later one
+  wins, and profiles named <code>packman-*</code> (written by <code>upgrade</code>) merge last.
+  Deviations become <code>profile/*</code> findings; <code>packman profile apply</code> applies them
+  all.
+</p>
+
+<h3 id="target">target</h3>
+<p>
+  Repository target versions, usually written by <code>packman upgrade --apply</code> (only without
+  <code>-p</code>/<code>-x</code>). Keys: <code>spfx</code>, <code>node</code>, <code>react</code>,
+  <code>angular</code>, <code>next</code>, <code>electron</code>, <code>vue</code>,
+  <code>vite</code>, <code>typescript</code>, <code>eslint</code>, <code>jest</code>,
+  <code>vitest</code>. Values are exact versions only; a range is rejected.
+  <code>target.node</code> gives <code>policy/target-node</code>,
+  <code>target.&lt;stack&gt;</code> gives <code>policy/target-stack</code>.
+</p>
+
+<h3 id="checks">checks</h3>
+<div class="table-wrap">
+  <table>
+    <thead>
+      <tr>
+        <th scope="col">Key</th>
+        <th scope="col">What it sets</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><code>disabled</code></td>
+        <td>Rule ids removed from every report (exact ids, no masks).</td>
+      </tr>
+      <tr>
+        <td><code>ignoreUnused</code></td>
+        <td>Packages never reported as unused (<code>packman ignore add/remove/list</code>).</td>
+      </tr>
+      <tr>
+        <td><code>ignorePaths</code></td>
+        <td>
+          Masks relative to every project, excluded from the source scan (for example,
+          <code>test/**</code>).
+        </td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+<h3 id="config-example">Full example</h3>
+<div class="code" data-lang="json">
+  <pre><code>{
+  "language": "en",
+  "target": { "spfx": "1.21.1", "node": "22.19.0" },
+  "projects": {
+    "include": ["**"],
+    "exclude": ["legacy-*"],
+    "maxDepth": 4,
+    "includeRoot": false,
+    "requiredFiles": ["src"]
+  },
+  "profiles": {
+    "spfx121": {
+      "stack": "spfx",
+      "projects": ["apps/*"],
+      "dependencies": { "react": "17.0.1", "@pnp/sp": "4.12.0" },
+      "devDependencies": { "@types/webpack-env": "1.15.3" },
+      "deprecated": ["moment"],
+      "engines": { "node": "&gt;=22.14.0 &lt;23.0.0" },
+      "tsconfig": { "compilerOptions": { "skipLibCheck": true } }
+    }
+  },
+  "policy": {
+    "exactVersions": true,
+    "groups": [
+      { "name": "spfx-1.21", "stack": "spfx", "projects": ["apps/*"], "node": "22.19.0", "pins": { "react": "17.0.1" } }
+    ]
+  },
+  "checks": {
+    "disabled": ["spfx/upgrade-available"],
+    "ignoreUnused": ["@microsoft/sp-office-ui-fabric-core"],
+    "ignorePaths": ["test/**"]
+  }
+}</code></pre>
+</div>
+
+<h2 id="sp-config">packman.sharepoint.json</h2>
+<p>
+  Fixtures for <code>packman sp</code>, JSON with comments. <code>sp requirements --write</code>
+  creates and extends the file; field types, choices, items and file contents are filled in by hand.
+</p>
+<div class="table-wrap">
+  <table>
+    <thead>
+      <tr>
+        <th scope="col">Key</th>
+        <th scope="col">What it sets</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><code>site</code></td>
+        <td>Dev site URL; <code>--site</code> overrides it. Never production.</td>
+      </tr>
+      <tr>
+        <td><code>lists[]</code></td>
+        <td>
+          <code>title</code>, <code>template</code> (<code>generic</code>, <code>documents</code>,
+          <code>events</code>, <code>pictures</code>), <code>fields</code>, <code>items</code>,
+          <code>usedBy</code>, <code>writes</code>.
+        </td>
+      </tr>
+      <tr>
+        <td><code>lists[].fields[]</code></td>
+        <td>
+          <code>name</code> (<code>^[A-Za-z_]\w*$</code>), <code>type</code>: <code>Text</code>,
+          <code>Note</code>, <code>Number</code>, <code>Boolean</code>, <code>DateTime</code>,
+          <code>Choice</code>, <code>MultiChoice</code>, <code>URL</code>, <code>User</code>,
+          <code>Lookup</code>; <code>choices</code>; <code>list</code> for Lookup.
+        </td>
+      </tr>
+      <tr>
+        <td><code>files[]</code></td>
+        <td>
+          <code>path</code> relative to the site, <code>content</code> or <code>from</code> (a
+          workspace file) or <code>placeholder</code> (a PNG colour).
+        </td>
+      </tr>
+      <tr>
+        <td><code>contentTypes[]</code></td>
+        <td>
+          <code>name</code>, <code>parent</code> (default Site Page), <code>list</code> (default
+          <code>Site Pages</code>), <code>fields</code>.
+        </td>
+      </tr>
+      <tr>
+        <td><code>pages[]</code></td>
+        <td>
+          <code>name</code> (<code>*.aspx</code>), <code>title</code>, <code>contentType</code>,
+          <code>fields</code>, <code>news</code>, <code>list</code>.
+        </td>
+      </tr>
+      <tr>
+        <td><code>webs[]</code></td>
+        <td>
+          Subsites: <code>url</code>, <code>title</code>, <code>language</code> (LCID, default
+          1033), <code>template</code> (default <code>STS#3</code>) and their own
+          <code>lists</code>, <code>files</code>, <code>contentTypes</code>, <code>pages</code>.
+        </td>
+      </tr>
+      <tr>
+        <td><code>components.&lt;alias&gt;</code></td>
+        <td>
+          How <code>sp test</code> hosts a component, keyed by the manifest alias:
+          <code>query</code> (<code>{List/Title}</code> becomes an item id),
+          <code>properties</code>, <code>page</code>, <code>known</code> (known issues that do not
+          fail the run), <code>note</code>. See <a href="#sp-components">below</a>.
+        </td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+<h3 id="sp-components">Components: properties and page</h3>
+<ul>
+  <li>
+    <code>properties</code>: an object laid over the web part's first preconfigured entry in the
+    manifest, such as a dropdown key or the items a collection editor would fill. The toolbox adds
+    the web part with them.
+  </li>
+  <li>
+    <code>page</code>: a site-relative <code>.aspx</code> path, for example
+    <code>SitePages/test-news-1.aspx</code> or <code>news/SitePages/test-news-1.aspx</code> in a
+    subsite. The web part is embedded in that page's canvas in a new one-column section and runs
+    with the page's real context (list item, list, canvas). <code>--properties</code> does not run
+    on pages.
+  </li>
+  <li>
+    Both change only what the browser receives (the debug manifests, the page HTML); nothing is
+    saved on the site.
+  </li>
+</ul>
+<h3 id="sp-values">Item values</h3>
+<ul>
+  <li>
+    <code>"@me"</code>: the id of the current user on the site; <code>"@aad"</code>: their Entra
+    object id.
+  </li>
+  <li>
+    <code>{ "lookup": "&lt;Title&gt;" }</code> in a Lookup field: the id of the item with that Title
+    in the target list.
+  </li>
+  <li>
+    <code>"today"</code>, <code>"now"</code>, <code>"today+3d"</code>, <code>"now-2h"</code>: an ISO
+    date.
+  </li>
+  <li>
+    In libraries the item identity is <code>file</code>; <code>content</code> or
+    <code>placeholder</code> sets the content.
+  </li>
+</ul>
+<div class="code" data-lang="json">
+  <pre><code>{
+  "site": "https://contoso.sharepoint.com/sites/dev",
+  "lists": [
+    { "title": "Events", "writes": true,
+      "fields": [{ "name": "EventDate", "type": "DateTime" }, { "name": "Organizer", "type": "User" }],
+      "items": [{ "Title": "[test] Kick-off", "EventDate": "today+3d", "Organizer": "@me" }] }
+  ],
+  "files": [{ "path": "SiteAssets/footer/contacts.json", "content": { "email": "team@contoso.com" } }],
+  "contentTypes": [{ "name": "News Page", "fields": [{ "name": "PublishDate", "type": "DateTime" }] }],
+  "pages": [
+    { "name": "test-news-1.aspx", "title": "[test] News 1", "contentType": "News Page",
+      "news": true, "fields": { "PublishDate": "today" } }
+  ],
+  "components": {
+    "TeamCalendarWebPart": {
+      "query": "eventId={Events/[test] Kick-off}",
+      "properties": { "view": "month", "listTitle": "Events" },
+      "known": ["PnPTelemetry"]
+    },
+    "NewsBannerWebPart": { "page": "SitePages/test-news-1.aspx" }
+  }
+}</code></pre>
+</div>
+
+<h2 id="env">Environment variables</h2>
+<div class="table-wrap">
+  <table>
+    <thead>
+      <tr>
+        <th scope="col">Variable</th>
+        <th scope="col">Effect</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><code>PACKMAN_LANG</code></td>
+        <td>Language for <code>auto</code>.</td>
+      </tr>
+      <tr>
+        <td><code>PACKMAN_DATA_DIR</code></td>
+        <td>Folder of updated data; an empty value turns updated data off.</td>
+      </tr>
+      <tr>
+        <td><code>PACKMAN_BROWSER</code></td>
+        <td>Chromium browser for <code>packman sp</code>.</td>
+      </tr>
+      <tr>
+        <td><code>PACKMAN_DEBUG</code></td>
+        <td>Print the stack of unexpected errors.</td>
+      </tr>
+      <tr>
+        <td><code>CI</code></td>
+        <td>Turns the automatic TUI off.</td>
+      </tr>
+      <tr>
+        <td>
+          <code>NVM_HOME</code>, <code>NVM_DIR</code>, <code>FNM_DIR</code>, <code>VOLTA_HOME</code>
+        </td>
+        <td>Where to look for installed Node versions.</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+<h2 id="files">What packman writes</h2>
+<div class="table-wrap">
+  <table>
+    <thead>
+      <tr>
+        <th scope="col">Path</th>
+        <th scope="col">Contents</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><code>.packman/backups/&lt;time&gt;/</code></td>
+        <td>Copies of files before edits.</td>
+      </tr>
+      <tr>
+        <td><code>.packman/journal.jsonl</code></td>
+        <td>Operation journal (<code>packman log</code>).</td>
+      </tr>
+      <tr>
+        <td><code>.packman/store/&lt;key&gt;/</code>, <code>.packman/links.json</code></td>
+        <td>Stores and link records.</td>
+      </tr>
+      <tr>
+        <td><code>.packman/trash/</code></td>
+        <td>Package copies npm left in linked folders.</td>
+      </tr>
+      <tr>
+        <td><code>.packman/verified/</code></td>
+        <td>Verified version sets of projects and stores.</td>
+      </tr>
+      <tr>
+        <td><code>.packman/sharepoint/seeded.json</code></td>
+        <td>What <code>sp seed</code> created, per site.</td>
+      </tr>
+      <tr>
+        <td><code>.packman/validation/&lt;time&gt;-sharepoint/</code></td>
+        <td><code>sp test</code> results.</td>
+      </tr>
+      <tr>
+        <td><code>%LOCALAPPDATA%\packman</code> (Windows), <code>~/.cache/packman</code></td>
+        <td>
+          <code>data/</code> updated data, <code>cache/</code> advisories and registry documents (12
+          h), <code>browser/</code> the browser profile for <code>sp</code>.
+        </td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+<div class="code" data-output="data-status"></div>

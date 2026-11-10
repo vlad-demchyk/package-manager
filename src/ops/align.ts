@@ -1,7 +1,8 @@
 import semver from 'semver';
 import { fix, msg, setDependency } from '../core/findings.js';
 import type { DependencySection, Edit, Fix, Project } from '../core/types.js';
-import { minVersionOf, resolveVersion } from '../core/versions.js';
+import { peerRangesOn } from '../core/lockfile.js';
+import { minVersionOf, resolveVersion, satisfies } from '../core/versions.js';
 import { compareLoose } from './matrix.js';
 
 export type DiffStatus = 'different' | 'onlyBase' | 'onlyTarget' | 'same';
@@ -99,16 +100,43 @@ export function alignToProject(
 }
 
 /**
+ * Peer ranges on `name` declared by the packages each project installs directly, read from its
+ * lockfile: `project: package@version wants name@range`. An aligned version outside one of them
+ * fails `npm install` with ERESOLVE (SPFx 1.18: eslint 8.7.0 against rush-stack-compiler-5.3).
+ */
+function peerRanges(
+  projects: Project[],
+  name: string,
+): { projectId: string; from: string; range: string }[] {
+  return projects.flatMap((project) =>
+    peerRangesOn(project, name).map(({ locked, range }) => ({
+      projectId: project.id,
+      from: `${locked.name}@${locked.version}`,
+      range,
+    })),
+  );
+}
+
+function peerFits(version: string, range: string): boolean {
+  const exact = semver.valid(version) ?? semver.minVersion(version)?.version;
+  return exact !== undefined && satisfies(exact, range);
+}
+
+/**
  * Sets one package to one version everywhere it is declared. Without `version`, uses the most common
- * resolved version, ties broken by the highest (2.x "align duplicate versions").
+ * resolved version, ties broken by the highest (2.x "align duplicate versions"). The choice stays
+ * the most common version even when a peer range excludes it: the package declaring that range is
+ * usually the one off the stack (SPFx 1.18 with rush-stack-compiler-5.3), and `packman fix` moves it.
+ * `peers` lists those ranges, so align is run after fix instead of failing `npm install`.
  */
 export function alignPackage(
   projects: Project[],
   name: string,
   version?: string,
-): { version: string; fix: Fix } | undefined {
+): { version: string; fix: Fix; peers?: string[] } | undefined {
   const users = projects.filter((project) => declared(project, name));
   if (users.length === 0) return undefined;
+  const ranges = peerRanges(users, name);
   let target = version;
   if (!target) {
     const counts = new Map<string, number>();
@@ -123,6 +151,9 @@ export function alignPackage(
   }
   if (!target) return undefined;
   const wanted = target;
+  const missed = ranges
+    .filter((peer) => !peerFits(wanted, peer.range))
+    .map((peer) => `${peer.projectId}: ${peer.from} wants ${name}@${peer.range}`);
   // Every section that declares the package (a package in both dependencies and devDependencies
   // would otherwise keep a second version); peer ranges are a contract, not an install.
   const edits: Edit[] = users.flatMap((project) =>
@@ -145,6 +176,7 @@ export function alignPackage(
       majorChange(users, name, wanted) ? 'breaking' : 'review',
       edits,
     ),
+    ...(missed.length > 0 ? { peers: missed } : {}),
   };
 }
 

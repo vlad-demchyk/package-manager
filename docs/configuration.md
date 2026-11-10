@@ -232,9 +232,6 @@ it; types, choices, items and contents are completed by hand. How it is used:
 | `webs`         | array of subsite          | `[]`    | Subsites with their own lists, files, content types and pages, see [subsites](#subsites). |
 | `components`   | record alias -> component | `{}`    | How `sp test` hosts each component, keyed by manifest alias.                              |
 
-`contentTypes`, `pages` and `webs` were added to the schema while this page was written
-(uncommitted work in `src/sharepoint/fixtures.ts` and `src/sharepoint/pages.ts`).
-
 ### Lists
 
 | Key        | Type                                                 | Default     | Meaning                                                     |
@@ -286,33 +283,81 @@ uploaded file's item.
 
 ### Files
 
-| Key           | Type     | Default  | Meaning                                                               |
-| ------------- | -------- | -------- | --------------------------------------------------------------------- |
-| `path`        | string   | required | Site-relative path, e.g. `SiteAssets/configIntranet/menuHeader.json`. |
-| `content`     | any JSON | none     | A string is written as is; other JSON is written formatted.           |
-| `from`        | string   | none     | Workspace-relative file read as text when `content` is absent.        |
-| `placeholder` | string   | none     | Color of a generated PNG when there is no content.                    |
-| `usedBy`      | string[] | `[]`     | Projects that load the file (written by `requirements`).              |
+| Key           | Type     | Default  | Meaning                                                        |
+| ------------- | -------- | -------- | -------------------------------------------------------------- |
+| `path`        | string   | required | Site-relative path, e.g. `SiteAssets/<app>/settings.json`.     |
+| `content`     | any JSON | none     | A string is written as is; other JSON is written formatted.    |
+| `from`        | string   | none     | Workspace-relative file read as text when `content` is absent. |
+| `placeholder` | string   | none     | Color of a generated PNG when there is no content.             |
+| `usedBy`      | string[] | `[]`     | Projects that load the file (written by `requirements`).       |
 
 A file with neither content, `from` nor `placeholder` is skipped (`no content`). Note that commands
 read `from` into `content` when loading the fixtures, so `sp requirements --write` saves the inlined
 content back into the file (`readFixtures` in `src/cli/sharepoint.ts`).
 
+### Content types
+
+`contentTypes` (`src/sharepoint/pages.ts`, `seedContentTypes`):
+
+| Key      | Type               | Default                                                | Meaning                                                               |
+| -------- | ------------------ | ------------------------------------------------------ | --------------------------------------------------------------------- |
+| `name`   | string (non-empty) | required                                               | Content type name; an existing one with this name (any case) is used. |
+| `parent` | string             | `0x0101009D1CB255DA76424F860D91F20E6C4118` (Site Page) | Parent content type id of a new content type.                         |
+| `list`   | string             | `"Site Pages"`                                         | Library or list the content type and its columns are added to.        |
+| `fields` | array of field     | `[]`                                                   | Columns, same keys as [list fields](#fields), added to `list`.        |
+
+`"Site Pages"` (or `"SitePages"`) also finds the pages library by its template (119) when its title
+is localized, such as `Pagine del sito`. New content types go to the group `packman test data`.
+
+### Pages
+
+`pages` (`seedPages`):
+
+| Key           | Type                                 | Default        | Meaning                                                                  |
+| ------------- | ------------------------------------ | -------------- | ------------------------------------------------------------------------ |
+| `name`        | file name matching `^[\w.-]+\.aspx$` | required       | File name in the library, e.g. `test-news-1.aspx`; the page's identity.  |
+| `title`       | string (non-empty)                   | required       | Page title.                                                              |
+| `contentType` | string                               | none           | Name of a content type on the library (from `contentTypes` or built in). |
+| `fields`      | object                               | `{}`           | Column values, same conventions as [item values](#item-values).          |
+| `news`        | boolean                              | `false`        | Promote the page to a news post.                                         |
+| `list`        | string                               | `"Site Pages"` | Pages library.                                                           |
+
+Pages are created with an empty one-column canvas (`Article` layout).
+
+### Subsites
+
+`webs` (`seed` in `src/sharepoint/seed.ts`):
+
+| Key                                       | Type                       | Default   | Meaning                                                                     |
+| ----------------------------------------- | -------------------------- | --------- | --------------------------------------------------------------------------- |
+| `url`                                     | string matching `^[\w-]+$` | required  | Path below the site, e.g. `events` (one level).                             |
+| `title`                                   | string (non-empty)         | required  | Title of a new subsite.                                                     |
+| `language`                                | number (LCID)              | `1033`    | Language of a new subsite; list titles follow it (1040: `Pagine del sito`). |
+| `template`                                | string                     | `"STS#3"` | Web template of a new subsite.                                              |
+| `lists`, `files`, `contentTypes`, `pages` | as at the top level        | `[]`      | What the subsite holds; seeded in the subsite.                              |
+
+An existing subsite (it answers `/_api/web`) is used as it is.
+
 ### Components
 
 Keyed by the component alias from its manifest (for example `EventoWebPart`):
 
-| Key     | Type     | Default | Meaning                                                                                                               |
-| ------- | -------- | ------- | --------------------------------------------------------------------------------------------------------------------- |
-| `query` | string   | none    | Query string added to the page URL. `{List/Title}` becomes the id of that item (`?` when missing).                    |
-| `known` | string[] | `[]`    | Text of problems known not to come from the packages; matching issues are reported as `known` and never fail the run. |
-| `note`  | string   | none    | Free text, not used by packman.                                                                                       |
+| Key          | Type                       | Default | Meaning                                                                                                               |
+| ------------ | -------------------------- | ------- | --------------------------------------------------------------------------------------------------------------------- |
+| `query`      | string                     | none    | Query string added to the page URL. `{List/Title}` becomes the id of that item (`?` when missing).                    |
+| `properties` | object                     | none    | Web part properties laid over those of the manifest's first preconfigured entry (dropdown keys, collection items).    |
+| `page`       | site-relative `.aspx` path | none    | Host the web part on this modern page instead of the workbench, e.g. `news/SitePages/test-news-1.aspx`.               |
+| `known`      | string[]                   | `[]`    | Text of problems known not to come from the packages; matching issues are reported as `known` and never fail the run. |
+| `note`       | string                     | none    | Free text, not used by packman.                                                                                       |
+
+`properties` and `page` change only what the browser receives (the debug manifests, the page's
+HTML); nothing is saved on the site. See [SharePoint testing](sharepoint-testing.md#5-test).
 
 ### Example
 
 ```json
 {
-  "site": "https://contoso.sharepoint.com/sites/dev-intranet",
+  "site": "https://contoso.sharepoint.com/sites/dev",
   "lists": [
     {
       "title": "Categorie",
@@ -347,12 +392,27 @@ Keyed by the component alias from its manifest (for example `EventoWebPart`):
     }
   ],
   "files": [
-    { "path": "SiteAssets/configIntranet/menuHeader.json", "from": "c106-header/sample/menu.json" },
-    { "path": "SiteAssets/configIntranet/settings.json", "content": { "showBanner": true } },
+    { "path": "SiteAssets/app/menu.json", "from": "c106-header/sample/menu.json" },
+    { "path": "SiteAssets/app/settings.json", "content": { "showBanner": true } },
     { "path": "SiteAssets/img/logo.png", "placeholder": "#222222" }
   ],
+  "contentTypes": [
+    { "name": "Pagina News", "fields": [{ "name": "DataUfficiale", "type": "DateTime" }] }
+  ],
+  "pages": [
+    {
+      "name": "test-news-1.aspx",
+      "title": "[test] News",
+      "contentType": "Pagina News",
+      "news": true,
+      "fields": { "DataUfficiale": "today-1d" }
+    }
+  ],
+  "webs": [{ "url": "hr", "title": "HR", "language": 1040, "lists": [{ "title": "Posizioni" }] }],
   "components": {
-    "EventoWebPart": { "query": "iditem={Eventi/[test] Evento}", "known": ["PnPTelemetry"] }
+    "EventoWebPart": { "query": "iditem={Eventi/[test] Evento}", "known": ["PnPTelemetry"] },
+    "TeamCalendarWebPart": { "properties": { "view": "month" } },
+    "FooterWebPart": { "page": "SitePages/test-news-1.aspx" }
   }
 }
 ```

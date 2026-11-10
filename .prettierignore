@@ -5,3 +5,4 @@ data/*.json
 test/fixtures/
 bin/
 .packman/
+presentation/.build/

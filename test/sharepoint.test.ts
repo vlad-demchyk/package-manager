@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { classify, parseManifests, verdict } from '../src/sharepoint/debug.js';
+import { classify, describeException, parseManifests, verdict } from '../src/sharepoint/debug.js';
 import {
   fieldXml,
   fixturesSchema,
@@ -14,6 +14,7 @@ import { requirementsFromRequests, scanRequirements } from '../src/sharepoint/re
 import {
   clean,
   emptyRecord,
+  recordEntries,
   resolveItemRefs,
   seed,
   type SpClient,
@@ -36,7 +37,7 @@ describe('data requirements', () => {
             .select(...FIELDS)
             .filter(\`Visibile eq 1 and DataFine ge datetime'\${now}'\`)();
           await sp.web.lists.getByTitle("Preferiti").items.add({ Title: "x", IDUtente: 1 });
-          const menu = await fetch(site + "/SiteAssets/configIntranet/menu.json");
+          const menu = await fetch(site + "/SiteAssets/app/settings.json");
           const me = await graph.me();
           return [rows, menu, me];
         }`,
@@ -53,9 +54,7 @@ describe('data requirements', () => {
       const preferiti = found.lists.find((list) => list.title === 'Preferiti');
       expect(preferiti?.writes).toBe(true);
       expect(preferiti?.fields).toEqual(['IDUtente']);
-      expect(found.files).toEqual([
-        { path: 'SiteAssets/configIntranet/menu.json', usedBy: ['app'] },
-      ]);
+      expect(found.files).toEqual([{ path: 'SiteAssets/app/settings.json', usedBy: ['app'] }]);
       expect(found.graph.map((entry) => entry.resource)).toEqual(['me']);
     } finally {
       await cleanup();
@@ -381,6 +380,50 @@ describe('seed and clean', () => {
   });
 });
 
+describe('clean preview', () => {
+  it('lists everything the record holds, subsites, pages and content types included', () => {
+    const record = {
+      ...emptyRecord('https://t.sharepoint.com/sites/dev'),
+      lists: ['Eventi'],
+      items: [
+        { list: 'Eventi', id: 1 },
+        { list: 'Altro', id: 7 },
+      ],
+      fields: [{ list: 'Altro', name: 'Nuova' }],
+      files: ['SiteAssets/a.json'],
+      folders: ['SiteAssets/x', 'SiteAssets/x/y'],
+      webs: [
+        {
+          url: 'news',
+          created: true,
+          record: emptyRecord('https://t.sharepoint.com/sites/dev/news'),
+        },
+        {
+          url: 'hr',
+          created: false,
+          record: {
+            ...emptyRecord('https://t.sharepoint.com/sites/dev/hr'),
+            pages: [{ web: '', list: 'Site Pages', id: 3 }],
+            contentTypes: [{ web: '', id: '0x0101009D', list: 'Site Pages' }],
+          },
+        },
+      ],
+    };
+    expect(recordEntries(record)).toEqual([
+      'web news/ (whole subsite)',
+      'page hr/Site Pages: item 3',
+      'contentType hr/0x0101009D (and its copy on Site Pages)',
+      'item Altro: 7',
+      'field Altro.Nuova',
+      'list Eventi (with its items and columns)',
+      'file SiteAssets/a.json',
+      'folder SiteAssets/x/y (only when empty)',
+      'folder SiteAssets/x (only when empty)',
+    ]);
+    expect(recordEntries(emptyRecord('https://t.sharepoint.com/sites/dev'))).toEqual([]);
+  });
+});
+
 describe('debug run results', () => {
   const origin = 'https://localhost:4321';
   it('blames the component only for its own bundles and errors', () => {
@@ -427,6 +470,52 @@ describe('debug run results', () => {
     );
     expect(telemetry.map((issue) => issue.kind)).toEqual(['host']);
     expect(verdict([], false)).toBe('failed');
+  });
+
+  it('keeps the value and the frame of a rejection without an Error', () => {
+    // An Error: its description (with the stack) as before.
+    expect(
+      describeException({
+        text: 'Uncaught (in promise) TypeError: x is null',
+        exception: { description: `TypeError: x is null\n    at ${origin}/dist/app.js:1:2` },
+      }),
+    ).toBe(`TypeError: x is null\n    at ${origin}/dist/app.js:1:2`);
+    // A plain value: the browser's text, the value and up to three frames.
+    const plain = describeException({
+      text: 'Uncaught (in promise)',
+      exception: { type: 'string', value: 'no data' },
+      stackTrace: {
+        callFrames: [
+          { functionName: 'load', url: `${origin}/dist/app.js`, lineNumber: 9, columnNumber: 4 },
+          { functionName: '', url: 'https://t.sharepoint.com/_layouts/15/sp.js', lineNumber: 0 },
+        ],
+      },
+    });
+    expect(plain).toBe(
+      `Uncaught (in promise) "no data"\n    at load (${origin}/dist/app.js:10:5)\n    at <anonymous> (https://t.sharepoint.com/_layouts/15/sp.js:1:1)`,
+    );
+    expect(
+      classify(
+        { exceptions: [plain], console: [], responses: [], failed: [], requests: [] },
+        origin,
+      ).map((issue) => issue.kind),
+    ).toEqual(['runtime']);
+    // Nothing but the text: the host keeps it, as before.
+    expect(describeException({ text: 'Uncaught (in promise)' })).toBe('Uncaught (in promise)');
+    expect(
+      describeException({ text: 'Uncaught (in promise)', exception: { type: 'undefined' } }),
+    ).toBe('Uncaught (in promise) undefined');
+    expect(
+      describeException({
+        text: 'Uncaught (in promise)',
+        exception: { type: 'object', className: 'Response' },
+        url: 'https://t.sharepoint.com/_layouts/15/workbench.js',
+        lineNumber: 2,
+        columnNumber: 3,
+      }),
+    ).toBe(
+      'Uncaught (in promise) Response\n    at <anonymous> (https://t.sharepoint.com/_layouts/15/workbench.js:3:4)',
+    );
   });
 
   it('reports documented problems as known without failing the component', () => {

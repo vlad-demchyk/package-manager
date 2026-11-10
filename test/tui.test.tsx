@@ -1,4 +1,6 @@
-import { render } from 'ink-testing-library';
+import { EventEmitter } from 'node:events';
+import { render as inkRender } from 'ink';
+import type { ReactElement } from 'react';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { analyze, type Report } from '../src/analyze.js';
 import { configSchema } from '../src/core/config.js';
@@ -6,6 +8,60 @@ import { discoverWorkspace } from '../src/core/discovery.js';
 import { setLanguage } from '../src/i18n/index.js';
 import { App, bumpInMajor } from '../src/tui/App.js';
 import { fakeNodes, lockfile, makeWorkspace, TODAY } from './helpers.js';
+
+/**
+ * A virtual terminal of fixed size. ink-testing-library's stdout has `columns` but no `rows`, so
+ * Ink fell back to the size of the terminal running the tests and the list height (rows - 9) hid
+ * findings in a small or non-TTY shell.
+ */
+class FixedStdout extends EventEmitter {
+  readonly columns = 100;
+  readonly rows = 40;
+  private last: string | undefined;
+  write = (frame: string): void => {
+    this.last = frame;
+  };
+  lastFrame = (): string | undefined => this.last;
+}
+
+class FakeStdin extends EventEmitter {
+  isTTY = true;
+  private data: string | null = null;
+  write = (data: string): void => {
+    this.data = data;
+    this.emit('readable');
+    this.emit('data', data);
+  };
+  read = (): string | null => {
+    const { data } = this;
+    this.data = null;
+    return data;
+  };
+  setEncoding(): void {}
+  setRawMode(): void {}
+  resume(): void {}
+  pause(): void {}
+  ref(): void {}
+  unref(): void {}
+}
+
+function render(tree: ReactElement): {
+  lastFrame: () => string | undefined;
+  stdin: FakeStdin;
+  unmount: () => void;
+} {
+  const stdout = new FixedStdout();
+  const stdin = new FakeStdin();
+  const instance = inkRender(tree, {
+    stdout: stdout as unknown as NodeJS.WriteStream,
+    stderr: new FixedStdout() as unknown as NodeJS.WriteStream,
+    stdin: stdin as unknown as NodeJS.ReadStream,
+    debug: true,
+    exitOnCtrlC: false,
+    patchConsole: false,
+  });
+  return { lastFrame: stdout.lastFrame, stdin, unmount: instance.unmount };
+}
 
 const FILES = {
   'webpart/package.json': {

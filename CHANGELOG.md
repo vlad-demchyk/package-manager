@@ -2,6 +2,60 @@
 
 ## Unreleased
 
+- API breaks are data (`data/api-breaks.json`: PnPjs 2/3/4, React 16/18/19, Fluent UI 8, Microsoft
+  Graph client 2/3, SPFx `MSGraphClientV3` and Heft, PnP controls 2/3, each with old and new API
+  patterns, the official guide and migration steps). `check` reports `api/migration-required` when
+  the installed version and the code sit on different sides of a break (`sp.setup` with PnPjs 3,
+  `getAll()` with PnPjs 4, `ReactDOM.render` with React 18, `office-ui-fabric-react` imports with
+  `@fluentui/react` 8, ...) with `file:line` places, and `api/migration-split` when projects of the
+  repository are on both sides and the old ones still use the old API. Every fix whose version edit
+  crosses a break is `breaking` and its finding lists the places to change; `fix`, `align`,
+  `profile apply` and `upgrade` print them before the diff, and the upgrade plan shows a
+  `Code changes required` block per project (`codeChanges` in `--json`).
+- `packman compat <package> -p <project> [--to <version>] [--json]`: one package in one project:
+  current version, the ranges the stack gives it (SPFx lockstep, scaffold, PnP controls line,
+  recommended PnPjs major, compiler TypeScript, framework matrix), peer ranges of the installed
+  packages, its own `engines.node` against the project's Node, the API breaks between the current
+  and the target version (or every later break) with the places to change, and the version path.
+- `upgrade --no-policy` migrates the selected projects without writing targets, profiles or groups
+  to `packman.config.json`.
+- Packages named by string in build and lint configs count as used (`loader: 'babel-loader'` in
+  `gulpfile.js`, `webpack.*.config.*`, `jest.config.*`, `vite.config.*`, `.eslintrc`, `.babelrc`,
+  `config/*.json`), with comments stripped first; `fix --risk review` no longer removes them.
+- `packman add <pkg>[@range]... -p <project>` and `packman remove <pkg>... -p <project>`: change
+  dependencies through packman instead of bare npm. The version comes from the group (pin, members'
+  spec, profile, SPFx matrix, other groups, the project's transitive resolution, then the registry
+  version compatible with the project's Node and peers) and the source is printed. Before writing,
+  engines, peer ranges, SPFx lockstep, package families, runtime singletons and the group's spec are
+  checked; a failed check stops the command. Writes go through preview, `--apply`, backup and
+  journal. A standalone project then runs `npm install` with its Node; a project linked to the shared
+  store never runs npm in its folder: its group store is rebuilt from the verified set, all members
+  relinked and their lockfiles synchronized (`--verify [script]` records the new verified set).
+  The selected projects' sources are scanned, so an edit across a documented API break lists the
+  `file:line` places and the migration steps one per line; `remove` warns when the package is still
+  imported, referenced by a config file or called from an npm script. `--verify` on a standalone
+  project says it applies to linked projects only.
+- `install`: linked projects are no longer `skipped`; each line says whether the link is up to date
+  or stale and which command rebuilds it. `install --sync-store` rebuilds and relinks the groups with
+  stale members (no npm inside the projects); `--refresh` without it says it has no effect.
+- Store lock sync: a nested package whose hoist does not settle stays nested and is reported with the
+  tree size instead of silently; a store tree that a recorded link still points to is never deleted
+  before a rebuild.
+- `store plan`: the Vite `cacheDir` warning is only given for exact groups (one `node_modules`
+  junction); union groups keep Vite's cache per project. New warning when a member's `gulpfile.js`
+  has a webpack rule with `include`/`exclude` on `path.join|resolve(__dirname, 'node_modules', ...)`,
+  which stops matching under store links because webpack resolves junctions to the store path; wrap
+  it in `fs.realpathSync(...)`. Under `versions-differ` candidates the plan prints the order
+  `packman check`, `packman fix --apply`, `packman align --package <name>`.
+- Lock sync (`store link --union`) hoists each project's subset of the store tree the way a
+  standalone `npm ci` would (`hoistLockTree`): nested packages move into free top-level slots while
+  every resolution is kept, peers resolve from the parent level and are never nested. The written
+  lockfiles are usable for an independent `npm ci`.
+- `align --package` warns when peer ranges of packages the projects install exclude the chosen
+  version and advises `packman fix --apply` first; the chosen version is still the most common one.
+- Docs: SPFx production checks run `store verify --script <script with --ship>` (the scaffold's
+  `build` has no `--ship`). TUI tests render into a fixed 100x40 virtual terminal, so `npm run check`
+  no longer depends on the terminal size.
 - `packman sharepoint` (`sp`): `requirements` collects the lists, columns, files and Graph calls SPFx
   components use, from the source and from the requests of the last test run, into
   `packman.sharepoint.json`; `seed` creates the missing lists, columns, items and files on a dev site
@@ -56,7 +110,7 @@
   `--lock-only` is `relock`. TUI tabs: Overview, Projects, Versions, Outdated, Node, Store, Fixes.
 - Union stores are resolved fresh by npm from the group manifest instead of piecing members'
   lockfiles together path by path, which mixed a parent from one lockfile with nested packages of
-  another (an anima build failed with `Unknown keyword formatMinimum`). Every dependency edge of the
+  another (a real SPFx build failed with `Unknown keyword formatMinimum`). Every dependency edge of the
   installed tree is checked: a broken edge stops the link, unmet peers are reported as project
   incompatibilities, and majors that moved from members' lockfiles are listed. Store keys and link
   records carry the store format, so stores built the old way are rebuilt rather than reused.

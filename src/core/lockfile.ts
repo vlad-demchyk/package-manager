@@ -3,7 +3,7 @@ import { createHash } from 'node:crypto';
 import path from 'node:path';
 import { readJsonFile } from './json.js';
 import { readPnpmLockfile, readYarnLockfile } from './lockfile-text.js';
-import type { LockedPackage, LockfileSummary, PackageManifest } from './types.js';
+import type { LockedPackage, LockfileSummary, PackageManifest, Project } from './types.js';
 
 interface NpmLockV2Entry {
   version?: string;
@@ -160,4 +160,25 @@ export function requiredByOthers(summary: LockfileSummary | undefined): Set<stri
 /** True when the package sits directly in the project's node_modules (not nested). */
 export function isTopLevel(pkg: LockedPackage): boolean {
   return pkg.location === `node_modules/${pkg.name}`;
+}
+
+/**
+ * Peer ranges on `name` declared by the packages the project installs directly, read from its
+ * lockfile: `package@version wants name@range`. A version of `name` outside one of them fails
+ * `npm install` with ERESOLVE (SPFx 1.18: eslint 8.7.0 against rush-stack-compiler-5.3).
+ */
+export function peerRangesOn(
+  project: Project,
+  name: string,
+): { locked: LockedPackage; range: string }[] {
+  const out: { locked: LockedPackage; range: string }[] = [];
+  for (const dep of project.dependencies) {
+    if (dep.section === 'peerDependencies' || dep.name === name) continue;
+    const locked = project.lockfile?.packages.find(
+      (pkg) => pkg.name === dep.name && isTopLevel(pkg),
+    );
+    const range = locked?.peerDependencies?.[name];
+    if (locked && range) out.push({ locked, range });
+  }
+  return out;
 }

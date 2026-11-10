@@ -18,7 +18,7 @@ export interface ListRequirement {
 /** Everything the components of a workspace need from SharePoint and Microsoft 365 at run time. */
 export interface DataRequirements {
   lists: ListRequirement[];
-  /** Site-relative files the code loads, e.g. `SiteAssets/configIntranet/menuHeader.json`. */
+  /** Site-relative files the code loads, e.g. `SiteAssets/<app>/settings.json`. */
   files: { path: string; usedBy: string[] }[];
   /** Microsoft Graph resources (`me`, `users`, `groups/{id}/members`). */
   graph: { resource: string; usedBy: string[] }[];

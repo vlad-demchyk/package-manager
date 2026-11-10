@@ -1,0 +1,5 @@
+# check-site.js screenshots and the capture-outputs.sh build stay out of git.
+screenshots/
+.build/
+# Local private word list for tools/build-data.js and tools/check-site.js.
+.private-words.txt

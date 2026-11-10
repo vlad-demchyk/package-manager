@@ -10,6 +10,8 @@ import { editJsonText } from '../core/json.js';
 import type { Edit, PackageManifest, Project } from '../core/types.js';
 import { resolveVersion, satisfies } from '../core/versions.js';
 import { collectEdits } from '../fixes/apply.js';
+import { fixCrossings } from '../fixes/breaks.js';
+import { locationsOf } from '../scan/api-breaks.js';
 import { recommendNode } from '../node/plan.js';
 import { pickNode } from '../node/toolchain.js';
 import { generateProfile } from '../ops/generate.js';
@@ -31,6 +33,8 @@ export interface UpgradeOptions {
   fetchImpl?: typeof fetch;
   persistTarget?: boolean;
   shared?: boolean;
+  /** `false` leaves `packman.config.json` alone: no `upgrade/policy` fix (`upgrade --no-policy`). */
+  policy?: boolean;
 }
 
 export async function planUpgrade(report: Report, options: UpgradeOptions): Promise<UpgradePlan> {
@@ -160,6 +164,7 @@ export async function planUpgrade(report: Report, options: UpgradeOptions): Prom
         baseline: baseline.project.id,
         edits: [],
         issues: [],
+        codeChanges: [],
         verifyScript: project.manifest.scripts?.build
           ? 'build'
           : project.manifest.scripts?.test
@@ -245,6 +250,45 @@ export async function planUpgrade(report: Report, options: UpgradeOptions): Prom
           migration.edits,
         ),
       ]);
+      // Version edits that cross a documented API break: the code changes are listed per project
+      // and reviewed; removed APIs the source still uses are blockers above (pnp-api, react-api).
+      for (const crossed of fixCrossings(
+        fix(
+          'upgrade/project',
+          msg('upgrade.fixProject', { version: target.version }),
+          'review',
+          migration.edits,
+        ),
+        [entry],
+      )) {
+        const { break: item } = crossed.crossing;
+        const places = locationsOf(
+          entry.apiUsage,
+          crossed.crossing.direction === 'upgrade' ? item.old : item.new,
+        );
+        migration.codeChanges.push({
+          package: crossed.crossing.package,
+          from: crossed.crossing.from,
+          to: crossed.crossing.to,
+          title: item.title,
+          guide: item.guide,
+          verified: item.verified,
+          places,
+          steps: item.steps,
+        });
+        if (places.length > 0)
+          migration.issues.push({
+            code: 'api-migration',
+            level: 'review',
+            message: msg('upgrade.apiMigration', {
+              package: crossed.crossing.package,
+              from: crossed.crossing.from,
+              to: crossed.crossing.to,
+              count: places.length,
+            }),
+            files: [...new Set(places.map((place) => place.replace(/:\d+$/, '')))],
+          });
+      }
       plan.projects.push(migration);
       const manifest = editedManifest(project, migration.edits);
       simulated.push({
@@ -342,7 +386,7 @@ export async function planUpgrade(report: Report, options: UpgradeOptions): Prom
       ),
     ],
   });
-  if (plan.projects.length > 0)
+  if (plan.projects.length > 0 && options.policy !== false)
     plan.fixes.push(fix('upgrade/policy', msg('upgrade.fixPolicy'), 'review', configEdits));
   // A profile that would put an old version back is a concrete conflict, not a second authority.
   for (const migration of plan.projects)

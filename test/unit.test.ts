@@ -79,6 +79,41 @@ describe('source scan', () => {
     expect(stripped).not.toContain('block');
   });
 
+  it('keeps regex literals with slashes and still drops comments', () => {
+    const code = stripComments(
+      "const re = /https?:\\/\\//; // trailing\nconst re2 = /[^/]+\\//g;\nconst r = a / b; /* block */ const sp = 'x'; // tail",
+    );
+    expect(code).toContain('/https?:\\/\\//');
+    expect(code).toContain('/[^/]+\\//g');
+    expect(code).toContain('a / b;');
+    expect(code).toContain("const sp = 'x';");
+    expect(code).not.toContain('trailing');
+    expect(code).not.toContain('block');
+    expect(code).not.toContain('tail');
+  });
+
+  it('treats a slash after return, typeof, case, in and of as a regex literal', () => {
+    const code = stripComments(
+      [
+        'function f() { return /a\\/b/.test(s); } // c1',
+        'const t = typeof /x\\//; // c2',
+        'switch (k) { case /y\\//: break; } // c3',
+        'for (const m of /z\\//g) {} // c4',
+        'if (p in /w\\//) {} // c5',
+        'const half = total / 2; // c6',
+        'const noreturn = myreturn / 2; // c7',
+      ].join('\n'),
+    );
+    expect(code).toContain('return /a\\/b/.test(s);');
+    expect(code).toContain('typeof /x\\//;');
+    expect(code).toContain('case /y\\//:');
+    expect(code).toContain('of /z\\//g)');
+    expect(code).toContain('in /w\\//)');
+    expect(code).toContain('total / 2;');
+    expect(code).toContain('myreturn / 2;');
+    for (const n of [1, 2, 3, 4, 5, 6, 7]) expect(code).not.toContain(`c${n}`);
+  });
+
   it('extracts static, dynamic, re-export and require specifiers', () => {
     const code = stripComments(`
       import * as React from 'react';

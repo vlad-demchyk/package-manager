@@ -141,10 +141,89 @@ A store folder referenced by link records has no `.packman-ready.json` for that 
 - After `npm ci` the folder is a plain `node_modules` again: relinking needs `--replace-existing`.
 - `packman hooks install` reports these after `git pull` and branch switches.
 
+### `linked to the store, package.json changed: run packman add/remove, or packman store link --of <project> --union`
+
+`packman install` found a linked project whose dependency fields changed since it was linked (the
+same state `store status` calls `stale`). npm is not run there because it would replace the junctions.
+Either run `packman install --sync-store` (rebuilds the group store from the verified set, relinks,
+writes the lockfiles), or `packman store link --of <project> --union`. Next time change dependencies
+with `packman add <pkg> -p <project> --apply`, which does the rebuild itself.
+
+### `add`: `group: <name>@<spec> differs from the group's ...: the project would leave group <group>`
+
+The version chosen (or requested) is not the spec the other members of the union group declare, and
+the union store needs one spec per package. Options, in the order printed:
+
+- `packman add <name>@<group spec> -p <project>`: take the group's version.
+- `packman align --package <name> --version <wanted>` (after `packman check`/`fix` if peer ranges
+  object), then `packman store link --of <project> --union`: move the whole group.
+- `packman store unlink -p <project> --restore`, then `packman add` and `packman install`: the project
+  leaves the store and installs on its own.
+
+### `add`: `peer: <name>@<version> wants <peer>@<range>, the project has <peer> <have>`
+
+The registry version was chosen for the Node and the peers the project resolves, but the requested or
+group version wants another peer line (React 19 components in a React 17 SPFx project, say). Pick a
+version built for the peer the project has, or upgrade the peer in the whole group first
+(`packman align --package <peer>`).
+
+### `add`: `family: react-dom@19.0.0 and react@18.3.1 must share the same version`
+
+`data/families.json` ties packages released together (`react`/`react-dom`, Angular framework
+packages, `@typescript-eslint/*`, PnPjs majors). Add the family member at the version printed in the
+suggestion, or upgrade the whole family with `packman upgrade`.
+
+### `add`: `lockstep: <name> is an SPFx <version> package and must be exactly <version>`
+
+SPFx runtime and build packages are released in lockstep; `packman add <name>` without a range picks
+the right version from the matrix. A different requested version is refused.
+
+### `add`: `no version of <name> could be chosen offline`
+
+With `--offline`, no cached registry metadata and no other project, pin, profile or matrix row that
+names the package, packman does not guess. Pass `name@<version>` or drop `--offline`.
+
+### `<project> no longer fits a shared group (<reason>); the store was not rebuilt`
+
+After the manifest was written, `store plan --union` no longer places the project in a group:
+`versions-differ: <packages>` (the new spec conflicts with another member; the pre-write check
+catches the common case, this one appears when several projects were changed at once), or an
+exclusion reason. The manifest change stays (backup in `.packman/backups`). Resolve with the options
+in the message: the group's spec, `packman align --package`, or unlink and install standalone.
+
 ### Upgrade blocker `<project> is already linked; unlink it before changing its dependency set.`
 
 `upgrade` without `--shared` refuses linked projects. Unlink them, or migrate the whole group with
 `upgrade --apply --shared`.
+
+### `store plan` warns `gulpfile.js webpack rule include matches <project>/node_modules ...`
+
+Symptom: after linking, the SPFx bundle fails on a package that built fine with a local install
+(SPFx 1.18 GlobalLoader: `Module parse failed`). Cause: `gulpfile.js` has a webpack rule whose
+`include`/`exclude` is `path.join(__dirname, 'node_modules', '<pkg>')`; webpack follows the junction
+to the real path in `.packman/store/...`, so the rule no longer matches and the package is bundled
+without its loader. Action: wrap the path in `fs.realpathSync(...)`, for example
+`include: fs.realpathSync(path.join(__dirname, 'node_modules', '<pkg>'))`. The warning only covers a
+direct call in `gulpfile.js`; check Heft or separate webpack configs by hand.
+
+### `npm ci` in a linked project installs a different layout than the store
+
+Symptom: a project linked with `--union` is installed on its own (CI, another machine) and tools that
+load undeclared packages (`.eslintrc.js` with `@rushstack/eslint-config/patch/...`) fail, or the
+layout differs from the store. Cause: the lockfile was written by an older lock sync, which kept the
+store's nested locations. Action: relink with `packman store link --of <project> --union` (lock sync
+on by default). Lock sync now hoists the project's subset of the store tree the way npm would
+([lock sync](shared-store.md#lock-sync)), so `npm ci` from that lockfile reproduces the versions in a
+standalone layout.
+
+### `N peer ranges exclude <name>@<version>; run packman fix --apply first` from `align --package`
+
+Symptom: `packman align --package <name>` prints this warning, or `npm install` after aligning fails
+with `ERESOLVE`. Cause: a package some project installs directly declares a peer range on `<name>`
+that excludes the chosen (most common) version; it is usually the package off the stack (SPFx 1.18
+with `rush-stack-compiler-5.3`). Action: run `packman check`, then `packman fix --apply` (it moves
+that package), then `packman align --package <name>` again. `store plan` prints the same order under
+its `versions-differ` candidates.
 
 ## SPFx builds
 
@@ -159,6 +238,26 @@ warns in every file, and SPFx `--ship` builds fail on warnings unless the gulpfi
 ```bash
 packman fix --rule eslint/unknown-rule eslint/caught-errors --risk review --apply
 ```
+
+### `store verify` passes but `gulp bundle --ship` fails
+
+The SPFx scaffold's `build` script runs `gulp bundle` without `--ship`, and `store verify` runs
+`build` by default, so lint warnings and other `--ship`-only failures are not seen. Verify with the
+script that passes `--ship`: `packman store verify --script buildp` (or the name your projects use).
+
+### `spfx/tsconfig-compiler`: the build uses another TypeScript than the compiler package
+
+The declared `@microsoft/rush-stack-compiler-*` is the right one for the SPFx version, but
+`tsconfig.json` still `extends` a file of another `rush-stack-compiler-<x>` folder (typical after an
+upgrade that changed the compiler). Apply the safe fix, which rewrites `extends` to the expected
+compiler:
+
+```bash
+packman fix --rule spfx/tsconfig-compiler --apply
+```
+
+When the compiler package itself is wrong, `spfx/compiler-mismatch` is reported instead and its
+fix also rewrites `extends`.
 
 ### `ESLint <version> ignores .eslintrc...; migrate to eslint.config.js`
 
@@ -190,14 +289,35 @@ Another `gulp serve` (or anything serving `https://localhost:<port>/temp/build/m
 running. The port comes from the project's `config/serve.json` (default 4321). Stop it and run
 `sp test` again.
 
-### `gulp serve exited, see <log>` or `gulp serve did not start in 300 s, see <log>`
+### `gulp serve exited, see <log>` or `heft start did not start in 300 s, see <log>`
 
-The dev server failed or was too slow. Read `<project>-serve.log` in the run folder under
-`.packman/validation/`.
+The dev server (`gulp serve` or `heft start`, named in the message) failed or was too slow. Read
+`<project>-serve.log` in the run folder under `.packman/validation/`. A project with both gulp and
+Heft installed runs Heft only when its `start` or `serve` script mentions `heft`.
 
-### `no gulp toolchain installed (Heft projects are not supported yet)`
+### `neither gulp nor heft is installed in the project`
 
-`sp test` skips Heft projects and projects without `node_modules/gulp`. Install the project first.
+`sp test` skips projects without `node_modules/gulp/bin/gulp.js` and
+`node_modules/@rushstack/heft/bin/heft`. Install the project first.
+
+### `sp seed` reports `HTTP 423` for a page
+
+The page was locked when packman set its columns. packman checks a new page out before that change
+and retries a `423` after 2, 5 and 10 seconds; the failed page is deleted, so `sp seed --apply` can
+simply run again. If it keeps failing, someone (or another tool) holds the page open for editing.
+
+### `sp seed` reports `HTTP 500` adding a content type to a library
+
+SharePoint answers `500` to `AddAvailableContentType` for a few seconds after it creates the content
+type. packman retries after 2, 5 and 10 seconds; when all fail, run `sp seed --apply` again: the
+content type exists then and only the missing steps run.
+
+### A web part with `page` in its fixture does not render
+
+packman adds the web part to the page's canvas as the browser receives it. That needs the page HTML
+to embed `spClientSidePageContext = JSON.parse('...')` (modern pages in SharePoint Online) and the
+page to exist: a 404 or a classic page leaves the page unchanged and the component fails as not
+rendered. Check `page` (site-relative, e.g. `news/SitePages/test-news-1.aspx`) and the screenshot.
 
 ### Components fail with `load` issues and no bundles
 

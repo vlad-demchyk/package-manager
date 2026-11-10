@@ -120,6 +120,33 @@ export const it: Catalogue = {
 
   'constraint.package': '{name} {version} non soddisfa {range} richiesto da {source}',
 
+  // API breaks
+  'api.oldUsage':
+    '{package} {version} è installato ma {count} punti usano ancora le API delle versioni precedenti a {since} ({title})',
+  'api.newUsage':
+    '{package} {version} è installato ma {count} punti usano le API introdotte in {since} ({title})',
+  'api.split':
+    '{package}: {old} progetti sotto {since} e {new} sul lato nuovo; {work} usano ancora le vecchie API e richiedono modifiche al codice per convergere',
+  'api.fixBreaks':
+    '{count} cambi di versione attraversano una rottura di API documentata; il codice seguente deve cambiare con loro:',
+  'upgrade.apiMigration':
+    '{package} {from} -> {to}: {count} punti usano le API della versione che si abbandona; vedere le modifiche al codice sotto.',
+  'upgrade.codeChanges': 'Modifiche al codice richieste:',
+  'compat.title': '{package} in {project}',
+  'compat.current': 'attuale: {version} ({source}), dichiarato {spec} in {section}',
+  'compat.notDeclared': 'attuale: non dichiarato in questo progetto',
+  'compat.target': 'target: {version}',
+  'compat.constraints': 'Intervalli dello stack',
+  'compat.peers': 'Intervalli peer dei pacchetti installati',
+  'compat.engines': 'Node:',
+  'compat.breaks': 'Rotture di API tra attuale e target',
+  'compat.breaksAhead': 'Rotture di API oltre la versione attuale',
+  'compat.none': 'nessuno',
+  'compat.path': 'Percorso: {path}',
+  'compat.needProject':
+    'compat analizza un solo progetto; -p ne ha selezionati {count}: {projects}. Indicare -p <id o glob> che ne scelga esattamente uno.',
+  'upgrade.noOldApi': 'nessun uso noto delle vecchie API nei sorgenti analizzati',
+
   'fix.syncYoRc': 'Aggiornare .yo-rc.json a {version}',
   'fix.alignSpfxPackages': 'Impostare tutti i pacchetti SPFx a {version}',
   'fix.replaceCompiler': 'Usare {compiler}',
@@ -153,7 +180,7 @@ export const it: Catalogue = {
   'tui.inMajor': 'più recente nella major',
   'tui.storeLinked': '{count}/{total} collegati',
   'tui.storeHint':
-    'Collegare con: packman store link -g {key} --union (installa, poi sostituisce node_modules)',
+    'Collegare con: packman store link -g {key} --union (installa, poi sostituisce node_modules); per modificare un progetto collegato: packman add <pkg> -p <progetto>',
   'tui.storeOthers':
     '{candidates} gruppi da allineare prima, {excluded} progetti esclusi: packman store plan',
   'fix.bumpInMajor': 'Aggiornare {name} a {version}',
@@ -211,6 +238,8 @@ export const it: Catalogue = {
     '{count} collegamenti rimossi, {restored} backup manifest/lock ripristinati; eseguire install per ricreare i moduli locali',
   'store.noLinks': 'Nessun progetto collegato.',
   'store.alignFirst': 'allineare prima: {packages}',
+  'store.alignOrder':
+    'ordine: `packman check`, poi `packman fix --apply`, poi `packman align --package <nome>`: fix aggiorna i pacchetti i cui range peer rifiuterebbero la versione più comune',
   'init.exists': '{file} esiste già; usare --force per sovrascriverlo.',
   'init.created': 'Creato {file}',
   'profile.versions': '{count} dipendenze diverse dal profilo {profile}',
@@ -237,7 +266,6 @@ export const it: Catalogue = {
     '{count} pacchetti richiesti da SPFx {version} sono presenti solo come dipendenze di altri pacchetti; dichiararli',
   'spfx.coreUnverified':
     'Nessun lockfile né node_modules: {count} pacchetti richiesti da SPFx {version} non sono dichiarati e non sono verificabili',
-  'install.linkedSkipped': 'collegato allo store, saltato',
   'install.confirm': 'Eseguire npm in {count} progetti?',
   'clean.nothing': 'Niente da pulire.',
   'clean.confirm': 'Rimuovere {count} elementi?',
@@ -267,6 +295,8 @@ export const it: Catalogue = {
     'Nessun tsconfig.json leggibile per {project} (id di progetto o latest-ts) {reason}',
   'profile.written': 'Profilo {name} scritto in {file}',
   'align.package': 'Allineamento di {name} a {version}',
+  'align.peers':
+    '{count} range peer escludono {name}@{version}; esegui prima `packman fix --apply`, che aggiorna i pacchetti che li dichiarano:',
   'align.unknownProject': 'Progetto sconosciuto {project}',
   'align.closest': 'Progetti con più versioni in comune con {project}:',
   'align.usage':
@@ -338,4 +368,28 @@ export const it: Catalogue = {
     'I progetti non formano un gruppo comune; verificare conflitti, script e percorsi locali o selezionare una famiglia.',
   'upgrade.sharedNpm':
     'La migrazione condivisa richiede lock npm; convertire prima i lock yarn/pnpm.',
+  'fix.addPackage': 'Aggiungi {name}@{version} a {project}',
+  'fix.removePackages': 'Rimuovi {count} pacchetti da {project}',
+  'add.plan': '{project}: {name}@{version} -> {section} ({source}: {detail})',
+  'add.blocked':
+    '{count} controlli falliti; nulla è stato scritto. Correggili o indica una versione esplicita.',
+  'add.unknownProject': 'Nessun progetto corrisponde a {project}; passa -p <id o glob>.',
+  'add.notDeclared': '{project}: {name} non è dichiarato, nulla da rimuovere.',
+  'add.linkedRebuild':
+    '{project} è collegato allo store condiviso: npm non viene eseguito nel progetto; lo store del gruppo {group} viene ricostruito e tutti i {count} membri ricollegati.',
+  'add.linkedNoGroup':
+    '{project} non rientra più in un gruppo condiviso ({reason}); lo store non è stato ricostruito. Opzioni: usa la versione del gruppo, allinea il pacchetto in tutto il gruppo (packman align --package <nome>), oppure packman store unlink -p {project} --restore e packman install.',
+  'add.installing': '{project}: npm install (node {node})',
+  'add.noInstall':
+    'Manifest scritti; esegui packman install (o packman store link --of <progetto> --union per i progetti collegati).',
+  'add.stillUsed':
+    '{project}: {name} è ancora in uso ({places}); rimuoverlo rompe la build o gli strumenti.',
+  'add.verifyUnlinked':
+    '{project} ha i propri node_modules: --verify {script} vale solo per i progetti collegati, nulla è stato eseguito.',
+  'install.refreshIgnored': '--refresh non ha effetto senza --sync-store.',
+  'install.linkedStale':
+    'collegato allo store, package.json è cambiato: esegui packman add/remove, oppure packman store link --of {project} --union',
+  'install.linkedOk':
+    'collegato allo store, aggiornato (usa packman add <pkg> -p {project} per modificarlo)',
+  'install.syncStore': 'ricostruzione dello store di {count} progetti collegati modificati',
 };

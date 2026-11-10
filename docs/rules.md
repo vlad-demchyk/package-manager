@@ -14,6 +14,7 @@ Severities: `critical`, `error`, `warning`, `info`. `check` exits 1 at `error` o
 - [Usage scan](#usage-scan)
 - [SharePoint Framework](#sharepoint-framework)
 - [Frameworks and tools](#frameworks-and-tools)
+- [API breaks](#api-breaks)
 - [Node](#node)
 - [Security](#security)
 - [Groups, policy and target](#groups-policy-and-target)
@@ -132,6 +133,33 @@ fixes write the whole file with every change, so applying one or both gives the 
 warnings matter for SPFx because `gulp bundle --ship` fails on lint warnings unless the gulpfile
 suppresses them.
 
+## API breaks
+
+Source: `src/providers/api.ts`, `src/fixes/breaks.ts`, data `data/api-breaks.json`. Skipped with
+`--no-usage`. A **break** is a package version `since` which the code must be changed to cross:
+PnPjs 2, 3 and 4 (`@pnp/sp` and its family), React 16, 18 and 19, Fluent UI React 8
+(`office-ui-fabric-react` and `@uifabric/*` renamed to `@fluentui/*`), Microsoft Graph JavaScript
+client 2 and 3, SPFx 1.15 (`MSGraphClientV3`), SPFx 1.24 (gulp unsupported, fix risk only) and the
+PnP reusable controls 2 and 3. Each break lists the old-API patterns (regexes over comment-stripped
+source, with the file that must also import the package), the new-API patterns, the official
+migration guide and the migration steps. The source scan records every match as `file:line`. A
+break or pattern marked `verified: false` was not confirmed against the listed sources and is
+reported as a warning only.
+
+| Rule                     | Severity                                                                                                         | Trigger                                                                                                                                                                                                                                                                                                                                                                                                                                        | Fixes                                                              |
+| ------------------------ | ---------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------ |
+| `api/migration-required` | error for a removed API (warning for a deprecated or unverified one); error on an old version with new-API usage | The resolved version of a break's package is at or above `since` and the source uses the old API (`sp.setup`, `.items.get()`, `getAll()`, `ReactDOM.render` on React 18, `office-ui-fabric-react` imports with `@fluentui/react` 8, ...), or the version is below `since` and the source uses the new API (`spfi()`, `for await` over PnPjs items, `createRoot`). Evidence: each pattern with its `file:line` places, the guide and the steps. | none; the evidence is the migration checklist                      |
+| `api/migration-split`    | warning (workspace)                                                                                              | Projects of the repository resolve a break's package on both sides of `since`, and at least one project on the old side still uses the old API, so aligning the versions needs code changes there. Evidence: every project with its version and the number of old-API places.                                                                                                                                                                  | none; align after the code is migrated (`align`, `fix`, `upgrade`) |
+
+**Fix risk.** Every fix whose `package.json` edit moves a dependency across a break (profile fixes,
+`policy/align-<package>`, `npm/align-family-*`, `spfx/*` package fixes, `align --package`, upgrade
+plans) becomes `breaking`, whatever risk its rule gave it, and the finding's evidence gains
+`api: <package> <from> -> <to>: <break> (<guide>)` followed by the `file:line` places that use the
+API being left (or `no known old-API usage found in scanned sources`). A package that replaced
+another (`@fluentui/react` added while `office-ui-fabric-react` is declared) counts as crossing. The
+same lines are printed by every command before its diff (`fix`, `align`, `profile apply`,
+`upgrade`). `check --json` exposes the places per project as `apiUsage` in the report model.
+
 ## Node
 
 Source: `src/node/plan.ts`. Requirements per project (`src/node/requirement.ts`): `devEngines`
@@ -218,13 +246,15 @@ Source: `linkFindings` in `src/analyze.ts`. See [Shared store](shared-store.md#l
 
 These fixes are produced by commands rather than by findings:
 
-| Fix id                 | Risk                                                     | Produced by                                                                        |
-| ---------------------- | -------------------------------------------------------- | ---------------------------------------------------------------------------------- |
-| `align/project`        | review                                                   | `packman align --base <a> --to <b>`                                                |
-| `align/package`        | breaking when a declared major changes, review otherwise | `packman align --package <name>` and space in the TUI Versions tab                 |
-| `outdated/in-major`    | review                                                   | space in the TUI Outdated tab (exact, `^` and `~` specs only)                      |
-| `upgrade/<project id>` | review                                                   | `packman upgrade`, one per migrated project                                        |
-| `upgrade/policy`       | review                                                   | `packman upgrade`: targets, generated profiles and groups in `packman.config.json` |
+| Fix id                 | Risk                                                                                                             | Produced by                                                                        |
+| ---------------------- | ---------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------- |
+| `align/project`        | review                                                                                                           | `packman align --base <a> --to <b>`                                                |
+| `align/package`        | breaking when a declared major changes, review otherwise                                                         | `packman align --package <name>` and space in the TUI Versions tab                 |
+| `outdated/in-major`    | review                                                                                                           | space in the TUI Outdated tab (exact, `^` and `~` specs only)                      |
+| `upgrade/<project id>` | review                                                                                                           | `packman upgrade`, one per migrated project                                        |
+| `upgrade/policy`       | review                                                                                                           | `packman upgrade`: targets, generated profiles and groups in `packman.config.json` |
+| `add/<name>`           | breaking when the major differs from the group's or the version crosses a documented API break, review otherwise | `packman add <name>[@range] -p <project>`, one per package and project             |
+| `remove/packages`      | review                                                                                                           | `packman remove <names...> -p <project>`                                           |
 
 ## Disabling rules
 

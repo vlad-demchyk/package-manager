@@ -120,6 +120,33 @@ export const en = {
 
   'constraint.package': '{name} {version} does not satisfy {range} required by {source}',
 
+  // API breaks
+  'api.oldUsage':
+    '{package} {version} is installed but {count} places still use the API of versions before {since} ({title})',
+  'api.newUsage':
+    '{package} {version} is installed but {count} places use the API introduced in {since} ({title})',
+  'api.split':
+    '{package}: {old} projects below {since} and {new} at or above it; {work} still use the old API and need code changes to converge',
+  'api.fixBreaks':
+    '{count} version changes cross a documented API break; the code below must change with them:',
+  'upgrade.apiMigration':
+    '{package} {from} -> {to}: {count} places use the API of the version being left; see the code changes below.',
+  'upgrade.codeChanges': 'Code changes required:',
+  'compat.title': '{package} in {project}',
+  'compat.current': 'current: {version} ({source}), declared {spec} in {section}',
+  'compat.notDeclared': 'current: not declared in this project',
+  'compat.target': 'target: {version}',
+  'compat.constraints': 'Stack ranges',
+  'compat.peers': 'Peer ranges of installed packages',
+  'compat.engines': 'Node:',
+  'compat.breaks': 'API breaks between current and target',
+  'compat.breaksAhead': 'API breaks ahead of the current version',
+  'compat.none': 'none',
+  'compat.path': 'Path: {path}',
+  'compat.needProject':
+    'compat looks at one project; -p matched {count}: {projects}. Pass -p <project id or glob> that picks exactly one.',
+  'upgrade.noOldApi': 'no known old-API usage found in scanned sources',
+
   // Fixes
   'fix.syncYoRc': 'Update .yo-rc.json to {version}',
   'fix.alignSpfxPackages': 'Set all SPFx packages to {version}',
@@ -154,7 +181,7 @@ export const en = {
   'tui.inMajor': 'newest in major',
   'tui.storeLinked': '{count}/{total} linked',
   'tui.storeHint':
-    'Link with: packman store link -g {key} --union (installs, then replaces node_modules)',
+    'Link with: packman store link -g {key} --union (installs, then replaces node_modules); change a linked project with packman add <pkg> -p <project>',
   'tui.storeOthers':
     '{candidates} groups need alignment first, {excluded} projects excluded: packman store plan',
   'fix.bumpInMajor': 'Update {name} to {version}',
@@ -210,6 +237,8 @@ export const en = {
     '{count} links removed, {restored} manifest/lock backups restored; run install to recreate local modules',
   'store.noLinks': 'No projects are linked.',
   'store.alignFirst': 'align first: {packages}',
+  'store.alignOrder':
+    'order: `packman check`, then `packman fix --apply`, then `packman align --package <name>`: fix moves the packages whose peer ranges would reject the most common version',
   'init.exists': '{file} already exists; use --force to overwrite it.',
   'init.created': 'Created {file}',
   'profile.versions': '{count} dependencies differ from profile {profile}',
@@ -237,7 +266,6 @@ export const en = {
     '{count} packages required by SPFx {version} are only present as dependencies of other packages; declare them',
   'spfx.coreUnverified':
     'No lockfile or node_modules: {count} packages required by SPFx {version} are not declared and cannot be verified',
-  'install.linkedSkipped': 'linked to the store, skipped',
   'install.confirm': 'Run npm in {count} projects?',
   'clean.nothing': 'Nothing to clean.',
   'clean.confirm': 'Remove {count} items?',
@@ -267,6 +295,8 @@ export const en = {
     'No readable tsconfig.json for {project} (a project id or latest-ts) {reason}',
   'profile.written': 'Profile {name} written to {file}',
   'align.package': 'Aligning {name} to {version}',
+  'align.peers':
+    '{count} peer ranges exclude {name}@{version}; run `packman fix --apply` first, it moves the packages that declare them:',
   'align.unknownProject': 'Unknown project {project}',
   'align.closest': 'Projects sharing the most versions with {project}:',
   'align.usage': 'Use --base <project> [--to <project>] or --package <name> [--version <version>].',
@@ -334,6 +364,30 @@ export const en = {
     'The selected projects cannot form one shared group; inspect dependency conflicts, scripts and local paths, or select one framework family.',
   'upgrade.sharedNpm':
     'Shared migration requires npm lockfiles; convert yarn/pnpm locks before applying.',
+  'fix.addPackage': 'Add {name}@{version} to {project}',
+  'fix.removePackages': 'Remove {count} packages from {project}',
+  'add.plan': '{project}: {name}@{version} -> {section} ({source}: {detail})',
+  'add.blocked':
+    '{count} checks failed; nothing was written. Fix them or pass an explicit version.',
+  'add.unknownProject': 'No project matches {project}; pass -p <project id or glob>.',
+  'add.notDeclared': '{project}: {name} is not declared, nothing to remove.',
+  'add.linkedRebuild':
+    '{project} is linked to the shared store: npm does not run in the project; the store of group {group} is rebuilt and all {count} members are relinked.',
+  'add.linkedNoGroup':
+    '{project} no longer fits a shared group ({reason}); the store was not rebuilt. Options: use the group spec, align the package in the whole group (packman align --package <name>), or packman store unlink -p {project} --restore and packman install.',
+  'add.installing': '{project}: npm install (node {node})',
+  'add.noInstall':
+    'Manifests written; run packman install (or packman store link --of <project> --union for linked projects).',
+  'add.stillUsed':
+    '{project}: {name} is still used ({places}); removing it breaks the build or the tooling.',
+  'add.verifyUnlinked':
+    '{project} has its own node_modules: --verify {script} applies to linked projects only, nothing was run.',
+  'install.refreshIgnored': '--refresh has no effect without --sync-store.',
+  'install.linkedStale':
+    'linked to the store, package.json changed: run packman add/remove, or packman store link --of {project} --union',
+  'install.linkedOk':
+    'linked to the store, up to date (use packman add <pkg> -p {project} to change it)',
+  'install.syncStore': 'rebuilding the store of {count} changed linked projects',
 } as const;
 
 export type MessageKey = keyof typeof en;

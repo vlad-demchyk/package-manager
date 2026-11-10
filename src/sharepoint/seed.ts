@@ -69,6 +69,32 @@ export function emptyRecord(site: string): SeedRecord {
   };
 }
 
+/**
+ * What `clean` would remove for a record, one line per object in the order it goes: subsites
+ * packman created (whole), then per site pages, content types, items and columns in lists packman
+ * did not create, its own lists, files and folders.
+ */
+export function recordEntries(record: SeedRecord, prefix = ''): string[] {
+  const full = { ...emptyRecord(record.site), ...record };
+  const own = new Set(full.lists);
+  const out: string[] = [];
+  for (const web of full.webs)
+    if (web.created) out.push(`web ${prefix}${web.url}/ (whole subsite)`);
+    else out.push(...recordEntries(web.record, `${prefix}${web.url}/`));
+  for (const page of full.pages) out.push(`page ${prefix}${page.list}: item ${page.id}`);
+  for (const ct of full.contentTypes)
+    out.push(`contentType ${prefix}${ct.id}${ct.list ? ` (and its copy on ${ct.list})` : ''}`);
+  for (const item of full.items.filter((entry) => !own.has(entry.list)))
+    out.push(`item ${prefix}${item.list}: ${item.id}`);
+  for (const field of full.fields.filter((entry) => !own.has(entry.list)))
+    out.push(`field ${prefix}${field.list}.${field.name}`);
+  for (const list of full.lists) out.push(`list ${prefix}${list} (with its items and columns)`);
+  for (const file of full.files) out.push(`file ${prefix}${file}`);
+  for (const folder of [...full.folders].reverse())
+    out.push(`folder ${prefix}${folder} (only when empty)`);
+  return out;
+}
+
 export async function readRecord(root: string, site: string): Promise<SeedRecord> {
   const file = path.join(root, RECORD_FILE);
   if (!existsSync(file)) return emptyRecord(site);

@@ -4,7 +4,7 @@ import { configSchema } from '../src/core/config.js';
 import { discoverWorkspace } from '../src/core/discovery.js';
 import { fakeNodes, makeWorkspace, TODAY } from './helpers.js';
 
-/** The anima case in an ordinary project: schema-utils@2 loads ajv-keywords@5 nested under it. */
+/** The mixed-lockfile case (real SPFx repository) in an ordinary project: schema-utils@2 loads ajv-keywords@5 nested under it. */
 const LOCK = {
   name: 'app',
   lockfileVersion: 3,

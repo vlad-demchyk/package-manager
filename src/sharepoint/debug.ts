@@ -1,5 +1,6 @@
 import { spawn, execFileSync, type ChildProcess } from 'node:child_process';
-import { createWriteStream, existsSync } from 'node:fs';
+import { randomUUID } from 'node:crypto';
+import { createWriteStream, existsSync, readFileSync } from 'node:fs';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import https from 'node:https';
 import path from 'node:path';
@@ -7,6 +8,14 @@ import { parseJsonc } from '../core/json.js';
 import type { Project } from '../core/types.js';
 import type { InstalledNode } from '../node/toolchain.js';
 import type { Page } from './browser.js';
+import type { ComponentFixture } from './fixtures.js';
+import {
+  hostOnPage,
+  interceptResponses,
+  manifestProperties,
+  patchManifests,
+  type ResponsePatch,
+} from './host.js';
 import { exploreProperties, type PropertyRun } from './properties.js';
 
 /** A component the dev server announces in its debug manifests. */
@@ -39,6 +48,8 @@ export interface ComponentResult {
   /** Bundles served by the project's dev server. */
   bundles: number;
   rendered: boolean;
+  /** The modern page the web part was hosted on (fixture `page`), instead of the workbench. */
+  page?: string;
   status: 'ok' | 'needs-data' | 'failed';
   issues: Issue[];
   requests: { method: string; url: string }[];
@@ -48,11 +59,34 @@ export interface ComponentResult {
   properties?: PropertyRun;
 }
 
+/** `Runtime.exceptionThrown` details: an Error carries its stack in `exception.description`. */
+export interface ExceptionDetails {
+  text?: string;
+  url?: string;
+  lineNumber?: number;
+  columnNumber?: number;
+  stackTrace?: {
+    callFrames?: {
+      functionName?: string;
+      url?: string;
+      lineNumber?: number;
+      columnNumber?: number;
+    }[];
+  };
+  exception?: {
+    type?: string;
+    subtype?: string;
+    className?: string;
+    description?: string;
+    value?: unknown;
+  };
+}
+
 /** The DevTools event fields this module reads. */
 interface CdpParams {
   type?: string;
   args?: { value?: unknown; description?: string }[];
-  exceptionDetails?: { text?: string; exception?: { description?: string } };
+  exceptionDetails?: ExceptionDetails;
   request?: { method: string; url: string };
   response?: { url: string; status: number };
   canceled?: boolean;
@@ -60,6 +94,35 @@ interface CdpParams {
 }
 
 const sleep = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms));
+
+/**
+ * One text for a thrown exception or an unhandled rejection. An Error brings its own stack; a
+ * promise rejected with a plain value (a string, `undefined`, a response object) only has the
+ * browser's "Uncaught (in promise)", so the value and the frames it came from are added: that way
+ * `classify` can still tell the component's bundle from the host.
+ */
+export function describeException(details: ExceptionDetails = {}): string {
+  const { exception, text = '' } = details;
+  let out = exception?.description;
+  if (!out) {
+    const value =
+      exception === undefined
+        ? ''
+        : exception.value !== undefined
+          ? JSON.stringify(exception.value)
+          : (exception.className ?? exception.subtype ?? exception.type ?? '');
+    out = [text, value].filter(Boolean).join(' ');
+  }
+  if (/\n\s+at /.test(out)) return out;
+  const frames = details.stackTrace?.callFrames?.length
+    ? details.stackTrace.callFrames
+    : details.url
+      ? [{ url: details.url, lineNumber: details.lineNumber, columnNumber: details.columnNumber }]
+      : [];
+  for (const frame of frames.slice(0, 3).filter((entry) => entry.url))
+    out += `\n    at ${'functionName' in frame && frame.functionName ? frame.functionName : '<anonymous>'} (${frame.url}:${(frame.lineNumber ?? 0) + 1}:${(frame.columnNumber ?? 0) + 1})`;
+  return out;
+}
 
 /**
  * Sorts what the page reported into what the component can be blamed for:
@@ -162,16 +225,38 @@ export async function servePort(project: Project): Promise<number> {
   return parsed.ok ? (parsed.value.port ?? 4321) : 4321;
 }
 
+/** `start` and `serve` scripts of the project's package.json. */
+function serveScripts(dir: string): string {
+  try {
+    const pkg = JSON.parse(readFileSync(path.join(dir, 'package.json'), 'utf8')) as {
+      scripts?: Record<string, string>;
+    };
+    return `${pkg.scripts?.start ?? ''} ${pkg.scripts?.serve ?? ''}`;
+  } catch {
+    return '';
+  }
+}
+
 /**
  * How the project serves its debug build: `gulp serve` (SPFx up to 1.21 and gulp-based 1.22) or
- * `heft start` (Heft toolchain, SPFx 1.22+); both serve the same manifests on the serve.json port.
+ * `heft start` (Heft toolchain, SPFx 1.22+); both serve `temp/build/manifests.js` on the
+ * serve.json port. With both installed (a project half way through the move) the `start` or
+ * `serve` script decides, gulp otherwise.
  */
 export function devServerCommand(dir: string): string[] | undefined {
   const gulp = path.join(dir, 'node_modules', 'gulp', 'bin', 'gulp.js');
-  if (existsSync(gulp)) return [gulp, 'serve', '--nobrowser'];
   const heft = path.join(dir, 'node_modules', '@rushstack', 'heft', 'bin', 'heft');
-  if (existsSync(heft)) return [heft, 'start', '--nobrowser'];
+  const hasGulp = existsSync(gulp);
+  const hasHeft = existsSync(heft);
+  if (hasHeft && (!hasGulp || /\bheft\b/.test(serveScripts(dir))))
+    return [heft, 'start', '--nobrowser'];
+  if (hasGulp) return [gulp, 'serve', '--nobrowser'];
   return undefined;
+}
+
+/** `gulp serve` or `heft start`, for messages. */
+export function devServerName(command: string[]): string {
+  return `${path.basename(command[0] ?? '').replace(/\.js$/, '')} ${command[1] ?? ''}`.trim();
 }
 
 export interface DevServer {
@@ -180,7 +265,7 @@ export interface DevServer {
   stop(): Promise<void>;
 }
 
-/** Starts `gulp serve --nobrowser` with the project's Node and waits for its debug manifests. */
+/** Starts the dev server (`devServerCommand`) with the project's Node and waits for its manifests. */
 export async function startDevServer(
   project: Project,
   node: InstalledNode,
@@ -192,6 +277,7 @@ export async function startDevServer(
     throw new Error(`port ${port} is already in use; stop the other dev server first`);
   const command = devServerCommand(project.dir);
   if (!command) throw new Error('no gulp or heft in node_modules');
+  const name = devServerName(command);
   const env = {
     ...process.env,
     PATH: `${path.dirname(node.executable)}${path.delimiter}${process.env.PATH ?? ''}`,
@@ -237,8 +323,8 @@ export async function startDevServer(
   await stop();
   throw new Error(
     state.exited
-      ? `gulp serve exited, see ${logFile}`
-      : `gulp serve did not start in 300 s, see ${logFile}`,
+      ? `${name} exited, see ${logFile}`
+      : `${name} did not start in 300 s, see ${logFile}`,
   );
 }
 
@@ -278,11 +364,19 @@ export async function checkComponent(
     /** Extra query string (without `?`), e.g. `iditem=4`. */
     query?: string;
     known?: string[];
-    /** Drive every property pane control after the web part renders. */
+    /** Drive every property pane control after the web part renders (workbench only). */
     properties?: boolean;
+    /** The component's fixture: web part properties and the page to host it on. */
+    fixture?: ComponentFixture;
   },
 ): Promise<ComponentResult> {
   const origin = new URL(options.manifestsUrl).origin;
+  const { component, fixture } = options;
+  const hostPage =
+    component.type === 'WebPart' && fixture?.page
+      ? `${options.site}/${fixture.page.replace(/^\/+/, '')}`
+      : undefined;
+  const instanceId = randomUUID();
   // Leave the previous page first, so its late requests and errors are not counted here, and
   // start every workbench empty: it keeps the canvas of earlier runs in sessionStorage.
   await page.send('Page.navigate', { url: 'about:blank' });
@@ -305,9 +399,7 @@ export async function checkComponent(
   const off = page.on((event) => {
     const params = event.params as CdpParams;
     if (event.method === 'Runtime.exceptionThrown')
-      events.exceptions.push(
-        params.exceptionDetails?.exception?.description ?? params.exceptionDetails?.text ?? '',
-      );
+      events.exceptions.push(describeException(params.exceptionDetails));
     else if (event.method === 'Runtime.consoleAPICalled' && params.type === 'error')
       events.console.push(
         (params.args ?? [])
@@ -331,13 +423,53 @@ export async function checkComponent(
   });
   await page.send('Runtime.enable');
   await page.send('Network.enable');
-  const { component } = options;
+  const patches: ResponsePatch[] = [];
+  if (hostPage) {
+    // The page gets the web part as the browser receives it, with the manifest's properties.
+    const properties = {
+      ...manifestProperties((await get(options.manifestsUrl)).body, component.id),
+      ...(fixture?.properties ?? {}),
+    };
+    patches.push({
+      urlPattern: `*${new URL(hostPage).pathname}*`,
+      resourceType: 'Document',
+      patch: (body) => hostOnPage(body, component.id, instanceId, component.alias, properties),
+    });
+  } else if (component.type === 'WebPart' && fixture?.properties) {
+    const properties = fixture.properties;
+    patches.push({
+      urlPattern: `${options.manifestsUrl}*`,
+      patch: (body) => patchManifests(body, component.id, properties),
+    });
+  }
+  const intercept = await interceptResponses(page, patches);
   let rendered = false;
   let base: PageEvents | undefined;
   let properties: PropertyRun | undefined;
   let text = '';
   try {
-    if (component.type === 'WebPart') {
+    if (hostPage) {
+      await page.send('Page.navigate', {
+        url: `${hostPage}?debug=true&noredir=true&debugManifestsFile=${options.manifestsUrl}${extra}`,
+      });
+      await sleep(3000);
+      await clickWhenPresent(page, DEBUG_BUTTON, 15);
+      await sleep(15_000);
+      const shown = await page.evaluate<{ text: string }>(
+        `(() => { const el = document.querySelector('[data-sp-feature-instance-id="${instanceId}"]'); return { text: el ? el.innerText.replace(/\\s+/g, ' ').slice(0, 300) : '' }; })()`,
+      );
+      text = shown.text;
+      // A web part may move or drop its own element (a footer); its bundle running is enough.
+      rendered =
+        intercept.patched.length > 0 &&
+        events.responses.some(
+          (response) =>
+            response.url.startsWith(origin) &&
+            !response.url.includes('manifests.js') &&
+            /\.js(\?|$)/.test(response.url) &&
+            response.status === 200,
+        );
+    } else if (component.type === 'WebPart') {
       await page.send('Page.navigate', {
         url: `${options.site}/_layouts/15/workbench.aspx?debug=true&noredir=true&debugManifestsFile=${options.manifestsUrl}${extra}`,
       });
@@ -383,7 +515,8 @@ export async function checkComponent(
     const shot = await page.send<{ data: string }>('Page.captureScreenshot', { format: 'png' });
     await mkdir(path.dirname(options.screenshot), { recursive: true });
     await writeFile(options.screenshot, Buffer.from(shot.data, 'base64'));
-    if (options.properties && rendered && component.type === 'WebPart') {
+    // The property pane needs edit mode, which saves a draft of a real page: workbench only.
+    if (options.properties && rendered && component.type === 'WebPart' && !hostPage) {
       // The default render is judged on its own; property changes get their own steps.
       base = {
         ...events,
@@ -407,6 +540,7 @@ export async function checkComponent(
     }
   } finally {
     off();
+    await intercept.stop();
     await page
       .send('Page.removeScriptToEvaluateOnNewDocument', { identifier })
       .catch(() => undefined);
@@ -419,6 +553,7 @@ export async function checkComponent(
       (response) => response.url.startsWith(origin) && response.status === 200,
     ).length,
     rendered,
+    ...(hostPage ? { page: hostPage } : {}),
     status: verdict(issues, rendered),
     issues,
     requests: events.requests,

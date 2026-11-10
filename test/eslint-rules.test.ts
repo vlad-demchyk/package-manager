@@ -85,13 +85,20 @@ describe('eslint rules the installed plugin does not have', () => {
     expect(Object.keys(rules)).not.toContain('@typescript-eslint/no-var-requires');
   });
 
-  async function findingsFor(gulpfile: string) {
+  async function findingsFor(gulpfile: string, pluginManifest = true) {
     const plugin = 'app/node_modules/@typescript-eslint/eslint-plugin';
     const files: Record<string, string | object> = {
       'app/package.json': { name: 'app', devDependencies: { eslint: '8.57.1' } },
       'app/.eslintrc.js': ESLINTRC,
       'app/gulpfile.js': gulpfile,
-      [`${plugin}/package.json`]: { name: '@typescript-eslint/eslint-plugin', version: '8.26.1' },
+      ...(pluginManifest
+        ? {
+            [`${plugin}/package.json`]: {
+              name: '@typescript-eslint/eslint-plugin',
+              version: '8.26.1',
+            },
+          }
+        : {}),
     };
     for (const rule of INSTALLED) files[`${plugin}/dist/rules/${rule}.js`] = '';
     const { root, cleanup } = await makeWorkspace(files);
@@ -110,6 +117,12 @@ describe('eslint rules the installed plugin does not have', () => {
       await cleanup();
     }
   }
+
+  it('steps aside on a half-installed plugin (rules without package.json) instead of failing', async () => {
+    const findings = await findingsFor("const build = require('@microsoft/sp-build-web');", false);
+    expect(findings.map((item) => item.ruleId)).not.toContain('eslint/unknown-rule');
+    expect(findings.map((item) => item.ruleId)).not.toContain('eslint/caught-errors');
+  });
 
   it('reports removed rules and the caughtErrors default, with fixes that load', async () => {
     const findings = await findingsFor("const build = require('@microsoft/sp-build-web');");

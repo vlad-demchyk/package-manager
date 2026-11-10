@@ -120,6 +120,33 @@ export const uk: Catalogue = {
 
   'constraint.package': '{name} {version} не задовольняє {range}, якого вимагає {source}',
 
+  // API breaks
+  'api.oldUsage':
+    '{package} {version} встановлено, але {count} місць досі використовують API версій до {since} ({title})',
+  'api.newUsage':
+    '{package} {version} встановлено, але {count} місць використовують API, що зʼявилось у {since} ({title})',
+  'api.split':
+    '{package}: {old} проєктів нижче {since} і {new} на новішому боці; {work} ще використовують старий API і потребують змін у коді, щоб зійтися',
+  'api.fixBreaks':
+    '{count} змін версій перетинають задокументований розрив API; код нижче треба змінити разом із ними:',
+  'upgrade.apiMigration':
+    '{package} {from} -> {to}: {count} місць використовують API версії, яку покидаєте; див. потрібні зміни коду нижче.',
+  'upgrade.codeChanges': 'Потрібні зміни коду:',
+  'compat.title': '{package} у {project}',
+  'compat.current': 'поточна: {version} ({source}), оголошено {spec} у {section}',
+  'compat.notDeclared': 'поточна: не оголошено в цьому проєкті',
+  'compat.target': 'ціль: {version}',
+  'compat.constraints': 'Діапазони стеку',
+  'compat.peers': 'Peer-діапазони встановлених пакетів',
+  'compat.engines': 'Node:',
+  'compat.breaks': 'Розриви API між поточною і цільовою',
+  'compat.breaksAhead': 'Розриви API попереду поточної версії',
+  'compat.none': 'немає',
+  'compat.path': 'Шлях: {path}',
+  'compat.needProject':
+    'compat дивиться на один проєкт; -p вибрав {count}: {projects}. Вкажіть -p <id або glob>, що вибирає рівно один.',
+  'upgrade.noOldApi': 'у просканованих джерелах не знайдено відомого використання старого API',
+
   'fix.syncYoRc': 'Оновити .yo-rc.json до {version}',
   'fix.alignSpfxPackages': 'Встановити всі пакети SPFx на {version}',
   'fix.replaceCompiler': 'Використати {compiler}',
@@ -151,7 +178,7 @@ export const uk: Catalogue = {
   'tui.inMajor': 'найновіша в major',
   'tui.storeLinked': 'привʼязано {count}/{total}',
   'tui.storeHint':
-    'Привʼязати: packman store link -g {key} --union (встановлює, потім замінює node_modules)',
+    'Привʼязати: packman store link -g {key} --union (встановлює, потім замінює node_modules); змінити привʼязаний проєкт: packman add <pkg> -p <проєкт>',
   'tui.storeOthers':
     '{candidates} груп спершу треба вирівняти, {excluded} проєктів виключено: packman store plan',
   'fix.bumpInMajor': 'Оновити {name} до {version}',
@@ -208,6 +235,8 @@ export const uk: Catalogue = {
     'Прибрано посилань: {count}, відновлено маніфести/lock: {restored}; виконайте install для локальної установки',
   'store.noLinks': 'Привʼязаних проєктів немає.',
   'store.alignFirst': 'спершу вирівняйте: {packages}',
+  'store.alignOrder':
+    'порядок: `packman check`, потім `packman fix --apply`, потім `packman align --package <назва>`: fix оновлює пакети, чиї peer-діапазони відкинули б найпоширенішу версію',
   'init.exists': '{file} вже існує; використайте --force, щоб перезаписати.',
   'init.created': 'Створено {file}',
   'profile.versions': '{count} залежностей відрізняються від профілю {profile}',
@@ -234,7 +263,6 @@ export const uk: Catalogue = {
     '{count} пакетів, обовʼязкових для SPFx {version}, присутні лише як залежності інших пакетів; оголосіть їх',
   'spfx.coreUnverified':
     'Немає lock-файлу і node_modules: {count} обовʼязкових для SPFx {version} пакетів не оголошено, перевірити їх неможливо',
-  'install.linkedSkipped': 'привʼязано до сховища, пропущено',
   'install.confirm': 'Запустити npm у {count} проєктах?',
   'clean.nothing': 'Нічого чистити.',
   'clean.confirm': 'Видалити {count} елементів?',
@@ -263,6 +291,8 @@ export const uk: Catalogue = {
     'Немає читабельного tsconfig.json для {project} (id проєкту або latest-ts) {reason}',
   'profile.written': 'Профіль {name} записано в {file}',
   'align.package': 'Вирівнювання {name} до {version}',
+  'align.peers':
+    '{count} peer-діапазонів виключають {name}@{version}; спершу виконайте `packman fix --apply`, він оновлює пакети, що їх оголошують:',
   'align.unknownProject': 'Невідомий проєкт {project}',
   'align.closest': 'Проєкти з найбільшою кількістю спільних версій із {project}:',
   'align.usage':
@@ -331,4 +361,28 @@ export const uk: Catalogue = {
     'Вибрані проєкти не утворюють одну спільну групу; перевірте конфлікти залежностей, скрипти й локальні шляхи або виберіть одне сімейство.',
   'upgrade.sharedNpm':
     'Спільна міграція потребує npm lock-файлів; спочатку перетворіть yarn/pnpm lock.',
+  'fix.addPackage': 'Додати {name}@{version} у {project}',
+  'fix.removePackages': 'Прибрати {count} пакетів із {project}',
+  'add.plan': '{project}: {name}@{version} -> {section} ({source}: {detail})',
+  'add.blocked':
+    '{count} перевірок не пройшло; нічого не записано. Виправте їх або вкажіть версію явно.',
+  'add.unknownProject': 'Жоден проєкт не відповідає {project}; передайте -p <id або glob>.',
+  'add.notDeclared': '{project}: {name} не оголошено, нічого прибирати.',
+  'add.linkedRebuild':
+    '{project} привʼязано до спільного сховища: npm у проєкті не запускається; сховище групи {group} перебудовується і всі {count} учасників перелінковуються.',
+  'add.linkedNoGroup':
+    '{project} більше не вписується в спільну групу ({reason}); сховище не перебудовано. Варіанти: взяти версію групи, вирівняти пакет у всій групі (packman align --package <назва>) або packman store unlink -p {project} --restore і packman install.',
+  'add.installing': '{project}: npm install (node {node})',
+  'add.noInstall':
+    'Маніфести записано; запустіть packman install (або packman store link --of <проєкт> --union для привʼязаних проєктів).',
+  'add.stillUsed':
+    '{project}: {name} ще використовується ({places}); видалення зламає збірку або інструменти.',
+  'add.verifyUnlinked':
+    '{project} має власні node_modules: --verify {script} стосується лише привʼязаних проєктів, нічого не запущено.',
+  'install.refreshIgnored': '--refresh не діє без --sync-store.',
+  'install.linkedStale':
+    'привʼязано до сховища, package.json змінився: виконайте packman add/remove або packman store link --of {project} --union',
+  'install.linkedOk':
+    'привʼязано до сховища, актуально (packman add <pkg> -p {project}, щоб змінити)',
+  'install.syncStore': 'перебудова сховища для {count} змінених привʼязаних проєктів',
 };

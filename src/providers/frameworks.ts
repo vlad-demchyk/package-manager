@@ -232,14 +232,24 @@ async function unknownPluginRules(project: Project): Promise<Finding[]> {
   const pluginDir = path.join(project.dir, 'node_modules', '@typescript-eslint', 'eslint-plugin');
   const rulesDir = path.join(pluginDir, 'dist', 'rules');
   if (!existsSync(rulesDir)) return [];
-  const available = new Set(
-    (await readdir(rulesDir))
-      .filter((name) => name.endsWith('.js'))
-      .map((name) => name.slice(0, -3)),
-  );
-  const version = (
-    JSON.parse(await readFile(path.join(pluginDir, 'package.json'), 'utf8')) as { version?: string }
-  ).version;
+  // A half-installed plugin (interrupted npm: rules present, package.json missing or truncated)
+  // is `npm/` territory; this check needs the whole plugin, so it steps aside instead of failing.
+  let available: Set<string>;
+  let version: string | undefined;
+  try {
+    available = new Set(
+      (await readdir(rulesDir))
+        .filter((name) => name.endsWith('.js'))
+        .map((name) => name.slice(0, -3)),
+    );
+    version = (
+      JSON.parse(await readFile(path.join(pluginDir, 'package.json'), 'utf8')) as {
+        version?: string;
+      }
+    ).version;
+  } catch {
+    return [];
+  }
   const gulpfile = path.join(project.dir, 'gulpfile.js');
   // `build.addSuppression(/Warning/gi)` hides lint warnings from the build result.
   const suppressed =

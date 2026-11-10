@@ -273,6 +273,9 @@ export async function spfxMigration(
         }),
       });
   }
+  // The `react-api` and `pnp-api` blockers below keep their own patterns on purpose: they stop the
+  // plan, while data/api-breaks.json (plan.codeChanges, `api/migration-required`) describes every
+  // break at review level. Keep both in step when a pattern changes.
   const sources = await sourceTexts(project.dir);
   if (
     target.react &&

@@ -12,9 +12,17 @@ import {
 } from '../core/verified.js';
 import { runWithNode } from '../exec/run.js';
 import { applyPreviews, collectEdits, lineDiff, previewEdits } from '../fixes/apply.js';
+import { fixCrossings } from '../fixes/breaks.js';
 import { t } from '../i18n/index.js';
 import { journal } from '../ops/journal.js';
-import { readLinks } from '../store/store.js';
+import {
+  linkGroup,
+  readLinks,
+  type LinkResult,
+  type StoreGroup,
+  type StorePlan,
+} from '../store/store.js';
+import { readStoreVerified } from '../core/verified.js';
 import { runAnalysis, type Session } from './context.js';
 
 export const RISK_ORDER: Record<Risk, number> = { safe: 0, review: 1, breaking: 2 };
@@ -83,6 +91,8 @@ export interface ApplyOptions {
    * never, undefined relocks the changed projects with an npm lockfile when versions were edited.
    */
   relock?: boolean | undefined;
+  /** False when the caller already explained the API breaks the edits cross (`add` prints its checks). */
+  apiNotes?: boolean;
   command: string;
 }
 
@@ -111,6 +121,17 @@ export async function reviewAndApply(
         line.startsWith('+') ? pc.green(line) : line.startsWith('-') ? pc.red(line) : pc.dim(line),
       );
     }
+  }
+  // Version edits crossing a documented API break: say which code must change before the build passes.
+  const crossed =
+    options.apiNotes === false ? [] : fixes.flatMap((item) => fixCrossings(item, report.projects));
+  if (crossed.length > 0) {
+    console.log(pc.yellow(t('api.fixBreaks', { count: crossed.length })));
+    for (const entry of crossed)
+      for (const line of entry.lines)
+        console.log(
+          pc.yellow(line.startsWith('  ') ? `    ${line}` : `  ${entry.projectId}: ${line}`),
+        );
   }
   const projectsOf = (files: string[]): string[] =>
     report.projects
@@ -155,6 +176,19 @@ export async function reviewAndApply(
     result: 'ok',
     detail: `backup ${path.relative(session.root, result.backupDir)}`,
   });
+  // A linked project gets no relock and no npm: its store has to be rebuilt. Commands that do that
+  // themselves (add, upgrade --shared) pass `relock: false`.
+  if (options.relock !== false)
+    for (const entry of report.projects)
+      if (
+        entry.project.nodeModules === 'link' &&
+        result.files.some((file) => file.startsWith(entry.project.dir + path.sep))
+      )
+        console.log(
+          pc.yellow(
+            `${entry.project.id}: ${t('install.linkedStale', { project: entry.project.id })}`,
+          ),
+        );
   // A lockfile must follow the versions it locks: version edits relock by default (`--no-relock` opts
   // out); `--relock` also relocks projects whose other files changed or that had no lockfile yet.
   const versionEdits = collectEdits(fixes).some(
@@ -276,6 +310,122 @@ export async function relock(
   }
   if (failures > 0) process.exitCode = 1;
   return failures;
+}
+
+/**
+ * The union group a linked project belongs to in `plan`; when it has none, prints why (a candidate
+ * whose versions differ, an excluded project) with the options and sets the exit code to 1.
+ */
+export function linkedGroupOrExplain(plan: StorePlan, projectId: string): StoreGroup | undefined {
+  const group = plan.groups.find((item) => item.projectIds.includes(projectId));
+  if (group) return group;
+  const candidate = plan.candidates.find((item) => item.projectIds.includes(projectId));
+  const excluded = plan.excluded.find((item) => item.projectId === projectId);
+  const reason = candidate
+    ? `${candidate.reason}${candidate.packages ? `: ${candidate.packages.join(', ')}` : ''}`
+    : (excluded?.reason ?? 'no other member shares its versions');
+  console.error(pc.red(t('add.linkedNoGroup', { project: projectId, reason })));
+  process.exitCode = 1;
+  return undefined;
+}
+
+/**
+ * Rebuilds a union group's store from its verified set (unless `refresh`), relinks every member and
+ * writes their lockfiles from the store tree. npm runs only in the store directory, never in a
+ * project. Prints major changes, peer gaps and unverified versions like `store link` does.
+ */
+export async function relinkGroup(
+  session: Session,
+  report: Report,
+  group: StoreGroup,
+  options: { refresh?: boolean; replaceExisting?: boolean; command: string },
+): Promise<LinkResult> {
+  const verified =
+    group.mode === 'union' && !options.refresh
+      ? await readStoreVerified(session.root, group.projectIds)
+      : undefined;
+  if (verified)
+    console.log(pc.dim(t('store.seeded', { date: verified.at.slice(0, 10), node: verified.node })));
+  const result = await linkGroup(session.root, report, group, {
+    ...(verified ? { seedLock: verified.lock } : {}),
+    replaceExisting: options.replaceExisting ?? false,
+    syncLocks: group.mode === 'union',
+    install: async (dir, node, mode) =>
+      (
+        await runWithNode(
+          node,
+          dir,
+          mode === 'exact' ? ['ci'] : ['install', '--no-audit', '--no-fund'],
+        )
+      ).code,
+  });
+  for (const conflict of result.conflicts ?? []) console.log(pc.yellow(`  ~ ${conflict}`));
+  if (result.peers?.length)
+    console.log(pc.yellow(t('store.peers', { count: result.peers.length })));
+  for (const peer of result.peers ?? []) console.log(pc.yellow(`    ${peer}`));
+  for (const warning of result.lockWarnings ?? []) console.log(pc.yellow(`  ! ${warning}`));
+  if (result.unverified?.length)
+    console.log(pc.yellow(t('store.unverified', { count: result.unverified.length })));
+  for (const line of result.unverified ?? []) console.log(pc.yellow(`    ${line}`));
+  await journal(session.root, {
+    command: options.command,
+    projects: result.linked,
+    result: 'ok',
+    detail: `${path.relative(session.root, result.storeDir)}${result.conflicts?.length ? `, ${result.conflicts.length} major changes` : ''}${result.peers?.length ? `, ${result.peers.length} peer gaps` : ''}`,
+  });
+  console.log(
+    pc.green(
+      t('store.linked', {
+        count: result.linked.length,
+        dir: path.relative(session.root, result.storeDir),
+      }),
+    ),
+  );
+  for (const entry of result.trashed)
+    console.log(
+      pc.yellow(
+        t('store.trashed', { project: entry.projectId, packages: entry.packages.join(', ') }),
+      ),
+    );
+  return result;
+}
+
+/** `npm run <script>` in each project with its selected Node; passing projects get verified sets. */
+export async function verifyProjects(
+  session: Session,
+  report: Report,
+  projectIds: string[],
+  script: string,
+  command = 'store verify',
+): Promise<BuildResult[]> {
+  const results: BuildResult[] = [];
+  for (const entry of report.projects.filter((item) => projectIds.includes(item.project.id))) {
+    if (!entry.node.selected) {
+      console.error(
+        `${entry.project.id}: ${t('node.notInstalled', { ranges: entry.node.effective.join(' & '), recommended: entry.node.recommended ?? '-' })}`,
+      );
+      process.exitCode = 1;
+      continue;
+    }
+    console.log(pc.bold(`\n> ${entry.project.id}: npm run ${script}`));
+    const result = await runWithNode(entry.node.selected, entry.project.dir, ['run', script]);
+    console.log(result.code === 0 ? pc.green('ok') : pc.red(`exit ${result.code}`));
+    if (result.code !== 0) process.exitCode = result.code;
+    await journal(session.root, {
+      command,
+      projects: [entry.project.id],
+      result: result.code === 0 ? 'ok' : 'failed',
+      detail: `npm run ${script} (node ${entry.node.selected.version}) exit ${result.code}`,
+    });
+    results.push({
+      project: entry.project,
+      node: entry.node.selected.version,
+      script,
+      ok: result.code === 0,
+    });
+  }
+  await recordVerifiedBuilds(session.root, results);
+  return results;
 }
 
 /** Prints the locked versions of a project that moved away from its verified set, if it has one. */

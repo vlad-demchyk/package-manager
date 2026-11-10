@@ -86,11 +86,20 @@ dates, library `file`/`placeholder`/`content`) are described in
 6. **Content types** (`contentTypes`, `src/sharepoint/pages.ts`): a content type whose name already
    exists in the web is reused; otherwise it is created under its `parent` (default: Site Page) in
    the group `packman test data`. It is added to its `list` (default `Site Pages`; content types are
-   enabled on the list first) and its columns are added to that list when missing.
+   enabled on the list first) and its columns are added to that list when missing. SharePoint can
+   answer `500` to `AddAvailableContentType` for a content type made a moment ago; packman retries
+   after 2, 5 and 10 seconds (`retrying`, also on `503`) before it reports `failed`. The dry run
+   lists a content type missing from its library as `planned ... add to library`.
 7. **Pages** (`pages`): a page whose file name already exists in its library is left as is.
-   Otherwise packman creates the modern page file, sets its title, content type, column values
-   (same value conventions as list items) and, with `news: true`, promotes it to a news post, then
-   checks it in as a major version. Content types are seeded before pages.
+   Otherwise packman creates the modern page file, checks it out to the signed-in user (unless it
+   is checked out already: a new page answers `423 Locked` to changes otherwise), sets its title,
+   content type and column values (same value conventions as list items). A plain item update
+   answers `204` but leaves `PromotedState` and `Description` of a page unchanged, so these two go
+   through `ValidateUpdateListItem` while the page is checked out: `news: true` sets
+   `PromotedState` to 2 (a news post), and a `Description` field sets the page description. Then
+   the page is checked in as a major version. A `423` on the column change is retried after 2, 5
+   and 10 seconds. A page that fails half way is deleted, so a rerun tries again.
+   Content types are seeded before pages.
 8. **Subsites** (`webs`): after the site itself, each subsite is created when it does not answer
    (`webinfos/add` with its `title`, `language`, `template`, inherited permissions), then its own
    `lists`, `files`, `contentTypes` and `pages` are seeded the same way. Targets are printed with
@@ -105,9 +114,6 @@ columns it added to lists it did not create, item ids, files, folders, content t
 per subsite whether packman created it plus that subsite's own record. Outcomes are printed as
 `created`, `exists` (hidden), `planned`, `skipped` or `failed`; any `failed` sets exit code 1.
 
-> Subsites, content types and pages were added to the code while this page was written (uncommitted
-> work in `src/sharepoint/pages.ts` and `seed.ts`); check those files if the behaviour differs.
-
 ## 5. test
 
 For every selected SPFx project (`src/cli/sharepoint.ts`, `src/sharepoint/debug.ts`):
@@ -118,24 +124,40 @@ For every selected SPFx project (`src/cli/sharepoint.ts`, `src/sharepoint/debug.
 2. Reads the port from `config/serve.json` (default `4321`). If something already answers on
    `https://localhost:<port>/temp/build/manifests.js`, the project fails with
    `port <port> is already in use; stop the other dev server first`.
-3. Starts the dev server with the project's Node (`devServerCommand`): `gulp serve --nobrowser` when
-   gulp is installed, otherwise `heft start --nobrowser`. Output goes to `<project>-serve.log`. It
-   waits up to 300 seconds for `temp/build/manifests.js` or `temp/manifests.js`; the manifests list
-   the web parts and extensions.
-4. For each **web part**: opens `about:blank`, clears the workbench state kept in
-   `sessionStorage`, opens `<site>/_layouts/15/workbench.aspx?debug=true&noredir=true&debugManifestsFile=<manifests>`
+3. Starts the dev server with the project's Node (`devServerCommand`): `gulp serve --nobrowser` for
+   gulp projects (SPFx up to 1.21 and gulp-based 1.22), `heft start --nobrowser` for Heft projects
+   (SPFx 1.22+). With both installed, the `start` or `serve` script of `package.json` decides
+   (`heft` in it selects Heft), gulp otherwise. Output goes to `<project>-serve.log`. It waits up to
+   300 seconds for `temp/build/manifests.js` or `temp/manifests.js`; the manifests list the web
+   parts and extensions. Messages name the tool (`heft start exited, see <log>`).
+4. For each **web part** without a `page` in its fixture: opens `about:blank`, clears the workbench
+   state kept in `sessionStorage`, opens `<site>/_layouts/15/workbench.aspx?debug=true&noredir=true&debugManifestsFile=<manifests>`
    plus the component's `query`, clicks "Load debug scripts" (English, Italian or Ukrainian label),
    opens the toolbox and adds the web part by its id. It counts as rendered when it could be added;
-   then it waits 12 seconds and takes the text of the canvas.
-5. For each **extension**: opens the extension page (`--page`, or the site's welcome page) with
+   then it waits 12 seconds and takes the text of the canvas. With `properties` in the fixture, the
+   browser's copy of `manifests.js` gets them laid over the web part's preconfigured properties
+   (`patchManifests` in `src/sharepoint/host.ts`), so the toolbox adds the web part with them: a
+   dropdown key such as `videoType`, or the `items` a collection editor would fill.
+5. For each **web part with a `page`** (`components.<alias>.page`, site-relative): opens
+   `<site>/<page>?debug=true&noredir=true&debugManifestsFile=<manifests>` plus `query`. The page's
+   HTML is changed as the browser receives it (`hostOnPage`): the canvas embedded in
+   `spClientSidePageContext` gets the web part, with the manifest's preconfigured properties and the
+   fixture's `properties`, in a new one-column section above the others (or merged into an instance
+   the page already has). Service workers are bypassed so the page comes from the network. The web
+   part then runs with the page's real context (list item, list, canvas DOM). It counts as rendered
+   when the page was changed and a script from the dev server loaded with status 200; the text is
+   that of the web part's element. `--properties` is not run on pages (the property pane needs edit
+   mode, which saves a draft).
+6. For each **extension**: opens the extension page (`--page`, or the site's welcome page) with
    `debugManifestsFile`, `loadSPFX=true` and a `customActions` entry at
    `ClientSideExtension.ApplicationCustomizer`, clicks "Load debug scripts" and waits 15 seconds. It
    counts as rendered when a JavaScript file from the dev server loaded with status 200.
-6. Takes a screenshot `<project>-<alias>.png`, stops the dev server (`taskkill /T /F` on Windows,
+7. Takes a screenshot `<project>-<alias>.png`, stops the dev server (`taskkill /T /F` on Windows,
    `SIGTERM` elsewhere) after the project's components.
 
-Nothing is saved on the site by packman during `test`; the components themselves may read and write
-their lists.
+Nothing is saved on the site by packman during `test`: fixture `properties` and `page` change only
+the browser's copy of the manifests and the page (DevTools `Fetch` interception). The components
+themselves may read and write their lists.
 
 ### Issue classes
 
@@ -158,7 +180,7 @@ a `data` issue, `ok` otherwise. `host` and `known` issues never fail a run. The 
 `.packman/validation/<ISO time>-sharepoint/`:
 
 - `summary.json`: one entry per component (`project`, `component` `{ id, alias, type }`, `bundles`,
-  `rendered`, `status`, `issues` `[{ kind, text }]`, `requests` `[{ method, url }]` of SharePoint REST,
+  `rendered`, `page` (when hosted on a page), `status`, `issues` `[{ kind, text }]`, `requests` `[{ method, url }]` of SharePoint REST,
   Graph and SiteAssets calls, `screenshot`, `text`, `properties`), or per skipped/failed project
   `{ project, status: "skipped"|"failed", reason }`;
 - `<project>-<alias>.png` and, with `--properties`, `<project>-<alias>-property-<n>.png` for steps
@@ -198,8 +220,9 @@ does not open, `properties: the property pane did not open, nothing was checked`
 
 ## 8. clean
 
-`clean` reads `.packman/sharepoint/seeded.json` for the site, prints the counts of lists, items,
-columns and files, asks `Delete what packman created on <site>?` (before signing in), then deletes,
+`clean` reads `.packman/sharepoint/seeded.json` for the site, prints one line per object it would
+remove (subsites, pages, content types, items, columns, lists, files, folders; `recordEntries` in
+`src/sharepoint/seed.ts`), or `Nothing to clean.` when the record is empty, asks `Delete what packman created on <site>?` (before signing in), then deletes,
 in this order (`clean` in `src/sharepoint/seed.ts`):
 
 1. subsites: a subsite packman created is deleted whole; in a subsite it did not create, its own
@@ -211,13 +234,10 @@ in this order (`clean` in `src/sharepoint/seed.ts`):
 6. files it created;
 7. folders it created, innermost first, only when empty (non-empty folders are `skipped`).
 
-A `404` counts as removed. When every deletion succeeded, the lists, columns, items, files and
-folders of the record are emptied; otherwise the record is kept and the exit code is 1.
-
-Note on the current code (`src/cli/sharepoint.ts`): the `Nothing to clean.` check and the printed
-counts consider only lists, items, columns and files, and a successful clean does not empty the
-`webs`, `pages` and `contentTypes` entries of the record. A record holding only pages, content
-types or subsites is therefore reported as nothing to clean.
+A `404` counts as removed. When every deletion succeeded, the site's record is replaced by an empty
+one (`emptyRecord`: lists, columns, items, files, folders, content types, pages and subsites);
+otherwise the record is kept, the exit code is 1 and the next `clean` retries what is left. Journal
+command: `sharepoint clean`.
 
 ## Sign-in model
 
@@ -235,11 +255,14 @@ types or subsites is therefore reported as nothing to clean.
 
 ## Limits
 
-- **Dev server**: `test` runs `gulp serve` or, without gulp, `heft start`; a project with neither
+- **Dev server**: `test` runs `gulp serve` or `heft start` (see step 3); a project with neither
   installed is skipped.
-- **Web parts** load in the hosted workbench, not on real pages: page context (page list item,
-  sections, other web parts) differs from production. Use `components.<alias>.query` for query
-  string parameters a web part reads.
+- **Web parts** load in the hosted workbench unless `components.<alias>.page` names a page: the
+  workbench has no page list item and no page canvas. Use `query` for query string parameters a web
+  part reads, `page` for components that read the page, `properties` for values a person would set.
+- **Page hosting** relies on the page HTML embedding `spClientSidePageContext = JSON.parse('...')`,
+  as SharePoint Online serves modern pages today; a page without it is not changed and the web part
+  does not load.
 - **Extensions** of every type are loaded through a `ClientSideExtension.ApplicationCustomizer`
   custom action on one page; whether field customizers, command sets and other extension types work
   that way is not handled specially by the code.

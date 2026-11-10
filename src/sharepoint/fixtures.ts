@@ -45,7 +45,7 @@ const listSchema = z.object({
 });
 
 const fileSchema = z.object({
-  /** Site-relative path, e.g. `SiteAssets/configIntranet/menuHeader.json`. */
+  /** Site-relative path, e.g. `SiteAssets/<app>/settings.json`. */
   path: z.string().min(1),
   /** JSON value (written formatted) or text. */
   content: z.unknown().optional(),
@@ -62,6 +62,20 @@ const componentSchema = z.object({
    * `{List/Title}` becomes the id of that item.
    */
   query: z.string().optional(),
+  /**
+   * Web part properties, laid over the ones of the manifest's first preconfigured entry: values a
+   * person sets in the property pane (`videoType`) or a collection editor fills (`items`).
+   */
+  properties: z.record(z.string(), z.unknown()).optional(),
+  /**
+   * Site-relative modern page to host the web part on instead of the workbench, e.g.
+   * `news/SitePages/test-news-1.aspx`, for components that read the page (its item, its canvas).
+   * The web part is added to the page as the browser receives it; nothing is saved on the site.
+   */
+  page: z
+    .string()
+    .regex(/^[^?#]+\.aspx$/i)
+    .optional(),
   /** Problems known not to come from the packages, matched by text; reported, never failing. */
   known: z.array(z.string()).default([]),
   note: z.string().optional(),
@@ -100,7 +114,7 @@ const scope = {
 };
 
 const webSchema = z.object({
-  /** Path below the site, e.g. `comunicazioni`. */
+  /** Path below the site, e.g. `events`. */
   url: z.string().regex(/^[\w-]+$/),
   title: z.string().min(1),
   /** LCID: list titles follow it (1040 makes the pages library "Pagine del sito"). */
@@ -123,6 +137,7 @@ export type Fixtures = z.infer<typeof fixturesSchema>;
 export type WebFixture = Fixtures['webs'][number];
 export type ContentTypeFixture = Fixtures['contentTypes'][number];
 export type PageFixture = Fixtures['pages'][number];
+export type ComponentFixture = Fixtures['components'][string];
 /** What one site or subsite holds. */
 export type ScopeFixture = Pick<Fixtures, 'lists' | 'files' | 'contentTypes' | 'pages'>;
 export type ListFixture = Fixtures['lists'][number];

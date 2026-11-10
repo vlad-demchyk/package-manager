@@ -9,6 +9,12 @@ It never changes a repository unless you ask: `check` only reads, `fix` is a dry
 and manifest/config edits are backed up in `.packman/backups/`. `clean` removes the requested
 modules/lockfiles; npm commands update installation files directly.
 
+The full documentation is in [docs/](docs/README.md): [getting started](docs/getting-started.md),
+[commands](docs/commands.md), [configuration](docs/configuration.md), [rules](docs/rules.md),
+[shared store](docs/shared-store.md), [SharePoint testing](docs/sharepoint-testing.md),
+[upgrade](docs/upgrade.md), [architecture](docs/architecture.md) and
+[troubleshooting](docs/troubleshooting.md).
+
 ## Requirements
 
 - packman runs on **Node >= 22.12**. Your projects can use any Node version: packman starts npm for
@@ -238,8 +244,10 @@ packman sp clean --site <url>              # remove what seed created
   which carry the columns the code builds at run time. `--write` adds what is missing to
   `packman.sharepoint.json` with guessed types (Yes/No for `eq 1`, dates for date comparisons); types,
   choices and items are completed by hand and never overwritten.
-- `packman.sharepoint.json` holds the site, lists (`generic`, `documents`, `pictures`), columns
-  (Text, Note, Number, Boolean, DateTime, Choice, MultiChoice, URL, User, Lookup), items and files.
+- `packman.sharepoint.json` holds the site, lists (`generic`, `documents`, `events`, `pictures`),
+  columns (Text, Note, Number, Boolean, DateTime, Choice, MultiChoice, URL, User, Lookup), items,
+  files, page content types (`contentTypes`), modern pages (`pages`, also news) and subsites (`webs`)
+  with their own lists, files, content types and pages.
   Item values may be `"@me"` (signed-in user: User column or site user id), `"@aad"` (their Entra
   object id), `{ "lookup": "<Title>" }` and relative dates such as `today+3d` or `now-1h`. Library items
   take a `file` name and a `placeholder` color (a generated PNG) or text `content`. Files take JSON or
@@ -248,7 +256,7 @@ packman sp clean --site <url>              # remove what seed created
   in libraries) or a file a person made is left alone. What it creates is recorded in
   `.packman/sharepoint/seeded.json`; `clean` removes exactly that, and whole lists only when packman
   created them.
-- `test` starts `gulp serve` for each SPFx project with its Node, opens the hosted workbench with the
+- `test` starts `gulp serve` (or `heft start` for Heft projects) for each SPFx project with its Node, opens the hosted workbench with the
   debug manifests, adds each web part from the toolbox (application customizers load on the site home
   page or `--page`), and sorts what the page reports: `load` (a bundle or chunk did not arrive),
   `runtime` (an exception from the component's own bundle), `data` (a list, column or file the site
@@ -262,11 +270,19 @@ packman sp clean --site <url>              # remove what seed created
   web part showed, the problems it caused and a screenshot when it broke. Pickers and collection
   editors are listed as not driven.
 - `components` in `packman.sharepoint.json` set per web part alias: `query` for the page URL
-  (`iditem={Eventi/[test] Evento}` puts in the id of that item) and `known` problems that come from
-  the hosting page rather than the packages, reported without failing the run.
-- Sign-in happens in a browser packman opens with its own profile (`~/.packman/browser`, Edge or
-  Chrome, or `PACKMAN_BROWSER`). packman never handles passwords or tokens: REST calls run inside the
-  signed-in page. Heft projects are not supported by `test` yet.
+  (`iditem={Eventi/[test] Evento}` puts in the id of that item), `properties` the web part starts
+  with (a dropdown key, the `items` of a collection editor), `page` to host it on a real modern page
+  instead of the workbench (for components that read the page item or canvas), and `known` problems
+  that come from the hosting page rather than the packages, reported without failing the run.
+  `properties` and `page` change only what the browser receives; nothing is saved on the site.
+- Sign-in happens in a browser packman opens with its own profile (`browser/` in the per-user
+  packman folder: `%LOCALAPPDATA%\packman` on Windows, `~/.cache/packman` elsewhere; Edge or Chrome,
+  or `PACKMAN_BROWSER`). packman never handles passwords or tokens: REST calls run inside the
+  signed-in page.
+
+Details: [SharePoint testing](docs/sharepoint-testing.md), the
+[`packman.sharepoint.json` reference](docs/configuration.md#packmansharepointjson) and
+[troubleshooting](docs/troubleshooting.md#sharepoint-runs).
 
 ## Configuration
 

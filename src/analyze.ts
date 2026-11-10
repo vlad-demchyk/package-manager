@@ -45,6 +45,8 @@ import {
   vitestProvider,
   vueProvider,
 } from './providers/frameworks.js';
+import { annotateBreakingFixes } from './fixes/breaks.js';
+import { apiSplitFindings, checkApiMigration } from './providers/api.js';
 import { checkDuplicateDeclarations, checkUsage, npmProvider } from './providers/npm.js';
 import { spfxProvider } from './providers/spfx/index.js';
 import { spfxMatrix } from './providers/spfx/matrix.js';
@@ -109,6 +111,8 @@ export interface ProjectReport {
   imports: string[];
   /** Package names referenced as strings in config files (.eslintrc.js, gulpfile.js, config/*.json). */
   configReferences: string[];
+  /** API-break pattern id (`data/api-breaks.json`) -> `file:line` places in the source scan. */
+  apiUsage: Record<string, string[]>;
   findings: Finding[];
 }
 
@@ -169,6 +173,7 @@ export async function analyze(workspace: Workspace, options: AnalyzeOptions): Pr
   });
   const groups = buildGroups(members, options.config.policy.groups);
   const workspaceFindings = groups.flatMap((group) => groupFindings(group, members));
+  if (options.usage !== false) workspaceFindings.push(...apiSplitFindings(reports));
   for (const stack of new Set(reports.map(migrationStack))) {
     const baseline = newestProject(reports, stack);
     const version = baseline ? stackVersion(baseline, stack) : undefined;
@@ -211,6 +216,11 @@ export async function analyze(workspace: Workspace, options: AnalyzeOptions): Pr
     report.findings.push(...(await linkFindings(workspace.root, report, links)));
     report.findings = sortFindings(report.findings.filter((item) => !disabled.has(item.ruleId)));
   }
+  // A version edit that crosses a documented API break is breaking, whatever rule proposed it.
+  annotateBreakingFixes(
+    [...workspaceFindings, ...reports.flatMap((entry) => entry.findings)],
+    reports,
+  );
   return {
     root: workspace.root,
     generatedAt: today.toISOString(),
@@ -312,6 +322,7 @@ async function analyzeProject(
   findings.push(...(await profileFindings(ctx)));
   if (options.usage !== false) {
     findings.push(...(await checkUsage(ctx, implicit, virtual)));
+    findings.push(...(await checkApiMigration(ctx)));
   } else {
     findings.push(...checkDuplicateDeclarations(project, new Map()));
   }
@@ -343,6 +354,7 @@ async function analyzeProject(
     implicit: [...new Set(implicit)].sort(),
     imports: options.usage === false ? [] : [...(await ctx.sources()).imports.keys()].sort(),
     configReferences: await configReferences(project.dir),
+    apiUsage: options.usage === false ? {} : Object.fromEntries((await ctx.sources()).api),
     findings,
   };
 }

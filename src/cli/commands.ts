@@ -20,13 +20,16 @@ import { versionMatrix } from '../ops/matrix.js';
 import { outdated } from '../ops/outdated.js';
 import { primaryStack } from '../policy/groups.js';
 import { allFindings } from '../report/model.js';
+import { manifestKey, planStore } from '../store/store.js';
 import { openSession, runAnalysis, type CommonOptions, type Session } from './context.js';
 import {
   commonOptions,
   confirm,
   langOption,
+  linkedGroupOrExplain,
   nonNegativeInt,
   progressReporter,
+  relinkGroup,
   relock,
   reportUnverified,
   reviewAndApply,
@@ -73,10 +76,16 @@ async function runInstall(
     .map((entry) => ({ entry, args: npmArgs(entry, options) }));
   if (plan.length === 0) return false;
   for (const { entry, args } of plan) {
-    const note =
-      entry.project.nodeModules === 'link' ? pc.yellow(` (${t('install.linkedSkipped')})`) : '';
+    if (entry.project.nodeModules === 'link') {
+      // No npm here: it would replace the junctions with real copies. Say what to do instead.
+      const stale = staleLinks(report).has(entry.project.id);
+      console.log(
+        `${entry.project.id}: ${(stale ? pc.yellow : pc.dim)(t(stale ? 'install.linkedStale' : 'install.linkedOk', { project: entry.project.id }))}`,
+      );
+      continue;
+    }
     console.log(
-      `${entry.project.id}: npm ${args.join(' ')} @ node ${entry.node.selected?.version ?? pc.red('?')}${note}`,
+      `${entry.project.id}: npm ${args.join(' ')} @ node ${entry.node.selected?.version ?? pc.red('?')}`,
     );
   }
   if (!options.yes && !(await confirm(t('install.confirm', { count: plan.length })))) {
@@ -113,6 +122,50 @@ async function runInstall(
   return ok;
 }
 
+/** Linked projects whose dependency fields changed since they were linked (`store status` stale). */
+function staleLinks(report: Report): Set<string> {
+  const stale = new Set<string>();
+  for (const entry of report.projects) {
+    const link = report.links?.find((item) => item.projectId === entry.project.id);
+    if (link && link.manifestKey !== manifestKey(entry.project.manifest))
+      stale.add(entry.project.id);
+  }
+  return stale;
+}
+
+/**
+ * `install --sync-store`: rebuild the union store of every group that has a stale linked project,
+ * relink its members and write their lockfiles; npm never runs inside the projects.
+ */
+async function syncStores(
+  session: Session,
+  options: CommonOptions & { refresh?: boolean },
+): Promise<void> {
+  const fresh = await runAnalysis(
+    session,
+    { ...options, security: false },
+    { targetVersions: true },
+  );
+  const stale = staleLinks(fresh);
+  if (stale.size === 0) return;
+  console.log(pc.bold(t('install.syncStore', { count: stale.size })));
+  const plan = planStore(fresh, { union: true });
+  const done = new Set<string>();
+  for (const id of stale) {
+    if (done.has(id)) continue;
+    const group = linkedGroupOrExplain(plan, id);
+    if (!group) {
+      done.add(id);
+      continue;
+    }
+    await relinkGroup(session, fresh, group, {
+      ...(options.refresh ? { refresh: true } : {}),
+      command: 'install:sync-store',
+    });
+    for (const member of group.projectIds) done.add(member);
+  }
+}
+
 const installModeOption = (): Option =>
   new Option('--mode <mode>', 'npm install mode')
     .choices(['normal', 'legacy-peer-deps', 'force'])
@@ -140,55 +193,72 @@ export function registerCommands(program: Command): void {
   )
     .addOption(installModeOption())
     .option('--clean', 'remove node_modules and lockfiles first, then install (2.x reinstall)')
+    .option(
+      '--sync-store',
+      'linked projects whose package.json changed: rebuild their group store and relink (no npm in the projects)',
+    )
+    .option(
+      '--refresh',
+      'with --sync-store: resolve the store fresh instead of from the verified set',
+    )
     .option('-y, --yes', 'do not ask for confirmation')
-    .action(async (root: string, options: InstallOptions & { clean?: boolean }) => {
-      const { session, report } = await quickReport(root, options, true);
-      if (!options.clean) {
-        await runInstall(session, report, options, 'install');
-        return;
-      }
-      // Nothing is removed unless every project can be installed again afterwards.
-      const missing = report.projects.filter(
-        (entry) => entry.project.nodeModules !== 'link' && !entry.node.selected,
-      );
-      if (missing.length > 0) {
-        for (const entry of missing)
-          console.error(
-            `${entry.project.id}: ${t('node.notInstalled', { ranges: entry.node.effective.join(' & '), recommended: entry.node.recommended ?? '-' })}`,
-          );
-        process.exitCode = 1;
-        return;
-      }
-      const targets = planClean(
-        report.projects
-          .filter((entry) => entry.project.nodeModules !== 'link')
-          .map((entry) => entry.project),
-        { modules: true, lockfile: true },
-      );
-      for (const target of targets) console.log(`${target.projectId}: ${target.kind}`);
-      if (
-        !options.yes &&
-        !(await confirm(t('reinstall.confirm', { count: report.projects.length })))
-      ) {
-        console.log(t('cli.aborted'));
-        return;
-      }
-      await executeClean(session.root, targets);
-      await journal(session.root, {
-        command: 'install:clean',
-        projects: [...new Set(targets.map((x) => x.projectId))],
-        result: 'ok',
-      });
-      const fresh = await runAnalysis(
-        session,
-        { ...options, security: false, usage: false },
-        { targetVersions: true },
-      );
-      await runInstall(session, fresh, { ...options, yes: true }, 'install');
-      // Without lockfiles npm picked every version again: show what moved from the verified sets.
-      for (const entry of (await runAnalysis(session, { security: false, usage: false })).projects)
-        await reportUnverified(entry.project);
-    });
+    .action(
+      async (
+        root: string,
+        options: InstallOptions & { clean?: boolean; syncStore?: boolean; refresh?: boolean },
+      ) => {
+        const { session, report } = await quickReport(root, options, true);
+        if (options.refresh && !options.syncStore)
+          console.log(pc.yellow(t('install.refreshIgnored')));
+        if (!options.clean) {
+          await runInstall(session, report, options, 'install');
+          if (options.syncStore) await syncStores(session, options);
+          return;
+        }
+        // Nothing is removed unless every project can be installed again afterwards.
+        const missing = report.projects.filter(
+          (entry) => entry.project.nodeModules !== 'link' && !entry.node.selected,
+        );
+        if (missing.length > 0) {
+          for (const entry of missing)
+            console.error(
+              `${entry.project.id}: ${t('node.notInstalled', { ranges: entry.node.effective.join(' & '), recommended: entry.node.recommended ?? '-' })}`,
+            );
+          process.exitCode = 1;
+          return;
+        }
+        const targets = planClean(
+          report.projects
+            .filter((entry) => entry.project.nodeModules !== 'link')
+            .map((entry) => entry.project),
+          { modules: true, lockfile: true },
+        );
+        for (const target of targets) console.log(`${target.projectId}: ${target.kind}`);
+        if (
+          !options.yes &&
+          !(await confirm(t('reinstall.confirm', { count: report.projects.length })))
+        ) {
+          console.log(t('cli.aborted'));
+          return;
+        }
+        await executeClean(session.root, targets);
+        await journal(session.root, {
+          command: 'install:clean',
+          projects: [...new Set(targets.map((x) => x.projectId))],
+          result: 'ok',
+        });
+        const fresh = await runAnalysis(
+          session,
+          { ...options, security: false, usage: false },
+          { targetVersions: true },
+        );
+        await runInstall(session, fresh, { ...options, yes: true }, 'install');
+        // Without lockfiles npm picked every version again: show what moved from the verified sets.
+        for (const entry of (await runAnalysis(session, { security: false, usage: false }))
+          .projects)
+          await reportUnverified(entry.project);
+      },
+    );
 
   commonOptions(
     program
@@ -424,6 +494,18 @@ export function registerCommands(program: Command): void {
           const aligned = alignPackage(projects, options.package, options.version);
           if (aligned) {
             console.log(t('align.package', { name: options.package, version: aligned.version }));
+            if (aligned.peers) {
+              console.log(
+                pc.yellow(
+                  t('align.peers', {
+                    count: aligned.peers.length,
+                    name: options.package,
+                    version: aligned.version,
+                  }),
+                ),
+              );
+              for (const peer of aligned.peers) console.log(pc.yellow(`  ${peer}`));
+            }
             fixes = [aligned.fix];
           }
         } else if (options.base) {

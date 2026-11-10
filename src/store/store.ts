@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import { existsSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import {
   lstat,
   mkdir,
@@ -181,15 +181,47 @@ function localDependencies(project: Project): boolean {
   );
 }
 
-function stackWarnings(members: ProjectReport[]): string[] {
+/**
+ * `linkMode` is how the group links by default: `folder` (exact) makes node_modules one junction
+ * into the store, so Vite's default cacheDir (node_modules/.vite) would be shared by every member;
+ * `packages` (union) keeps node_modules a real folder of each project, and Vite's caches
+ * (.vite, .vite-temp) stay there.
+ */
+function stackWarnings(members: ProjectReport[], linkMode: 'folder' | 'packages'): string[] {
   const warnings: string[] = [];
   const stacks = new Set(members.flatMap((member) => member.stacks.map((stack) => stack.provider)));
-  if (stacks.has('vite'))
+  if (stacks.has('vite') && linkMode === 'folder')
     warnings.push('vite: set cacheDir per project, node_modules/.vite would be shared');
   if (stacks.has('spfx')) {
     warnings.push('spfx: run `packman store verify` (gulp/heft build) on the linked projects');
   }
+  for (const member of members) {
+    const rule = projectPathRule(member.project.dir);
+    if (rule)
+      warnings.push(
+        `${member.project.id}: gulpfile.js webpack rule ${rule} matches <project>/node_modules, but webpack resolves linked packages to the store; wrap that path in fs.realpathSync(...)`,
+      );
+  }
   return warnings;
+}
+
+/** Webpack rule conditions written against the project's own node_modules path. */
+const PROJECT_MODULES_RULE =
+  /\b(include|exclude)\s*:\s*\[?\s*path\.(?:join|resolve)\(\s*__dirname\s*,\s*['"`]node_modules\b/;
+
+/**
+ * `include: path.join(__dirname, 'node_modules', 'pkg')` in a gulpfile: webpack follows junctions to
+ * the real path (`.packman/store/...`), so the rule stops matching and the package is bundled without
+ * its loader (SPFx 1.18 GlobalLoader: "Module parse failed" for web-push-notifications).
+ */
+function projectPathRule(dir: string): string | undefined {
+  const file = path.join(dir, 'gulpfile.js');
+  if (!existsSync(file)) return undefined;
+  try {
+    return PROJECT_MODULES_RULE.exec(readFileSync(file, 'utf8'))?.[1];
+  } catch {
+    return undefined;
+  }
 }
 
 /** Union of the dependency fields of the version group, when every shared package agrees. */
@@ -263,7 +295,7 @@ function planUnion(report: Report): StorePlan {
       mode: 'union',
       projectIds: ids,
       manifest: storeManifest,
-      warnings: stackWarnings(eligible),
+      warnings: stackWarnings(eligible, 'packages'),
     };
     if (node) {
       group.node = node;
@@ -319,7 +351,7 @@ function planExact(report: Report): StorePlan {
       const first = members[0];
       if (members.length < 2 || !first) continue;
       const node = first.node.selected;
-      const warnings = stackWarnings(members);
+      const warnings = stackWarnings(members, 'folder');
       const group: StoreGroup = {
         key: hash(
           canonical({
@@ -383,6 +415,8 @@ export interface LinkResult {
   conflicts?: string[];
   /** Peer ranges the installed tree does not satisfy: incompatibilities to fix in the projects. */
   peers?: string[];
+  /** Lock sync: nested packages that stayed nested because hoisting them did not settle. */
+  lockWarnings?: string[];
   /** Seeded stores: versions npm moved away from the verified set; not verified by a build yet. */
   unverified?: string[];
   linked: string[];
@@ -440,6 +474,9 @@ export async function linkGroup(
     );
   }
   if (!reusable) {
+    // No ready marker and no link points here: whatever an interrupted install left behind (npm
+    // fails with ENOTEMPTY on its own half-written tree) goes before the fresh install.
+    await rm(target, { recursive: true, force: true, maxRetries: 3 });
     await mkdir(storeDir, { recursive: true });
     const storeName = `packman-store-${group.key.slice(0, 8)}`;
     const manifest: Record<string, unknown> = { name: storeName, version: '0.0.0', private: true };
@@ -527,7 +564,10 @@ export async function linkGroup(
   }
 
   // Only a tree that passed the edge check above is ever written back into the projects.
-  if (options.syncLocks) await syncProjectLocks(root, members, storeDir);
+  if (options.syncLocks) {
+    const warnings = await syncProjectLocks(root, members, storeDir);
+    if (warnings.length > 0) result.lockWarnings = warnings;
+  }
 
   let links = [...previous];
 
@@ -610,8 +650,16 @@ export async function linkGroup(
   return result;
 }
 
-/** Recreate independent project locks from the shared tree; keep nested and hoisted resolutions. */
-async function syncProjectLocks(root: string, members: Project[], storeDir: string): Promise<void> {
+/**
+ * Recreate independent project locks from the shared tree; keep its resolutions, and hoist what a
+ * standalone install would put at the top ({@link hoistLockTree}).
+ */
+async function syncProjectLocks(
+  root: string,
+  members: Project[],
+  storeDir: string,
+): Promise<string[]> {
+  const warnings: string[] = [];
   const parsed = await readJsonFile<{
     lockfileVersion?: number;
     packages?: Record<string, LockEntry>;
@@ -665,7 +713,14 @@ async function syncProjectLocks(root: string, members: Project[], storeDir: stri
         ...(manifest.engines ? { engines: manifest.engines } : {}),
       },
     };
-    for (const location of [...seen].sort()) packages[location] = source[location];
+    const subset: Record<string, LockEntry> = {};
+    for (const location of seen) {
+      const entry = source[location];
+      if (entry) subset[location] = entry;
+    }
+    const hoistWarnings: string[] = [];
+    Object.assign(packages, hoistLockTree(subset, { warnings: hoistWarnings }));
+    warnings.push(...hoistWarnings.map((warning) => `${project.id}: ${warning}`));
     const file =
       project.lockfile?.kind === 'npm'
         ? project.lockfile.path
@@ -685,12 +740,159 @@ async function syncProjectLocks(root: string, members: Project[], storeDir: stri
       ) + '\n',
     );
   }
+  return warnings;
 }
 
 function asSpecs(value: unknown): Record<string, unknown> {
   return value && typeof value === 'object' && !Array.isArray(value)
     ? (value as Record<string, unknown>)
     : {};
+}
+
+/** Location a package at `from` resolves `name` to, Node style: nearest `node_modules` upwards. */
+function resolveIn(has: (location: string) => boolean, from: string, name: string) {
+  let parent = from;
+  for (;;) {
+    const candidate = parent ? `${parent}/node_modules/${name}` : `node_modules/${name}`;
+    if (has(candidate)) return candidate;
+    if (!parent) return undefined;
+    const index = parent.lastIndexOf('/node_modules/');
+    parent = index < 0 ? '' : parent.slice(0, index);
+  }
+}
+
+const requiredNames = (entry: LockEntry): string[] =>
+  Object.keys({
+    ...asSpecs(entry.dependencies),
+    ...asSpecs(entry.optionalDependencies),
+    ...asSpecs(entry.peerDependencies),
+  });
+
+/**
+ * Where npm looks for one dependency of the package at `location`: its own node_modules and up,
+ * except peers, which npm only accepts from the parent level up (never nested inside the package).
+ */
+function resolveEdge(
+  has: (location: string) => boolean,
+  location: string,
+  entry: LockEntry,
+  name: string,
+): string | undefined {
+  const peer = name in asSpecs(entry.peerDependencies) && !(name in asSpecs(entry.dependencies));
+  if (!peer) return resolveIn(has, location, name);
+  const index = location.lastIndexOf('/node_modules/');
+  return resolveIn(has, index < 0 ? '' : location.slice(0, index), name);
+}
+
+/**
+ * A project's part of the store tree keeps the store's layout, where a package is nested because the
+ * top-level slot holds another member's version. Alone, npm would hoist it, and tools that load
+ * packages the project never declared (`.eslintrc.js`: `@rushstack/eslint-config/patch/...`) rely on
+ * that. Moves each nested package whose top-level slot is free to the top, shallowest copy first, with
+ * its own nested packages. A dependency it found next to it (under the same parent) and would no
+ * longer reach is copied under it. A move is kept only when every package still resolves each of its
+ * dependencies to the same copy.
+ */
+export function hoistLockTree(
+  packages: Record<string, LockEntry>,
+  options: {
+    /** Copies placed while one hoist settles, before it is given up (default 5000). */
+    limit?: number;
+    /** Receives one line per hoist given up, naming the package and the tree size. */
+    warnings?: string[];
+  } = {},
+): Record<string, LockEntry> {
+  const limit = options.limit ?? 5000;
+  const tree = new Map(Object.entries(packages));
+  const nameOf = (location: string): string =>
+    location.slice(location.lastIndexOf('node_modules/') + 'node_modules/'.length);
+  const depth = (location: string): number => location.split('/node_modules/').length;
+  const subtree = (root: string): string[] =>
+    [...tree.keys()].filter((location) => location === root || location.startsWith(`${root}/`));
+
+  /** The tree with `from` moved to the top, or undefined when a resolution would change. */
+  const hoisted = (name: string, from: string): Map<string, LockEntry> | undefined => {
+    const top = `node_modules/${name}`;
+    const next = new Map(tree);
+    // New location -> the location it was copied or moved from.
+    const origin = new Map<string, string>();
+    for (const location of subtree(from)) {
+      const target = top + location.slice(from.length);
+      next.delete(location);
+      next.set(target, tree.get(location) as LockEntry);
+      origin.set(target, location);
+    }
+    const identity = (location: string): string => origin.get(location) ?? location;
+    const pending = [...origin.keys()];
+    for (let guard = 0; pending.length > 0; guard++) {
+      if (guard >= limit) {
+        options.warnings?.push(
+          `${name} stays nested at ${from}: hoisting it did not settle after ${limit} copies (${tree.size} lock entries, ${pending.length} still pending)`,
+        );
+        return undefined;
+      }
+      const location = pending.pop() as string;
+      const source = identity(location);
+      const entry = tree.get(source) as LockEntry;
+      for (const required of requiredNames(entry)) {
+        const before = resolveEdge((l) => tree.has(l), source, entry, required);
+        if (before === undefined) continue;
+        const now = resolveEdge((l) => next.has(l), location, entry, required);
+        if (now !== undefined && identity(now) === before) continue;
+        // A peer cannot be nested under the package that needs it.
+        if (required in asSpecs(entry.peerDependencies)) return undefined;
+        for (const copied of subtree(before)) {
+          const target = `${location}/node_modules/${required}${copied.slice(before.length)}`;
+          if (next.has(target)) return undefined;
+          next.set(target, tree.get(copied) as LockEntry);
+          origin.set(target, copied);
+          pending.push(target);
+        }
+      }
+    }
+    // Everything placed anew, and everything that found `name` before, resolves as it did.
+    const check = [
+      ...origin.keys(),
+      ...[...next.keys()].filter(
+        (location) =>
+          !origin.has(location) && requiredNames(next.get(location) as LockEntry).includes(name),
+      ),
+    ];
+    for (const location of check) {
+      const source = identity(location);
+      const entry = tree.get(source) as LockEntry;
+      for (const required of requiredNames(entry)) {
+        const before = resolveEdge((l) => tree.has(l), source, entry, required);
+        if (before === undefined) continue;
+        const now = resolveEdge((l) => next.has(l), location, entry, required);
+        if (now === undefined || identity(now) !== before) return undefined;
+      }
+    }
+    return next;
+  };
+
+  for (let changed = true; changed;) {
+    changed = false;
+    const free = new Map<string, string[]>();
+    for (const location of tree.keys()) {
+      if (!location.includes('/node_modules/')) continue;
+      const name = nameOf(location);
+      if (tree.has(`node_modules/${name}`)) continue;
+      free.set(name, [...(free.get(name) ?? []), location]);
+    }
+    for (const [name, copies] of [...free.entries()].sort(([a], [b]) => a.localeCompare(b))) {
+      for (const from of copies.sort((a, b) => depth(a) - depth(b) || a.localeCompare(b))) {
+        if (!tree.has(from) || tree.has(`node_modules/${name}`)) continue;
+        const next = hoisted(name, from);
+        if (!next) continue;
+        tree.clear();
+        for (const [location, entry] of next) tree.set(location, entry);
+        changed = true;
+        break;
+      }
+    }
+  }
+  return Object.fromEntries([...tree.entries()].sort(([a], [b]) => a.localeCompare(b)));
 }
 
 type LinkState =

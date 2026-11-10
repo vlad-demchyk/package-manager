@@ -88,6 +88,7 @@ export function toJson(report: Report): unknown {
       },
       exposure: entry.exposure,
       network: entry.network,
+      apiUsage: entry.apiUsage,
       summary: summarize(entry.findings),
       findings: entry.findings.map(serializeFinding),
     })),

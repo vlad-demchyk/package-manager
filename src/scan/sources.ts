@@ -4,6 +4,7 @@ import path from 'node:path';
 import picomatch from 'picomatch';
 import { ALWAYS_IGNORED_DIRS } from '../core/config.js';
 import { loadData } from '../core/data.js';
+import { matchApiPatterns } from './api-breaks.js';
 
 const CODE_EXTENSIONS = new Set([
   '.ts',
@@ -29,6 +30,8 @@ export interface SourceScan {
   imports: Map<string, string>;
   /** Network usage signals: pattern id -> example file. */
   network: Map<string, string>;
+  /** API-break patterns (`data/api-breaks.json`): pattern id -> `file:line` locations. */
+  api: Map<string, string[]>;
   filesScanned: number;
   truncated: boolean;
 }
@@ -46,6 +49,7 @@ export async function scanSources(projectDir: string, ignore: string[] = []): Pr
   const scan: SourceScan = {
     imports: new Map(),
     network: new Map(),
+    api: new Map(),
     filesScanned: 0,
     truncated: false,
   };
@@ -74,6 +78,7 @@ export async function scanSources(projectDir: string, ignore: string[] = []): Pr
       for (const { id, regex } of patterns) {
         if (!scan.network.has(id) && regex.test(code)) scan.network.set(id, rel);
       }
+      matchApiPatterns(code, rel, scan.api);
     }
     scan.filesScanned++;
   }
@@ -177,6 +182,22 @@ export function stripComments(source: string): string {
       quote = ch;
       out += ch;
       i++;
+    } else if (ch === '/' && next !== '*' && next !== '/' && regexLiteralAt(out)) {
+      // `/https?:\/\//` or `/[^/]+\//`: a regex literal, not a comment opener; copy it whole.
+      let cls = false;
+      out += ch;
+      i++;
+      while (i < source.length && source[i] !== '\n') {
+        const cur = source[i] as string;
+        out += cur;
+        i++;
+        if (cur === '\\') {
+          out += source[i] ?? '';
+          i++;
+        } else if (cur === '[') cls = true;
+        else if (cur === ']') cls = false;
+        else if (cur === '/' && !cls) break;
+      }
     } else if (ch === '/' && next === '/') {
       while (i < source.length && source[i] !== '\n') i++;
     } else if (ch === '/' && next === '*') {
@@ -189,4 +210,17 @@ export function stripComments(source: string): string {
     }
   }
   return out;
+}
+
+/**
+ * A `/` right after an operator, an opener, a statement start or a keyword that takes an expression
+ * (`return /x/`, `typeof /x/`, `case /x/:`) begins a regex literal; after a value it is a division.
+ */
+function regexLiteralAt(before: string): boolean {
+  const text = before.trimEnd();
+  const prev = text.slice(-1);
+  if (prev === '' || '(,=:[!&|?{};+-*%<>~^'.includes(prev)) return true;
+  return /(?:^|[^\w$.])(?:return|typeof|case|in|of|instanceof|void|delete|yield|await|throw)$/.test(
+    text,
+  );
 }

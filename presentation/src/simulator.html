@@ -1,0 +1,68 @@
+<!-- {"title": "packman command simulator", "description": "Interactive packman command builder: options from the CLI code, explanations and real output.", "layout": "none", "wide": true, "scripts": ["assets/simulator.js"]} -->
+<p class="eyebrow">Simulator</p>
+<h1 id="top">Build a command</h1>
+<p class="lead">
+  Pick a command, a mode and options: next to them (below on a phone) you get the command line, what
+  it reads and writes, when it asks for confirmation and a sample output. Options come from the CLI
+  code; the output was captured live by read-only runs on a synthetic demo repository. The state
+  lives in the page address, so a link can be shared.
+</p>
+<div id="simulator"><p class="callout">The simulator needs JavaScript.</p></div>
+<h2 id="keys">Keyboard</h2>
+<div class="table-wrap">
+  <table>
+    <thead>
+      <tr>
+        <th scope="col">Keys</th>
+        <th scope="col">Action</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><kbd>Tab</kbd> / <kbd>Shift</kbd>+<kbd>Tab</kbd></td>
+        <td>command groups, list, mode, arguments, options</td>
+      </tr>
+      <tr>
+        <td><kbd>←</kbd> <kbd>→</kbd></td>
+        <td>previous or next group (on the tabs and in the command list)</td>
+      </tr>
+      <tr>
+        <td>
+          <kbd>↑</kbd> <kbd>↓</kbd>, <kbd>j</kbd> <kbd>k</kbd>, <kbd>Home</kbd> <kbd>End</kbd>
+        </td>
+        <td>pick a command in the list</td>
+      </tr>
+      <tr>
+        <td><kbd>Space</kbd> / <kbd>Enter</kbd></td>
+        <td>turn an option on or off</td>
+      </tr>
+      <tr>
+        <td><kbd>R</kbd></td>
+        <td>reset options and mode</td>
+      </tr>
+      <tr>
+        <td><kbd>/</kbd></td>
+        <td>site search</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+<h2 id="legend">How to read it</h2>
+<ul>
+  <li>
+    <span class="tag live">captured live</span>: output of a real run. When exactly that command was
+    not captured, the <span class="tag">closest run</span> is shown with its exact command line.
+  </li>
+  <li>
+    <span class="tag warn">illustration from code</span>: for commands that change files, run npm or
+    need a site; the text is built from the messages in the code, not from a live run.
+  </li>
+  <li>
+    <span class="tag warn">no effect here</span>: the command accepts a shared option but turns that
+    part of the analysis off itself (for example, <code>list</code> never queries advisories).
+  </li>
+  <li>
+    The Group mode selects projects by id with a glob mask; there is no separate flag for version
+    groups.
+  </li>
+</ul>

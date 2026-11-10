@@ -14,6 +14,31 @@ const PAGES_TEMPLATE = 119;
 
 const odata = (value: string): string => encodeURIComponent(value.replace(/'/g, "''"));
 
+/** Pauses between retries; tests pass a function that does not wait. */
+export type Wait = (ms: number) => Promise<void>;
+const sleep: Wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+/** Delays before each retry: SharePoint needs a few seconds after it creates a content type. */
+export const RETRY_DELAYS = [2000, 5000, 10000];
+
+/**
+ * Repeats a request while SharePoint answers with one of `statuses` (a just-created object it does
+ * not see yet, a short lock), waiting `RETRY_DELAYS` between tries. Returns the last response.
+ */
+export async function retrying<T>(
+  call: () => Promise<SpResponse<T>>,
+  statuses: number[],
+  wait: Wait = sleep,
+): Promise<SpResponse<T>> {
+  let response = await call();
+  for (const delay of RETRY_DELAYS) {
+    if (!statuses.includes(response.status)) break;
+    await wait(delay);
+    response = await call();
+  }
+  return response;
+}
+
 export function failure(response: SpResponse): string | undefined {
   if (response.status < 400) return undefined;
   const data = response.data as
@@ -70,6 +95,7 @@ export async function seedContentTypes(
     apply: boolean;
     web: string;
     record: { contentTypes: { web: string; id: string; list?: string }[] };
+    wait?: Wait;
   },
 ): Promise<SeedAction[]> {
   const actions: SeedAction[] = [];
@@ -113,25 +139,37 @@ export async function seedContentTypes(
       `${listPath}/contenttypes?$select=Name`,
     );
     // The columns go on the library either way: pages can hold values without the content type.
-    if (
-      id &&
-      !onList.data.value.some((entry) => entry.Name.toLowerCase() === ct.name.toLowerCase()) &&
-      options.apply
-    ) {
+    const onLibrary = onList.data.value.some(
+      (entry) => entry.Name.toLowerCase() === ct.name.toLowerCase(),
+    );
+    if (!onLibrary && !options.apply)
+      actions.push({
+        kind: 'contentType',
+        target: `${target} -> ${ct.list}`,
+        outcome: 'planned',
+        detail: 'add to library',
+      });
+    else if (id && !onLibrary) {
       await client.request('MERGE', listPath, { ContentTypesEnabled: true });
+      const contentTypeId = id;
+      // A content type made a moment ago answers 500 here until SharePoint has it everywhere.
       const added = failure(
-        await client.request(
-          'POST',
-          `${listPath}/ContentTypes/AddAvailableContentType('${odata(id)}')`,
+        await retrying(
+          () =>
+            client.request(
+              'POST',
+              `${listPath}/ContentTypes/AddAvailableContentType('${odata(contentTypeId)}')`,
+            ),
+          [500, 503],
+          options.wait,
         ),
       );
-      if (added)
-        actions.push({
-          kind: 'contentType',
-          target: `${target} -> ${ct.list}`,
-          outcome: 'failed',
-          detail: added,
-        });
+      actions.push({
+        kind: 'contentType',
+        target: `${target} -> ${ct.list}`,
+        outcome: added ? 'failed' : 'created',
+        ...(added ? { detail: added } : {}),
+      });
     }
     const fields = await client.request<{ value: { InternalName: string; Title: string }[] }>(
       'GET',
@@ -184,6 +222,7 @@ export async function seedPages(
     web: string;
     context: ValueContext;
     record: { pages: { web: string; list: string; id: number }[] };
+    wait?: Wait;
   },
 ): Promise<SeedAction[]> {
   const actions: SeedAction[] = [];
@@ -249,19 +288,33 @@ export async function seedPages(
         page.fields,
         options.context,
       );
-      error = failure(
-        await client.request('MERGE', `${listPath}/items(${id})`, {
-          Title: page.title,
-          ClientSideApplicationId: CLIENT_SIDE_APP,
-          PageLayoutType: 'Article',
-          CanvasContent1: '<div></div>',
-          ...(listCt ? { ContentTypeId: listCt } : {}),
-          ...(page.news
-            ? { PromotedState: 2, FirstPublishedDate: options.context.now.toISOString() }
-            : {}),
-          ...values,
-        }),
-      );
+      // A new page is locked (HTTP 423) for changes until it is checked out to the signed-in user.
+      error = await checkOut(client, fileUrl);
+      if (!error)
+        error = failure(
+          await retrying(
+            () =>
+              client.request('MERGE', `${listPath}/items(${id})`, {
+                Title: page.title,
+                ClientSideApplicationId: CLIENT_SIDE_APP,
+                PageLayoutType: 'Article',
+                CanvasContent1: '<div></div>',
+                ...(listCt ? { ContentTypeId: listCt } : {}),
+                ...values,
+              }),
+            [423],
+            options.wait,
+          ),
+        );
+      // A plain MERGE answers 204 but leaves these page columns as they were; a form update while
+      // the page is checked out sets them (the system update variant is refused on new sites).
+      const pageValues = [
+        ...(page.news ? [{ FieldName: 'PromotedState', FieldValue: '2' }] : []),
+        ...(typeof values.Description === 'string'
+          ? [{ FieldName: 'Description', FieldValue: values.Description }]
+          : []),
+      ];
+      if (!error && pageValues.length) error = await formUpdate(client, listPath, id, pageValues);
       if (!error)
         error = failure(
           await client.request(
@@ -287,4 +340,35 @@ export async function seedPages(
     });
   }
   return actions;
+}
+
+/** `ValidateUpdateListItem`: answers 200 even when a column fails, so each value is checked. */
+async function formUpdate(
+  client: SpClient,
+  listPath: string,
+  id: number,
+  formValues: { FieldName: string; FieldValue: string }[],
+): Promise<string | undefined> {
+  const response = await client.request<{
+    value?: { FieldName: string; HasException: boolean; ErrorMessage: string | null }[];
+  }>('POST', `${listPath}/items(${id})/ValidateUpdateListItem`, {
+    formValues,
+    bNewDocumentUpdate: false,
+  });
+  const error = failure(response);
+  if (error) return error;
+  const bad = (response.data.value ?? []).find((entry) => entry.HasException);
+  return bad ? `${bad.FieldName}: ${bad.ErrorMessage ?? 'rejected'}` : undefined;
+}
+
+/** Checks a file out to the signed-in user unless it is checked out already. */
+async function checkOut(client: SpClient, fileUrl: string): Promise<string | undefined> {
+  const file = `/_api/web/GetFileByServerRelativePath(decodedurl='${odata(fileUrl)}')`;
+  const state = await client.request<{ CheckOutType?: number }>(
+    'GET',
+    `${file}?$select=CheckOutType`,
+  );
+  // CheckOutType 2 is "none"; 0 (online) and 1 (offline) mean it is checked out already.
+  if (state.status < 400 && state.data.CheckOutType !== 2) return undefined;
+  return failure(await client.request('POST', `${file}/CheckOut()`));
 }

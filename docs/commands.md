@@ -1,14 +1,15 @@
 # Command reference
 
 Every command, subcommand and option as defined in `src/cli/main.ts`, `src/cli/commands.ts`,
-`src/cli/upgrade.ts`, `src/cli/sharepoint.ts` and `src/cli/hooks.ts`. `pm` is an alias of `packman`.
+`src/cli/add.ts`, `src/cli/upgrade.ts`, `src/cli/sharepoint.ts` and `src/cli/hooks.ts`. `pm` is an
+alias of `packman`.
 
 - [Conventions](#conventions)
 - Analysis: [check](#check), [list](#list), [groups](#groups), [versions](#versions),
   [outdated](#outdated), [audit](#audit), [node](#node), [spfx](#spfx)
 - Fixes and edits: [fix](#fix), [align](#align), [profile apply](#profile-apply),
-  [profile generate](#profile-generate), [install](#install), [clean](#clean), [relock](#relock),
-  [ignore](#ignore), [data](#data)
+  [profile generate](#profile-generate), [add](#add), [remove](#remove), [install](#install),
+  [clean](#clean), [relock](#relock), [ignore](#ignore), [data](#data)
 - [upgrade](#upgrade)
 - Store: [store plan](#store-plan), [store link](#store-link), [store status](#store-status),
   [store verify](#store-verify), [store unlink](#store-unlink), [store prune](#store-prune)
@@ -37,9 +38,15 @@ A project id is the workspace-relative folder with forward slashes (`.` for the 
 commands force `--no-security` and some also `--no-usage` internally because they do not need them;
 the table of each command says which.
 
+`-p` and `-x` select the projects **before** analysis, so comparisons across the repository only
+see the selected projects: `check -p <one project>` has no `policy/group-divergence`,
+`policy/repository-target` or `api/migration-split` findings and no group alignment fixes, only the
+project's own checks (stack, peers, Node, lockfile, vulnerabilities, usage, API breaks and the
+profiles and pins of `packman.config.json` that match it).
+
 Commands without the common options (`node`, `spfx`, `store status`, `store unlink`,
-`store prune`, `log`, `data`, `ignore`, `hooks`) take only the options listed for them; most still
-accept `--lang`.
+`store prune`, `log`, `data`, `ignore`, `add`, `remove`, `hooks`) take only the options listed for
+them; most still accept `--lang`.
 
 ### Default command
 
@@ -298,6 +305,40 @@ Prints the SPFx compatibility matrix from `data/spfx.json` (version, Node range,
 `withdrawn`, `gulp`/`heft`). `--json` prints the whole matrix object (`verifiedAt`, `sources`,
 `notes`, `versions`, `compilers`, `lockstep`, `libraries`, `pnpjs`).
 
+### compat
+
+```text
+packman compat <package> [options] [path]
+```
+
+Everything packman knows about one package inside one project. Common options (security forced
+off; `-p` names the project, optional when the workspace has one project), plus:
+
+| Option           | Meaning                                                            |
+| ---------------- | ------------------------------------------------------------------ |
+| `--to <version>` | Target version or range to check against the current one.          |
+| `--json`         | Print the `CompatReport` (`src/policy/compat.ts`) instead of text. |
+
+Text output, in order:
+
+- **current**: resolved version and its source (`installed`, `lockfile`, `manifest`), declared spec
+  and section; or `not declared in this project`.
+- **Stack ranges**: SPFx lockstep or build tools version, the scaffold version, the PnP controls
+  line built for the project's SPFx (`spfx/library-target-mismatch`), the recommended PnPjs major,
+  the compiler's TypeScript, and framework matrix ranges (`data/frameworks.json`); each with
+  `current ok|x` and, with `--to`, `target ok|x`.
+- **Peer ranges of installed packages**: `peerDependencies` on the package declared by the
+  project's direct dependencies, read from the lockfile, judged the same way.
+- **Node**: the package's own `engines.node` (lockfile) against the project's selected Node.
+- **API breaks**: with `--to`, the documented breaks between the current and the target version
+  (`downgrade` when moving back); without it, every break ahead of the current version. Each gives
+  the guide, the `file:line` places in the project that use the API being left and the migration
+  steps ([Rules: API breaks](rules.md#api-breaks)).
+- **Path**: the versions to pass through (`3.26.0 -> 4.0.0 -> 4.12.0`).
+
+Exit code 1 when several projects are selected without `-p`
+(`Pass -p <project> to choose one of the N projects`).
+
 ---
 
 ## Fixes and edits
@@ -352,7 +393,14 @@ Modes:
 - `--package <name> [--version <v>]`: sets the declared spec of `<name>` in every section that
   declares it (`dependencies`, `devDependencies`, `optionalDependencies`; never
   `peerDependencies`) of every selected project. Fix `align/package`, risk `breaking` when a
-  declared major differs from the target, `review` otherwise.
+  declared major differs from the target, `review` otherwise. Before the preview, the peer ranges
+  on `<name>` declared by the packages each project installs directly (read from its lockfile) are
+  checked against the chosen version. Ranges that exclude it are printed as a warning,
+  `N peer ranges exclude <name>@<version>; run packman fix --apply first, it moves the packages that
+declare them:` followed by one `<project>: <package>@<version> wants <name>@<range>` line each. The
+  chosen version stays the most common one: the package declaring such a range is usually the one
+  off the stack (SPFx 1.18 with `rush-stack-compiler-5.3`), and `fix` moves it; aligning first would
+  fail `npm install` with `ERESOLVE`.
 - `--base <a>` without `--to`: lists up to 15 projects that share the most identical declared specs
   with `<a>`, then exits.
 - `--base <a> --to <b>`: prints the differing packages (`different`, `onlyBase`, `onlyTarget`) and
@@ -410,6 +458,108 @@ The profile JSON is always printed on stdout. Without `--write` it ends with
 `.packman/backups/`, journal `profile generate`) without a confirmation prompt. Exit code 1 when the
 `--tsconfig-from` project has no readable `tsconfig.json`.
 
+### add
+
+```text
+packman add <packages...> -p <globs...> [options]
+```
+
+Add packages to one or more projects the way the repository wants them: the version comes from what
+the group already uses, every write is checked first, and the install happens through the shared
+store when the project is linked. Packages are `name` or `name@range` (scoped names work). The
+packages are variadic, so the workspace root is `-C` and the projects `-p`, as in
+[`ignore`](#ignore). The whole workspace is analyzed even when one project is selected, so groups and
+links are known.
+
+| Option                  | Default | Meaning                                                                                                       |
+| ----------------------- | ------- | ------------------------------------------------------------------------------------------------------------- |
+| `-p, --project <globs>` |         | Required. Project ids or globs to change.                                                                     |
+| `-C, --cwd <path>`      | `.`     | Workspace root.                                                                                               |
+| `--depth <n>`           |         | How deep to search for projects.                                                                              |
+| `-D, --dev`             |         | Declare under `devDependencies` (moves the package if it was elsewhere).                                      |
+| `--exact`               |         | Pin registry picks to the exact version (default follows `policy.exactVersions`, which is `true`).            |
+| `--offline`             |         | Registry metadata from the cache only.                                                                        |
+| `--apply`               |         | Write the changes (backups in `.packman/backups`).                                                            |
+| `-y, --yes`             |         | Do not ask for confirmation.                                                                                  |
+| `--no-install`          |         | Only edit `package.json`; run neither npm nor a store rebuild.                                                |
+| `--refresh`             |         | Linked projects: resolve the store fresh instead of from the verified set.                                    |
+| `--verify [script]`     |         | Linked projects: run this npm script (default `build`) in every member after relinking; record verified sets. |
+| `--lang <language>`     |         | Output language.                                                                                              |
+
+`--refresh` and `--verify` concern linked projects only; for a project with its own `node_modules`,
+`--verify` prints `<project> has its own node_modules: --verify <script> applies to linked projects
+only, nothing was run` and nothing else happens.
+
+**Version choice** (`src/ops/add.ts`, printed as `project: name@spec -> section (source: detail)`),
+first match wins:
+
+1. `request`: the range given on the command line.
+2. `pin`: `policy.groups[].pins` of the project's version group.
+3. `group`: the spec other members of the version group declare (most common, verbatim, so the
+   union store keeps one spec per package).
+4. `profile`: a profile in `packman.config.json` whose `projects` match.
+5. `spfx-matrix`: SPFx lockstep packages get the project's exact SPFx version (build tools their
+   `buildToolsVersion`), PnP controls libraries the line built for that SPFx.
+6. `workspace`: the spec projects in other groups declare.
+7. `lockfile`: the version the project already resolves transitively.
+8. `registry`: the highest non-prerelease version whose `engines.node` accepts the project's Node and
+   whose peer ranges are met by what the project resolves (`latest` when it fits); exact by policy,
+   `^version` otherwise.
+
+Offline with nothing cached and no other source, the package is reported with
+`no version ... could be chosen offline` and nothing is written.
+
+**Checks** before writing (`!` errors stop the command with exit code 1 and
+`N checks failed; nothing was written.`; `~` warnings are printed and the write goes on):
+
+| Kind        | Severity        | Condition                                                                                                                                                                                                                                                                                                                                                                               |
+| ----------- | --------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `engines`   | error           | The chosen version's `engines.node` excludes the project's Node.                                                                                                                                                                                                                                                                                                                        |
+| `peer`      | error           | The chosen version wants a peer the project resolves at another version, or a package the project installs has a peer range on the new package that the version is outside of.                                                                                                                                                                                                          |
+| `lockstep`  | error           | An SPFx runtime or build package at another version than the project's SPFx (`data/spfx.json` lockstep lists).                                                                                                                                                                                                                                                                          |
+| `family`    | error           | `data/families.json`: a family member the project declares at another version (`same-version`) or major (`same-major`), e.g. `react-dom@19` next to `react@18`.                                                                                                                                                                                                                         |
+| `singleton` | warning         | A runtime singleton (`react`, `@microsoft/sp-*`, ...) already in the lockfile at another version.                                                                                                                                                                                                                                                                                       |
+| `group`     | error if linked | Other members of the version group declare another spec. For a linked project this would split the union group, so it stops with three options: use the group's spec, `packman align --package <name>` for the whole group and relink, or `packman store unlink -p <project> --restore` and install standalone. Unlinked: warning.                                                      |
+| `major`     | warning         | The chosen major differs from the group's. The fix is then `breaking`.                                                                                                                                                                                                                                                                                                                  |
+| `api`       | warning         | The edit moves an already declared package across a documented API break (`data/api-breaks.json`, see [Rules](rules.md)): the message names the break and its guide, then one line per `file:line` place that uses the old API (the selected projects' sources are scanned for this) and one per migration step. The fix is `breaking`; the shared apply flow does not repeat the note. |
+
+**Write**: the diff is printed; without `--apply` it stops with the dry-run notice. With `--apply`
+it asks (unless `-y`), backs up and writes `package.json` in the declared section (or the one `--dev`
+asks for), and journals `add`. No relock happens here; the install step owns the lockfile.
+
+**Install** (unless `--no-install`):
+
+- A project with its own `node_modules` runs `npm install --no-audit --no-fund` with its selected
+  Node (journal `add:install`) and then prints versions that moved away from its verified set.
+- A project linked to the shared store never runs npm in its directory. packman plans the union
+  group again, rebuilds the group's store from its verified set (`--refresh` resolves fresh), relinks
+  every member and writes their lockfiles from the store tree (lock sync), exactly as
+  `store link --of <project> --union` would (journal `add:store`). npm leftovers in linked folders
+  go to `.packman/trash`. With `--verify [script]` every member then runs the script with the group
+  Node and passing projects record verified sets (journal `add:verify`). If the project no longer
+  fits a shared group (`versions-differ`, excluded), the store is left as it is, the reason and the
+  options are printed and the exit code is 1; the manifest change stays (backup in
+  `.packman/backups`).
+
+Several projects can be selected; linked members of the same group are rebuilt once.
+
+### remove
+
+```text
+packman remove <packages...> -p <globs...> [options]
+```
+
+Remove packages from the selected projects' `dependencies`, `devDependencies` and
+`optionalDependencies` (`peerDependencies` are a contract and are left alone). Options as
+[`add`](#add) without `--dev` and `--exact`. A package the project does not declare prints
+`<project>: <name> is not declared, nothing to remove.`. Before the write the selected projects'
+sources and config files are scanned: a package that is still imported, referenced by a config file
+(`.eslintrc.js`, `tsconfig.json`), implied by one (`eslint` by `.eslintrc.js`) or called from an npm
+script prints `<project>: <name> is still used (<places>); removing it breaks the build or the
+tooling.` as a warning; the write still happens. After the write the install step is the one
+of [`add`](#add): npm in a standalone project, store rebuild and relink for a linked one (journal
+`remove`, `remove:install`, `remove:store`, `remove:verify`).
+
 ### install
 
 ```text
@@ -424,13 +574,25 @@ it), plus:
 | --------------- | -------- | ------------------------------------------------------------------------ |
 | `--mode <mode>` | `normal` | `normal`, `legacy-peer-deps`, `force`.                                   |
 | `--clean`       |          | Remove `node_modules` and lockfiles first, then install (2.x reinstall). |
+| `--sync-store`  |          | Rebuild and relink the store of groups with a stale linked project.      |
+| `--refresh`     |          | With `--sync-store`: resolve the store fresh, not from the verified set. |
 | `-y, --yes`     |          | Do not ask for confirmation.                                             |
+
+`--refresh` without `--sync-store` prints `--refresh has no effect without --sync-store.` and is
+ignored.
 
 npm arguments per project: `ci` when the project has an npm lockfile and the mode is not `force`,
 otherwise `install` (so yarn, pnpm and lockfile-less projects get `npm install`); plus
 `--legacy-peer-deps` or `--force` for those modes; always `--no-audit --no-fund`.
 
-- Projects linked to the shared store are listed as `linked to the store, skipped` and never run npm.
+- Projects linked to the shared store never run npm (it would replace the junctions with real
+  copies). Each is listed with what to do instead: `linked to the store, up to date (use packman add
+<pkg> -p <project> to change it)` when its manifest still matches the link record, or
+  `linked to the store, package.json changed: run packman add/remove, or packman store link --of
+<project> --union` when it is stale (`store status` says `stale`). `--sync-store` performs that
+  rebuild after the npm runs: for every group with a stale member it rebuilds the store from the
+  verified set, relinks all members and writes their lockfiles (journal `install:sync-store`); a
+  member that no longer fits a group is reported with the options and exit code 1.
 - A project with an `npm/lockfile-drift` finding is not installed (unless `--mode force`): it prints
   `package-lock.json does not match package.json; run packman relock and review the changes` and the
   exit code becomes 1. The other projects still run.
@@ -442,7 +604,7 @@ missing ranges and exits 1 without removing anything), lists what it removes, as
 `Clean and reinstall N projects?`, removes `node_modules` and the lockfile of every non-linked
 project, runs the install without asking again (npm resolves every version afresh, so it runs
 `npm install`), and finally prints the versions that moved away from each project's verified set.
-Journal commands: `install`, `install:clean`.
+Journal commands: `install`, `install:clean`, `install:sync-store`.
 
 ### clean
 
@@ -543,6 +705,7 @@ Converge projects on the newest stack already present in the repository. Full ex
 | `--install`                | Install migrated projects (`npm install` with the plan's Node).                                                                                 |
 | `--shared`                 | Install once, delete local modules and link the migrated group; back up manifests/locks only.                                                   |
 | `--verify`                 | Install and run the build (or test) script of every migrated project.                                                                           |
+| `--no-policy`              | Migrate the projects only: no `upgrade/policy` fix, so `packman.config.json` (targets, `packman-<stack>` profiles and groups) is left as it is. |
 | `-y, --yes`                | Do not ask for confirmation.                                                                                                                    |
 
 Without `--apply` it prints the plan and the diff and writes nothing. Exit codes: 1 when the plan has
@@ -571,7 +734,22 @@ Which projects can share one install. Common options (security and usage forced 
 
 Text: each group with its key, Node and members, its warnings, then candidates that cannot share yet
 (`~ versions-differ: ...` with `align first: <packages>`, `node-differs`, `lockfile-differs`).
-Excluded projects are only in `--json`.
+When any candidate has packages to align, one line gives the order:
+`packman check`, then `packman fix --apply`, then `packman align --package <name>` (align picks the
+most common version; fix first moves the packages whose peer ranges would reject it, see
+[align](#align)). Excluded projects are only in `--json`.
+
+Warnings (`! ...` under a group, [stack notes](shared-store.md#stack-notes)):
+
+- `vite: set cacheDir per project, node_modules/.vite would be shared`: exact groups only, where
+  `node_modules` is one junction. Union groups keep Vite's cache in each project's own folder and
+  get no warning.
+- `spfx: run packman store verify (gulp/heft build) on the linked projects`.
+- `<project>: gulpfile.js webpack rule include|exclude matches <project>/node_modules, but webpack
+resolves linked packages to the store; wrap that path in fs.realpathSync(...)`: the project's
+  `gulpfile.js` has a webpack rule condition built with `path.join`/`path.resolve(__dirname,
+'node_modules', ...)`, which stops matching once the package is a junction into the store. Only a
+  direct call in `gulpfile.js` is detected, not Heft or separate webpack configs.
 
 `--json`: `{ groups: [{ key, mode: "exact"|"union", projectIds, node?, nodeMajor?, lockSource?,
 manifest?, warnings }], candidates: [{ projectIds, reason, packages? }], excluded: [{ projectId,
@@ -631,6 +809,10 @@ packman store verify [options] [path]
 
 Run an npm script in every linked project with the project's selected Node. Common options (security
 and usage forced off), plus `--script <name>` (default `build`).
+
+For SPFx projects on gulp, `build` from the scaffold runs `gulp bundle` without `--ship`, so it does
+not prove a production bundle. Pass the script that does, for example
+`packman store verify --script buildp` when `buildp` runs `gulp bundle --ship`.
 
 A project without a compatible Node is reported and sets exit code 1. A failing script sets the exit
 code to the script's. Each run is journaled (`store verify`). Afterwards, every passing project with
@@ -692,7 +874,8 @@ no confirmation).
 packman sp seed [options] [path]
 ```
 
-Create the lists, columns, items and files of `packman.sharepoint.json` (dry run unless `--apply`).
+Create the lists, columns, items, files, content types, pages and subsites of
+`packman.sharepoint.json` (dry run unless `--apply`).
 Common options are accepted; project selection does not apply. Plus:
 
 | Option         | Meaning                                         |
@@ -730,6 +913,10 @@ Load every SPFx component from its dev server into a SharePoint dev site. Common
 | `--port <n>`   | Browser debugging port (default 9333).                                 |
 | `--json`       | Print the results as JSON.                                             |
 | `--properties` | Also drive every property pane control of each web part.               |
+
+Projects are served with `gulp serve` or `heft start`. Web parts load in the workbench, or on the
+page named by `components.<alias>.page`, with `components.<alias>.properties` when set; see
+[SharePoint testing](sharepoint-testing.md#5-test).
 
 Writes `.packman/validation/<ISO time>-sharepoint/` (`summary.json`, screenshots, dev server logs).
 Exit code 1 when a component or project failed, or when `--properties` could not open the property

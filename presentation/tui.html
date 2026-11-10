@@ -1,0 +1,455 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>packman terminal UI</title>
+    <meta
+      name="description"
+      content="The interactive packman terminal interface: seven tabs, keys, selecting and applying fixes."
+    />
+    <link
+      rel="icon"
+      href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%231f6f43'/%3E%3Ctext x='16' y='22' font-family='monospace' font-size='16' font-weight='700' text-anchor='middle' fill='white'%3Epm%3C/text%3E%3C/svg%3E"
+    />
+    <script>
+      try {
+        var t = localStorage.getItem('pm-theme');
+        if (t === 'light' || t === 'dark') document.documentElement.setAttribute('data-theme', t);
+      } catch (e) {}
+    </script>
+    <link rel="stylesheet" href="assets/site.css" />
+  </head>
+  <body data-page="tui">
+    <a class="skip" href="#main">Skip to content</a>
+    <header class="site-header">
+      <div class="header-inner">
+        <a class="brand" href="index.html"
+          ><span class="brand-mark" aria-hidden="true">pm</span>packman
+          <small>3.0.0-alpha.0</small></a
+        >
+        <button
+          class="icon-btn menu-btn"
+          type="button"
+          aria-expanded="false"
+          aria-controls="main-nav"
+          aria-label="Menu"
+        >
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            aria-hidden="true"
+          >
+            <path d="M4 7h16M4 12h16M4 17h16" />
+          </svg>
+        </button>
+        <nav class="main-nav" id="main-nav" aria-label="Site sections">
+          <a href="index.html">Home</a>
+          <a href="guide.html">Guide</a>
+          <a href="simulator.html">Simulator</a>
+          <a href="commands.html">Commands</a>
+          <a href="rules.html">Rules</a>
+          <a href="tui.html" aria-current="page">TUI</a>
+          <a href="config.html">Configuration</a>
+          <a href="troubleshooting.html">Troubleshooting</a>
+          <a href="changelog.html">Changelog</a>
+        </nav>
+        <div class="header-tools">
+          <button class="icon-btn search-btn" type="button" data-open-search aria-haspopup="dialog">
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              aria-hidden="true"
+            >
+              <circle cx="11" cy="11" r="7" />
+              <path d="m20 20-3.5-3.5" /></svg
+            ><span class="label">Search</span><kbd>/</kbd>
+          </button>
+          <button
+            class="icon-btn"
+            type="button"
+            id="theme-toggle"
+            aria-label="Theme: system"
+            title="Switch theme"
+          >
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              aria-hidden="true"
+            >
+              <path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z" />
+            </svg>
+          </button>
+        </div>
+      </div>
+    </header>
+    <div class="page with-toc">
+      <nav class="toc" aria-label="Page sections">
+        <details open>
+          <summary class="visually-hidden">Sections</summary>
+          <h2>On this page</h2>
+          <ol id="toc-list"></ol>
+        </details>
+      </nav>
+      <main id="main" class="content" tabindex="-1">
+        <p class="eyebrow">Interface</p>
+        <h1>TUI</h1>
+        <p class="lead">
+          <code>packman</code> without a command in an interactive terminal (stdin and stdout are a
+          TTY, <code>CI</code> is not set) opens the TUI on the alternate screen. Explicitly:
+          <code>packman tui [path]</code> with the same <code>-p</code>, <code>-x</code>,
+          <code>--depth</code>, <code>--offline</code>, <code>--no-security</code>,
+          <code>--no-usage</code>. The description below follows the code of
+          <code>src/tui/App.tsx</code>.
+        </p>
+
+        <h2 id="layout">What is on the screen</h2>
+        <ul>
+          <li>
+            <strong>Header:</strong> "packman report" and the workspace root; on the right the
+            counts <code>critical/error/warning/info</code>.
+          </li>
+          <li>
+            <strong>Tabs</strong> numbered 1-7; Fixes shows the number of selected fixes in
+            brackets; next to them the filter "showing ... and worse".
+          </li>
+          <li>
+            <strong>Tab content</strong>: a list with a <code>›</code> cursor and, for the selected
+            row, a box with details.
+          </li>
+          <li>
+            <strong>Key hints</strong> at the bottom; while loading, the progress is shown as
+            <code>packman… [3/7] webparts/team-calendar</code>.
+          </li>
+        </ul>
+
+        <h2 id="mock">Tab mock-up</h2>
+        <p>
+          The mock-up reproduces the <code>App.tsx</code> layout with data from the synthetic demo
+          repository (seven projects: SPFx 1.18.2 and 1.21.1, a React library, two Vite apps in the
+          store). Switch tabs with the mouse, or with the arrows and digits 1-7 when the tabs have
+          focus.
+        </p>
+        <div class="tui tui-mock">
+          <div class="tui-bar">
+            <span><b>packman report</b> C:\repo\site-demo</span
+            ><span
+              ><span style="color: var(--term-red)">0</span>/<span style="color: var(--term-red)"
+                >5</span
+              >/<span style="color: var(--term-yellow)">26</span>/<span
+                style="color: var(--term-cyan)"
+                >12</span
+              ></span
+            >
+          </div>
+          <div class="tui-tabs" role="tablist" data-tabs aria-label="TUI tabs">
+            <button class="tui-tab" role="tab" id="t1" aria-controls="p1" aria-selected="true">
+              1 Overview
+            </button>
+            <button class="tui-tab" role="tab" id="t2" aria-controls="p2">2 Projects</button>
+            <button class="tui-tab" role="tab" id="t3" aria-controls="p3">3 Versions</button>
+            <button class="tui-tab" role="tab" id="t4" aria-controls="p4">4 Outdated</button>
+            <button class="tui-tab" role="tab" id="t5" aria-controls="p5">5 Node</button>
+            <button class="tui-tab" role="tab" id="t6" aria-controls="p6">6 Store</button>
+            <button class="tui-tab" role="tab" id="t7" aria-controls="p7">7 Fixes (2)</button>
+          </div>
+          <div role="tabpanel" id="p1" aria-labelledby="t1" tabindex="0">
+            <pre><b>Version groups</b>
+  spfx@1.18.2 / node 18<span style="color:var(--term-green)"> [baseline]</span><span style="color:var(--term-dim)">  2 · node 18.20.8</span>
+  spfx@1.21.1 / node 22<span style="color:var(--term-dim)">  2 · node 22.23.4</span>
+  vite@7.3.7 / node 26<span style="color:var(--term-dim)">  2 · node 26.13.0</span>
+  react@18.3.1 / node 26<span style="color:var(--term-dim)">  1 · node 26.13.0</span>
+
+<b>Workspace findings</b>
+<span style="color:var(--term-green)">› </span><span style="color:var(--term-red)">x </span><b>Group "spfx@1.18.2 / node 18": typescript has 2 versions, align to 5.3.3</b><span style="color:var(--term-dim)"> policy/group-divergence</span>
+  <span style="color:var(--term-yellow)">! </span>Group "spfx@1.18.2 / node 18": @microsoft/sp-build-web has 2 versions ...<span style="color:var(--term-dim)"> policy/group-divergence</span>
+  <span style="color:var(--term-cyan)">i </span>Projects need 3 different Node lines<span style="color:var(--term-dim)"> policy/node-fragmentation</span>
+  <span style="color:var(--term-cyan)">i </span>Newest spfx already in this repository: 1.21.1 (apps/footer)<span style="color:var(--term-dim)"> policy/repository-target</span>
+
+<span style="color:var(--term-dim)">Only findings without a project are here: group divergence (policy/group-divergence),
+Node fragmentation, pin violations, repository targets. Project findings: tab 2.</span></pre>
+          </div>
+          <div role="tabpanel" id="p2" aria-labelledby="t2" tabindex="0" hidden>
+            <pre>  0/0/3/3  apps/footer<span style="color:var(--term-dim)">  spfx@1.21.1 react@17.0.1 typescript@5.3.3  node 22.19.0</span>
+  0/2/5/2  apps/news-feed<span style="color:var(--term-dim)">  spfx@1.21.1 react@17.0.1 typescript@5.3.3  node 22.19.0</span>
+  0/1/3/1  libs/ui-kit<span style="color:var(--term-dim)">  react@18.3.1 typescript@5.9.3  node 24.9.0</span>
+<span style="color:var(--term-green)">› </span>0/1/5/1  <b>webparts/team-calendar</b><span style="color:var(--term-dim)">  spfx@1.18.2 react@17.0.1 typescript@4.7.4  node 18.20.8</span>
+
+<span style="color:var(--term-dim)">Enter opens the project:</span>
+<b>webparts/team-calendar</b> <span style="color:var(--term-dim)">spfx@1.18.2, react@17.0.1, typescript@4.7.4, eslint@8.7.0</span>
+<span style="color:var(--term-dim)">Node: installed 18.20.8 (nvm-windows), recommended 18.20.8 · Runs in: browser · Network calls</span>
+
+<span style="color:var(--term-green)">› </span><span style="color:var(--term-red)">x </span><span style="color:var(--term-green)">[x] </span><b>3 SPFx packages are not on SPFx 1.18.2 (runtime and build tools must match)</b><span style="color:var(--term-dim)"> spfx/lockstep-mismatch</span>
+  <span style="color:var(--term-yellow)">! </span>Node 18.20.8 reached end of life on 2025-04-30<span style="color:var(--term-dim)"> node/eol</span>
+  <span style="color:var(--term-yellow)">! </span><span style="color:var(--term-green)">[x] </span>4 dependencies use version ranges instead of exact versions<span style="color:var(--term-dim)"> npm/range-spec</span>
+  <span style="color:var(--term-yellow)">! </span>PnPjs v3 is not the recommended major for SPFx 1.18.2 (recommended v4)<span style="color:var(--term-dim)"> spfx/pnpjs-major</span>
+╭──────────────────────────────────────────────────────────╮
+│ <span style="color:var(--term-green)">→ Set all SPFx packages to 1.18.2 [review]</span>               │
+╰──────────────────────────────────────────────────────────╯</pre>
+          </div>
+          <div role="tabpanel" id="p3" aria-labelledby="t3" tabindex="0" hidden>
+            <pre><span style="color:var(--term-green)">› </span><span style="color:var(--term-yellow)">≠ </span><b>@pnp/sp</b><span style="color:var(--term-dim)">  4.22.0 · 3.26.0</span>
+  <span style="color:var(--term-yellow)">≠ </span>typescript<span style="color:var(--term-dim)">  5.3.3 · 4.7.4 · 5.9.3</span>
+  <span style="color:var(--term-yellow)">≠ </span>react<span style="color:var(--term-dim)">  17.0.1 · 18.3.1</span>
+╭──────────────────────────────────────╮
+│ <b>4.22.0</b>   <span style="color:var(--term-dim)">apps/footer, apps/news-feed</span> │
+│ <b>3.26.0</b>   <span style="color:var(--term-dim)">webparts/team-calendar</span>      │
+╰──────────────────────────────────────╯
+<span style="color:var(--term-dim)">Space selects the alignment (like align --package): the row becomes [x] and goes to Fixes.</span></pre>
+          </div>
+          <div role="tabpanel" id="p4" aria-labelledby="t4" tabindex="0" hidden>
+            <pre><span style="color:var(--term-dim)">Asking the npm registry… (only the first time the tab opens)</span>
+
+<span style="color:var(--term-green)">› </span><span style="color:var(--term-dim)">[ ] </span><b>@pnp/sp</b><span style="color:var(--term-dim)">  webparts/team-calendar  3.26.0</span> → 3.26.0<span style="color:var(--term-red)">  latest 4.22.0</span>
+  <span style="color:var(--term-dim)">[ ] </span>@rushstack/eslint-config<span style="color:var(--term-dim)">  apps/footer  4.0.1</span> → 4.9.0<span style="color:var(--term-dim)">  latest 4.9.0</span>
+  <span style="color:var(--term-dim)">[ ] </span>eslint<span style="color:var(--term-dim)">  apps/footer  8.57.1</span> → 8.57.1<span style="color:var(--term-red)">  latest 10.14.0</span><span style="color:var(--term-red)"> deprecated</span>
+╭─────────────────────────────────────────────────────────────────────╮
+│ @pnp/sp ^3.20.1: wanted 3.26.0, newest in major 3.26.0, latest 4.22.0 │
+╰─────────────────────────────────────────────────────────────────────╯
+<span style="color:var(--term-dim)">Space: update within the major (outdated/in-major, review risk); exact, ^ and ~ versions only.
+A red latest means a new major version.</span></pre>
+          </div>
+          <div role="tabpanel" id="p5" aria-labelledby="t5" tabindex="0" hidden>
+            <pre><span style="color:var(--term-green)">› </span>24.9.0    <span style="color:var(--term-dim)">nvm-windows  </span><span style="color:var(--term-yellow)">maintenance-lts  </span><span style="color:var(--term-red)">44 CVE</span><span style="color:var(--term-dim)">  3 projects  latest 24.22.2</span>
+  22.19.0   <span style="color:var(--term-dim)">nvm-windows  </span><span style="color:var(--term-yellow)">maintenance-lts  </span><span style="color:var(--term-red)">41 CVE</span><span style="color:var(--term-dim)">  2 projects  latest 22.23.4</span>
+  18.20.8   <span style="color:var(--term-dim)">nvm-windows  </span><span style="color:var(--term-red)">eol              EOL: 0 known CVE, later ones not assessed or patched</span><span style="color:var(--term-dim)">  2 projects</span>
+  16.13.2   <span style="color:var(--term-dim)">nvm-windows  </span><span style="color:var(--term-red)">eol              EOL: 22 known CVE, ...</span><span style="color:var(--term-dim)">  0 projects</span></pre>
+          </div>
+          <div role="tabpanel" id="p6" aria-labelledby="t6" tabindex="0" hidden>
+            <pre><span style="color:var(--term-green)">› </span><b>u-eaf20a5bba78ca0a</b><span style="color:var(--term-dim)">  union · 2 · node 24.9.0</span><span style="color:var(--term-green)">  2/2 linked</span>
+  u-ad558c651b68f3cf<span style="color:var(--term-dim)">  union · 2 · node 22.19.0</span>
+╭──────────────────────────────────────────────────────────────────╮
+│ <span style="color:var(--term-green)">↔ </span>tools/vite-dashboard                                           │
+│ <span style="color:var(--term-green)">↔ </span>tools/vite-reports                                             │
+│ <span style="color:var(--term-dim)">Link with: packman store link -g u-eaf20a5bba --union</span>           │
+│ <span style="color:var(--term-dim)">(installs, then replaces node_modules)</span>                           │
+╰──────────────────────────────────────────────────────────────────╯
+<span style="color:var(--term-dim)">Read-only tab: the union plan. The ↔ mark: the project is already linked to the store.</span></pre>
+          </div>
+          <div role="tabpanel" id="p7" aria-labelledby="t7" tabindex="0" hidden>
+            <pre><span style="color:var(--term-green)">› </span><b>webparts\team-calendar\package.json</b>
+╭──────────────────────────────────────────────────────╮
+│ <span style="color:var(--term-red)">-     "@microsoft/sp-build-web": "1.21.1",</span>         │
+│ <span style="color:var(--term-green)">+     "@microsoft/sp-build-web": "1.18.2",</span>         │
+╰──────────────────────────────────────────────────────╯
+<span style="color:var(--term-yellow)"><b>Apply 2 changes to 1 files? [y/N]</b></span>
+<span style="color:var(--term-dim)">(after a; y confirms, also s or т; any other key cancels)</span></pre>
+          </div>
+          <div class="tui-keys">
+            <b>↑↓</b> move · <b>tab</b> tabs · <b>enter</b> open · <b>esc</b> back ·
+            <b>space</b> select fix · <b>u</b> profiles · <b>s</b> severity · <b>a</b> apply ·
+            <b>r</b> reload · <b>q</b> quit
+          </div>
+        </div>
+
+        <h2 id="tabs">Tabs</h2>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th scope="col">#</th>
+                <th scope="col">Tab</th>
+                <th scope="col">What it shows</th>
+                <th scope="col">Space</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>1</td>
+                <td>Overview</td>
+                <td>
+                  Version groups (up to 6) with the baseline and Node; workspace findings with the
+                  details and fixes of the selected one.
+                </td>
+                <td>select every fix of the finding</td>
+              </tr>
+              <tr>
+                <td>2</td>
+                <td>Projects</td>
+                <td>
+                  Counts, id, stacks, Node. Enter opens a project: Node (installed and recommended),
+                  where the code runs, network calls, findings with evidence (up to 8 lines).
+                </td>
+                <td>in a project: select the fix of the finding</td>
+              </tr>
+              <tr>
+                <td>3</td>
+                <td>Versions</td>
+                <td>
+                  Only packages with different versions; the box shows which projects use which
+                  version.
+                </td>
+                <td>align the package (<code>align/package</code>)</td>
+              </tr>
+              <tr>
+                <td>4</td>
+                <td>Outdated</td>
+                <td>
+                  Asks the npm registry the first time the tab opens: current, newest in major,
+                  latest, deprecated.
+                </td>
+                <td>update within the major (<code>outdated/in-major</code>)</td>
+              </tr>
+              <tr>
+                <td>5</td>
+                <td>Node</td>
+                <td>
+                  Installed Node versions: manager, support phase, CVEs, how many projects use each,
+                  latest of the line.
+                </td>
+                <td>-</td>
+              </tr>
+              <tr>
+                <td>6</td>
+                <td>Store</td>
+                <td>
+                  The union plan: key, mode, size, Node, how many are linked already; members,
+                  warnings and a ready <code>store link</code> command. Read-only.
+                </td>
+                <td>-</td>
+              </tr>
+              <tr>
+                <td>7</td>
+                <td>Fixes</td>
+                <td>Files the selected fixes change, and the diff of the selected file.</td>
+                <td>-</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h2 id="keys">Keys</h2>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th scope="col">Key</th>
+                <th scope="col">Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><kbd>↑</kbd> <kbd>↓</kbd> / <kbd>k</kbd> <kbd>j</kbd></td>
+                <td>
+                  move the cursor; <kbd>PgUp</kbd> <kbd>PgDn</kbd> by the list height,
+                  <kbd>Home</kbd> <kbd>End</kbd> to the edge
+                </td>
+              </tr>
+              <tr>
+                <td>
+                  <kbd>Tab</kbd>, <kbd>→</kbd> / <kbd>Shift</kbd>+<kbd>Tab</kbd>, <kbd>←</kbd>
+                </td>
+                <td>next / previous tab (not in project details)</td>
+              </tr>
+              <tr>
+                <td><kbd>1</kbd>...<kbd>7</kbd></td>
+                <td>go to the tab</td>
+              </tr>
+              <tr>
+                <td><kbd>Enter</kbd></td>
+                <td>open a project (Projects tab)</td>
+              </tr>
+              <tr>
+                <td><kbd>Esc</kbd> / <kbd>Backspace</kbd></td>
+                <td>close project details</td>
+              </tr>
+              <tr>
+                <td><kbd>Space</kbd></td>
+                <td>select or deselect the fix of the row</td>
+              </tr>
+              <tr>
+                <td><kbd>u</kbd></td>
+                <td>
+                  select or deselect every profile fix (<code>profile/*</code>), like
+                  <code>profile apply</code>
+                </td>
+              </tr>
+              <tr>
+                <td><kbd>s</kbd></td>
+                <td>cycle the minimum severity: info, warning, error, critical</td>
+              </tr>
+              <tr>
+                <td><kbd>a</kbd></td>
+                <td>
+                  in the Fixes tab: apply; then <kbd>y</kbd> confirms (also <kbd>s</kbd> for Italian
+                  and <kbd>т</kbd> for Ukrainian), any other key cancels
+                </td>
+              </tr>
+              <tr>
+                <td><kbd>r</kbd></td>
+                <td>
+                  reread the configuration, manifests, lockfiles and installed versions; the
+                  selection is reset
+                </td>
+              </tr>
+              <tr>
+                <td><kbd>q</kbd> / <kbd>Ctrl</kbd>+<kbd>C</kbd></td>
+                <td>quit</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h2 id="apply">What applying does</h2>
+        <ul>
+          <li>
+            Writes the selected changes with a backup in
+            <code>.packman/backups/&lt;time&gt;/</code> and rereads the report.
+          </li>
+          <li>
+            Does <strong>not</strong> relock and does <strong>not</strong> write to the journal.
+            After version edits run <code>packman relock -p &lt;project&gt;</code>.
+          </li>
+          <li>
+            Fixes of any risk can be selected by hand: the TUI does not filter by
+            <code>--risk</code>; the risk is shown in the box as <code>[safe]</code>,
+            <code>[review]</code>, <code>[breaking]</code>.
+          </li>
+        </ul>
+        <div class="callout">
+          <p>
+            The TUI does not install packages, link the store or run npm: use the CLI for that
+            (<code>install</code>, <code>store link</code>, <code>relock</code>).
+          </p>
+        </div>
+      </main>
+    </div>
+    <footer class="site-footer">
+      <div class="footer-inner">
+        <span>packman 3.0.0-alpha.0 · branch <code>feat/packman-3</code> · license MIT</span>
+        <span
+          >Generated from the code (<code>src/cli/**</code>, <code>docs/rules.md</code>) ·
+          <span id="gen-date"></span
+        ></span>
+      </div>
+    </footer>
+    <dialog class="search" id="search-dialog" aria-label="Site search">
+      <div class="search-head">
+        <label class="visually-hidden" for="search-input">Search for</label>
+        <input
+          id="search-input"
+          type="search"
+          placeholder="Command, option, rule, message..."
+          autocomplete="off"
+          role="combobox"
+          aria-expanded="true"
+          aria-controls="search-results"
+          aria-autocomplete="list"
+        />
+        <button class="icon-btn" type="button" data-close-search aria-label="Close search">
+          Esc
+        </button>
+      </div>
+      <ul class="search-results" id="search-results" role="listbox" aria-label="Results"></ul>
+    </dialog>
+    <script src="assets/data.js"></script>
+    <script src="assets/notes.js"></script>
+    <script src="assets/site.js"></script>
+  </body>
+</html>

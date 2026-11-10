@@ -9,6 +9,7 @@ reference: [Commands](commands.md#store).
 packman store plan --union                       # what can share, or what to align first
 packman store link --group u-1a2b --union        # install once and link
 packman store verify --script build              # build every linked project
+packman store verify --script buildp             # SPFx: a script that runs gulp bundle --ship
 packman store status                             # ok / stale / drift per linked project
 packman store link --of apps/news --union        # relink a project's current group
 packman store unlink [--restore]
@@ -87,9 +88,10 @@ locks, `store link --of <project>` finds the group the project belongs to now.
 3. Reuses `.packman/store/<key>/` when its `.packman-ready.json` names the same key and Node and its
    `node_modules` exists. A store that is linked but not completed is refused (`unlink its projects
 before rebuilding`).
-4. Otherwise writes `package.json` (and the lockfile: exact mode the source lockfile; union mode the
-   verified store lockfile when there is one, otherwise none) and runs the install with the group's
-   Node. A nonzero exit, a missing `node_modules` or a missing `package-lock.json` stops with
+4. Otherwise removes whatever an interrupted install left in the store's `node_modules` (npm fails
+   with `ENOTEMPTY` on its own half-written tree), writes `package.json` (and the lockfile: exact
+   mode the source lockfile; union mode the verified store lockfile when there is one, otherwise
+   none) and runs the install with the group's Node. A nonzero exit, a missing `node_modules` or a missing `package-lock.json` stops with
    `...; nothing was linked`.
 5. Checks every dependency edge of the installed tree ([tree check](#tree-check)). A broken edge
    stops with `store <key> has dependencies outside their ranges; nothing was linked` and up to 20
@@ -138,11 +140,20 @@ check:
 1. `package.json` and lockfiles of every member are backed up in `.packman/backups/`.
 2. Each member's `package-lock.json` (or the existing npm lockfile path) is rewritten as
    `lockfileVersion: 3` containing the project's own root entry (dependencies, engines) and exactly
-   the store entries reachable from its non-peer dependencies, keeping nested and hoisted locations.
+   the store entries reachable from its non-peer dependencies.
+3. The subset is hoisted the way a standalone `npm ci` would lay it out (`hoistLockTree`). In the
+   store a package is nested because the top-level slot holds another member's version; alone, the
+   project would get it at the top, and tools that load packages the project never declared
+   (`.eslintrc.js` with `@rushstack/eslint-config/patch/...`) rely on that. Each nested package whose
+   top-level slot is free moves to the top, shallowest copy first, with its own nested packages; a
+   dependency it found next to it and would no longer reach is copied under it. A move is kept only
+   when every package still resolves each dependency to the same copy. Peer dependencies resolve
+   from the parent level up (`resolveEdge`), as npm does, and are never nested under the package that
+   declares them.
 
-The members' lockfiles then lock the versions they actually run with, so a later standalone install
-reproduces them. Only a tree that passed the edge check is ever written back. A yarn or pnpm project
-gets a new `package-lock.json` next to its own lockfile.
+The members' lockfiles then lock the versions they actually run with, laid out so that a later
+standalone `npm ci` reproduces them. Only a tree that passed the edge check is ever written back. A
+yarn or pnpm project gets a new `package-lock.json` next to its own lockfile.
 
 ## Junction layout
 
@@ -221,8 +232,46 @@ Installed modules are never backed up: `unlink --restore` restores manifests and
 npm never touches the store from a linked project (junctions are not followed for writes), but it
 changes the project: `npm install` and `npm update` replace links with real copies, `npm install <pkg>`
 adds folders the group does not have, `npm uninstall` removes links, and `npm ci` replaces the whole
-folder. `packman install` and `packman relock` skip linked projects; `packman upgrade` refuses linked
-projects unless `--shared` is given.
+folder. `packman install` never runs npm in a linked project and prints what to do instead (`up to
+date`, or `package.json changed: run packman add/remove, or packman store link --of <project>
+--union`; `install --sync-store` does that rebuild); `packman relock` skips linked projects;
+`packman upgrade` refuses linked projects unless `--shared` is given.
+
+## Adding a package to a linked project
+
+```bash
+packman add @pnp/sp -p apps/news                   # preview: version, source, checks
+packman add @pnp/sp -p apps/news --apply -y        # write, rebuild the group store, relink, sync locks
+packman add @pnp/sp -p apps/news --apply -y --verify buildp
+packman remove @pnp/sp -p apps/news --apply -y
+```
+
+`packman add` ([commands](commands.md#add)) is the way to change dependencies of a project in the
+store; a bare `npm install <pkg>` in the project would break its links. What happens, in order:
+
+1. **Version**: without a range, the spec the group already declares for that package (verbatim, so
+   the union keeps one spec per package); else a group pin, a profile, the SPFx matrix (lockstep
+   packages exact, PnP controls library line), what other groups use, the version the project already
+   resolves transitively, and last the registry (highest version compatible with the group Node and
+   the peers the project resolves). The source is printed next to the choice.
+2. **Checks**: engines, peer ranges in both directions, SPFx lockstep, package families and runtime
+   singletons (`data/families.json`), and the group: a spec other members declare differently would
+   make the group a `versions-differ` candidate, so for a linked project this is an error with three
+   options (use the group's spec; `packman align --package <name>` for the whole group, then relink;
+   or `packman store unlink -p <project> --restore` and install standalone). Nothing is written when
+   a check fails.
+3. **Write**: diff, `--apply`, confirmation, backup in `.packman/backups`, journal `add`.
+4. **Store**: `planStore --union` on the fresh analysis finds the project's group (its key changed
+   with the manifest), `linkGroup` builds `.packman/store/<new key>/` from the group's verified set
+   (`--refresh` resolves fresh), checks the tree edge by edge, writes every member's lockfile from the
+   store tree (lock sync, usable by a standalone `npm ci`) and relinks all members; copies npm left in
+   linked folders go to `.packman/trash`. The old store folder stays until `store prune`.
+5. **Verify** (`--verify [script]`): the script runs in every member with the group Node; when all
+   pass, the new store lockfile becomes the group's verified set and seeds the next rebuild.
+
+A package the group cannot agree on (incompatible with other members) is the moment to decide:
+align the whole group, or move the project to its own group (its own `policy.groups` entry) and link
+that group with `store link --of <project> --union`.
 
 ### Relinking
 
@@ -285,5 +334,23 @@ call by hand); `packman hooks uninstall` removes only files with the marker.
 
 ## Stack notes
 
-`store plan` adds warnings: Vite projects should set `cacheDir` per project (`node_modules/.vite`
-would be shared), and SPFx groups should run `packman store verify` after linking.
+`store plan` adds warnings per group (`stackWarnings`):
+
+- **Vite, exact groups only**: `vite: set cacheDir per project, node_modules/.vite would be shared`.
+  In `folder` mode `node_modules` is one junction into the store, so Vite's default `cacheDir`
+  (`node_modules/.vite`) would be shared by every member. Union groups keep a real `node_modules`
+  folder per project, where `.vite` and `.vite-temp` stay local, so they get no warning.
+- **SPFx**: `spfx: run packman store verify (gulp/heft build) on the linked projects`. The SPFx
+  scaffold's `build` script does not pass `--ship`, so a production check needs a script that does:
+  `packman store verify --script buildp` (or whatever script in your projects runs
+  `gulp bundle --ship`).
+- **gulpfile webpack rules against `<project>/node_modules`**: when a member's `gulpfile.js` contains
+  a webpack rule with `include:` or `exclude:` set to `path.join(__dirname, 'node_modules', ...)` or
+  `path.resolve(__dirname, 'node_modules', ...)`, the warning reads
+  `<project>: gulpfile.js webpack rule include matches <project>/node_modules, but webpack resolves
+linked packages to the store; wrap that path in fs.realpathSync(...)`. Webpack follows the junction
+  to the package's real path under `.packman/store/...`, so the condition stops matching and the
+  package is bundled without its loader (SPFx 1.18 GlobalLoader: `Module parse failed`). Wrapping the
+  path in `fs.realpathSync(...)` makes the rule match the store path. The detector only reads a direct
+  `path.join`/`path.resolve(__dirname, 'node_modules'` call in `gulpfile.js`; rules in Heft or separate
+  webpack config files are not inspected.

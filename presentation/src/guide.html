@@ -1,0 +1,655 @@
+<!-- {"title": "packman user guide", "description": "Step-by-step packman scenarios: one project, the whole repository, the shared store, SharePoint, safe changes."} -->
+<p class="eyebrow">Guide</p>
+<h1>Working with packman</h1>
+<p class="lead">
+  Scenarios from simple to advanced. Output marked "captured live" comes from a synthetic demo
+  repository <code>C:\repo\site-demo</code>: SPFx 1.21.1 (<code>apps/news-feed</code>,
+  <code>apps/footer</code>), SPFx 1.18.2 (<code>webparts/team-calendar</code> with the 1.21.1 build
+  toolchain, <code>webparts/people-directory</code> with a TypeScript that does not match its
+  compiler), the <code>libs/ui-kit</code> library and two identical Vite apps
+  <code>tools/vite-*</code>, already linked to the shared store. Every name is invented.
+</p>
+
+<h2 id="concepts">Key concepts</h2>
+<div class="table-wrap">
+  <table>
+    <thead>
+      <tr>
+        <th scope="col">Concept</th>
+        <th scope="col">What it is</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>Workspace</td>
+        <td>
+          The folder packman runs in (the <code>[path]</code> argument, default <code>.</code>). A
+          project is any folder with a <code>package.json</code> down to depth 4; the project id is
+          its relative path with <code>/</code>.
+        </td>
+      </tr>
+      <tr>
+        <td>Stack provider</td>
+        <td>
+          A module that recognizes a framework and checks its rules: <code>npm</code> (every
+          project), <code>spfx</code>, React, TypeScript, Vite, Next.js, Angular, Vue, Electron,
+          ESLint, Jest, Vitest.
+        </td>
+      </tr>
+      <tr>
+        <td>Version group</td>
+        <td>
+          Projects with the same primary stack and version (<code>spfx@1.21.1</code>) and Node
+          major, or a group from <code>policy.groups</code>. Inside a group shared packages should
+          converge on the most common version (<code>policy/group-divergence</code>).
+        </td>
+      </tr>
+      <tr>
+        <td>Baseline</td>
+        <td>
+          The largest group; <code>[baseline]</code> in the output. <code>upgrade</code> moves
+          projects to the newest stack already in the repository by default.
+        </td>
+      </tr>
+      <tr>
+        <td>Policy</td>
+        <td>
+          <code>policy.exactVersions</code> (exact versions instead of
+          <code>^</code>/<code>~</code>), <code>policy.groups</code> with <code>pins</code> and
+          Node, the repository <code>target</code>, dependency profiles.
+        </td>
+      </tr>
+      <tr>
+        <td>Store</td>
+        <td>
+          <code>.packman/store/&lt;key&gt;</code>: one node_modules installation per group, with the
+          projects linked to it through junctions.
+        </td>
+      </tr>
+      <tr>
+        <td>Verified set</td>
+        <td>
+          Lockfile versions a build passed with (<code>store verify</code>,
+          <code>upgrade --verify</code>), kept in <code>.packman/verified</code>. A deviation from
+          it is <code>npm/unverified-versions</code>.
+        </td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+<h2 id="install">Installation and first run</h2>
+<ol class="steps">
+  <li>
+    <h3>packman itself needs Node 22.12+</h3>
+    <p>
+      Projects stay on their own Node. The <code>bin/packman.cjs</code> launcher is plain CommonJS
+      and starts on any Node; when the active Node is older than 22.12 it looks for a newer one in
+      nvm-windows, nvm, fnm and Volta and restarts with it.
+    </p>
+  </li>
+  <li>
+    <h3>Build and link</h3>
+    <p>
+      packman is not published to npm (<code>"private": true</code>), so install it from the
+      repository:
+    </p>
+    <div class="code">
+      <pre><code>git clone https://github.com/vlad-demchyk/package-manager.git
+cd package-manager
+npm ci
+npm run build
+npm link</code></pre>
+    </div>
+    <p><code>packman</code> and <code>pm</code> are the same binary.</p>
+  </li>
+  <li>
+    <h3>First check</h3>
+    <p>
+      <code>check</code> only reads. Without arguments in a regular terminal
+      <code>packman</code> opens the <a href="tui.html">TUI</a>; in CI or with redirected output it
+      runs <code>check</code>.
+    </p>
+    <div class="code" data-output="check"></div>
+  </li>
+  <li>
+    <h3>Configuration (optional)</h3>
+    <p>
+      <code>packman init</code> creates <code>packman.config.json</code>;
+      <code>--with-groups</code> fills <code>policy.groups</code> with the detected groups and their
+      Node right away. Without the file the defaults apply. Every key is on the
+      <a href="config.html">Configuration</a> page.
+    </p>
+    <div class="code">
+      <pre><code>packman init --with-groups</code></pre>
+    </div>
+  </li>
+</ol>
+
+<h3 id="read-report">Reading the report</h3>
+<ul>
+  <li>
+    <code>x</code> error, <code>!!</code> critical, <code>!</code> warning, <code>i</code> info; the
+    rule id follows the text (<code>npm/lockfile-drift</code>).
+  </li>
+  <li>Indented lines: evidence (the first 4, all with <code>-v</code>).</li>
+  <li>
+    <code>-&gt; ... [fix-id, risk]</code>: an available fix. <code>fix</code> takes only
+    <span class="badge risk-safe">safe</span> ones by default.
+  </li>
+  <li>
+    Last line: counts by severity. Exit code 1 when there is an <code>error</code> finding or worse
+    (<code>--fail-on</code>).
+  </li>
+</ul>
+
+<h2 id="single">Scenario A: one project, no alignment with the others</h2>
+<p>
+  When you need to fix one project and leave its neighbours alone, every command takes
+  <code>-p &lt;id&gt;</code> (a glob mask works too). With one selected project the group is that
+  project alone, so cross-project divergence rules (<code>policy/group-divergence</code>) do not
+  fire: packman does not pull the project towards the versions of others.
+</p>
+<ol class="steps">
+  <li>
+    <h3 id="single-check">Check only this project</h3>
+    <div class="code" data-output="check-p"></div>
+    <p>
+      <code>--no-security</code> skips the advisories request (fast);
+      <code>--severity error</code> hides warnings without changing the exit code.
+      <a
+        class="sim-link"
+        href="simulator.html#cmd=check&amp;mode=single&amp;p=apps/news-feed&amp;o=--no-security"
+        >In the simulator</a
+      >
+    </p>
+  </li>
+  <li>
+    <h3 id="single-fix">Fix one rule</h3>
+    <p>
+      <code>--rule</code> limits fixes to findings with that rule id. Without <code>--apply</code>
+      it is a dry run:
+    </p>
+    <div class="code" data-output="fix-p-rule"></div>
+    <p>
+      Fixes with <span class="badge risk-review">review</span> risk need <code>--risk review</code>:
+    </p>
+    <div class="code" data-output="fix-p-lockstep"></div>
+    <p>
+      To write, add <code>--apply</code>. You get a <code>[y/N]</code> prompt, a backup in
+      <code>.packman/backups/&lt;time&gt;/</code>, a journal entry and a relock of the project when
+      versions changed.
+      <a
+        class="sim-link"
+        href="simulator.html#cmd=fix&amp;mode=single&amp;p=apps/news-feed&amp;o=--rule:npm/range-spec,--apply"
+        >In the simulator</a
+      >
+    </p>
+  </li>
+  <li>
+    <h3 id="single-upgrade">Upgrade the stack of one project</h3>
+    <p>
+      <code>upgrade -p</code> with an explicit <code>--to</code> migrates only that project. The
+      repository target is not written to the configuration in this case (only without
+      <code>-p</code>/<code>-x</code>). Blockers stop <code>--apply</code> and give exit code 1:
+    </p>
+    <div class="code" data-output="upgrade-p-to"></div>
+    <p>
+      Here <code>webparts/team-calendar</code> moves from 1.18.2 to 1.21.1: runtime packages, the
+      compiler (<code>rush-stack-compiler-4.7</code> to <code>5.3</code> together with
+      <code>extends</code> in tsconfig), ESLint, <code>.nvmrc</code>, <code>.yo-rc.json</code> and a
+      group in the repository policy. There are no blockers, so <code>--apply</code> would write
+      this after <code>[y/N]</code>. A project linked to the store would be a blocker (see the
+      repository plan below).
+    </p>
+  </li>
+  <li>
+    <h3 id="single-relock">The lockfile drifted from package.json</h3>
+    <p>
+      <code>npm/lockfile-drift</code> means npm would pick the versions itself.
+      <code>install</code> does not install such a project; regenerate the lockfile with the project
+      Node first and review the diff in git:
+    </p>
+    <div class="code">
+      <pre><code>packman relock -p apps/news-feed
+packman install -p apps/news-feed</code></pre>
+    </div>
+    <p>
+      <code>relock</code> runs <code>npm install --package-lock-only --ignore-scripts</code> and
+      does not ask for confirmation. <code>install</code> runs <code>npm ci</code> when there is an
+      npm lock, otherwise <code>npm install</code>, with the project Node, and asks
+      <code>[y/N]</code>. A project linked to the store never runs npm: the line says whether its
+      link is up to date or stale and which command rebuilds the store (<code
+        >install --sync-store</code
+      >
+      does it).
+    </p>
+  </li>
+  <li>
+    <h3 id="single-reinstall">Reinstall from scratch</h3>
+    <div class="code">
+      <pre><code>packman install -p apps/news-feed --clean   # delete node_modules and the lock, then install
+packman clean -p apps/news-feed --modules   # only delete node_modules
+packman clean -p apps/news-feed --lock      # only the lockfile</code></pre>
+    </div>
+    <p>
+      <code>install --clean</code> deletes nothing when any selected project has no installed Node.
+      Afterwards packman shows the versions that moved away from the verified set.
+    </p>
+  </li>
+  <li>
+    <h3 id="single-outdated">What is outdated and what is vulnerable</h3>
+    <div class="code" data-output="outdated"></div>
+    <p>
+      <code>audit</code> shows only security findings (packages and Node) and returns 1 on critical
+      or error ones:
+    </p>
+    <div class="code">
+      <pre><code>packman outdated -p apps/news-feed
+packman audit -p apps/news-feed</code></pre>
+    </div>
+  </li>
+</ol>
+
+<h2 id="repo">Scenario B: the whole repository</h2>
+<ol class="steps">
+  <li>
+    <h3 id="repo-groups">Look at groups and divergence</h3>
+    <div class="code" data-output="groups"></div>
+    <div class="code" data-output="versions"></div>
+    <p>
+      <code>=</code> one version everywhere, <code>≠</code> divergence (only those with
+      <code>--diverging</code>).
+    </p>
+  </li>
+  <li>
+    <h3 id="repo-align">Align</h3>
+    <p>
+      One package everywhere: the version is the most common one by default, then the highest.
+      packman lists the peer ranges that reject the new version and suggests
+      <code>fix --apply</code> first: here <code>react</code> 17.0.1 from the SPFx projects does not
+      satisfy <code>react-dom@18.3.1</code> in the Vite apps.
+    </p>
+    <div class="code" data-output="align-package"></div>
+    <p>A package without peer conflicts aligns right away (<code>@pnp/sp</code> to 4.22.0):</p>
+    <div class="code" data-output="align-package-pnp"></div>
+    <p>
+      One project after another: without <code>--to</code> packman shows the closest candidates,
+      with <code>--to</code> the differences and the fix:
+    </p>
+    <div class="code" data-output="align-base"></div>
+    <div class="code" data-output="align-base-to"></div>
+    <p>
+      <code>--only</code> limits the packages, <code>--pin</code> drops
+      <code>^</code>/<code>~</code>, <code>--include-missing</code> adds packages the base does not
+      have.
+    </p>
+  </li>
+  <li>
+    <h3 id="repo-fix">Fix everything that is safe</h3>
+    <div class="code" data-output="fix-review"></div>
+    <p>
+      Here <code>--risk review</code> included both <code>spfx/align-lockstep</code> and removing
+      unused dependencies (<code>moment</code> in <code>apps/news-feed</code>). Packages referenced
+      only by build configuration (for example, a loader in a gulpfile) can also show up as unused:
+      add those with <code>packman ignore add</code>. Review the diff, then <code>--apply</code>.
+    </p>
+  </li>
+  <li>
+    <h3 id="repo-policy">Pin the policy</h3>
+    <p>
+      Groups with Node and <code>pins</code> in <code>policy.groups</code>, exact versions,
+      dependency profiles (<code>profile generate --write</code>, then <code>profile apply</code>).
+      A profile from the current state:
+    </p>
+    <div class="code" data-output="profile-generate"></div>
+  </li>
+  <li>
+    <h3 id="repo-upgrade">Repository migration</h3>
+    <p>
+      <code>upgrade</code> without <code>--to</code> moves every project to the newest stack already
+      in the repository; a published release is used only with an explicit <code>--to</code>. The
+      build order and blockers are visible before writing:
+    </p>
+    <div class="code" data-output="upgrade"></div>
+    <p>
+      Next: <code>--apply</code> (backs up manifests and lockfiles), <code>--install</code>,
+      <code>--verify</code> (install and build every project), <code>--shared</code> (one
+      installation for the migrated group).
+    </p>
+  </li>
+</ol>
+
+<h2 id="store">Scenario C: the shared store</h2>
+<p>
+  Identical projects can share one node_modules installation. packman installs it in
+  <code>.packman/store/&lt;key&gt;</code> with the group Node and puts a <code>node_modules</code>
+  junction in the projects.
+</p>
+<ol class="steps">
+  <li>
+    <h3 id="store-plan">Plan</h3>
+    <p>
+      Exact mode groups only projects with identical dependencies and lockfile; here those are the
+      two Vite apps. In exact mode <code>node_modules</code> is one junction for all members, so
+      packman warns about the shared Vite cache:
+    </p>
+    <div class="code" data-output="store-plan"></div>
+    <p>
+      Union mode: one installation per group with the union of aligned dependencies; every project
+      keeps its own <code>node_modules</code> folder, so there is no Vite cache warning. For
+      candidates blocked by different versions (<code>versions-differ</code>) packman prints "align
+      first: ..." and the order: <code>check</code>, <code>fix --apply</code>,
+      <code>align --package</code>. For <code>apps/footer</code> it spots a gulpfile webpack rule
+      written against <code>&lt;project&gt;/node_modules</code>: once linked, webpack sees the real
+      path in the store, so the path has to be wrapped in <code>fs.realpathSync(...)</code>.
+    </p>
+    <div class="code" data-output="store-plan-union"></div>
+  </li>
+  <li>
+    <h3 id="store-link">Link</h3>
+    <div class="code">
+      <pre><code>packman store link --of apps/news-feed --union --replace-existing</code></pre>
+    </div>
+    <p>
+      <code>--of</code> finds the current group of a project (keys change with manifests).
+      <code>--replace-existing</code> deletes local node_modules only after the store installed
+      successfully; only manifests and lockfiles are backed up. In union mode project lockfiles are
+      rewritten from the group tree (<code>--no-sync-locks</code> turns that off); such a lockfile
+      works for a plain <code>npm ci</code> in the project, so CI without packman gets the same
+      versions. The store installs from the verified set when there is one (<code>--refresh</code>
+      resolves fresh).
+    </p>
+  </li>
+  <li>
+    <h3 id="store-verify">Verify the build</h3>
+    <div class="code">
+      <pre><code>packman store verify --script buildp   # SPFx: production build with --ship</code></pre>
+    </div>
+    <p>
+      Successful builds record verified sets; the next store of the group starts from them. For
+      gulp-based SPFx verify the production build: a script with <code>--ship</code> (<code
+        >buildp</code
+      >
+      in the demo), because <code>build</code> is only a dev bundle. The demo journal shows the link
+      and verify cycle:
+    </p>
+    <div class="code" data-output="log"></div>
+  </li>
+  <li>
+    <h3 id="store-add">Add a package to a linked project</h3>
+    <div class="code">
+      <pre><code>packman add clsx -p tools/vite-a                      # preview: version, where it comes from, checks
+packman add clsx -p tools/vite-a --apply -y --verify build
+packman remove clsx -p tools/vite-a --apply -y</code></pre>
+    </div>
+    <p>
+      A bare <code>npm install clsx</code> inside a linked project would replace its junctions.
+      <code>add</code> picks the version the group already uses (a pin, the spec of the other
+      members, a profile, the SPFx matrix, otherwise the newest registry version compatible with the
+      group Node and the peers the project resolves) and prints the source. Before writing it checks
+      engines, peer ranges, SPFx lockstep, package families
+      (<code>react</code>/<code>react-dom</code>), runtime singletons and the group: a spec the
+      other members declare differently would split the group, so it stops with the alternatives
+      (take the group's spec, <code>align --package</code> for the whole group, or
+      <code>store unlink</code> and install standalone). With <code>--apply</code> the manifest is
+      written with a backup, the group store is rebuilt from the verified set, every member is
+      relinked and their lockfiles are synced; npm never runs in the projects.
+      <code>--verify</code> builds every member and records the new verified set.
+    </p>
+  </li>
+  <li>
+    <h3 id="store-status">Watch for drift</h3>
+    <div class="code" data-output="store-status"></div>
+    <p>
+      <code>stale</code>: package.json changed after linking. <code>drift</code>: npm was run inside
+      a linked project. Both also show up in <code>check</code> (<code>store/link-stale</code>,
+      <code>store/link-drift</code>). <code>packman hooks install</code> adds git hooks that remind
+      you after <code>git pull</code> and branch switches.
+    </p>
+  </li>
+  <li>
+    <h3 id="store-unlink">Unlink and clean up</h3>
+    <div class="code">
+      <pre><code>packman store unlink -p apps/news-feed --restore   # remove the junction, restore package.json and lock
+packman install -p apps/news-feed                  # get local modules back
+packman store prune --trash                        # delete unlinked stores and .packman/trash</code></pre>
+    </div>
+    <p>
+      <code>unlink</code> never deletes real folders and does not ask for confirmation;
+      <code>prune</code> asks.
+    </p>
+  </li>
+</ol>
+
+<h2 id="sharepoint">Scenario D: SharePoint</h2>
+<div class="callout warn">
+  <p>
+    Use a <strong>dev</strong> site only. Components read and write their lists while they run, and
+    <code>seed</code>/<code>clean</code> create and delete lists, columns, items, files, pages,
+    content types and subsites.
+  </p>
+</div>
+<p>
+  packman never handles passwords or tokens: it opens a browser (Edge or Chrome, with a profile in
+  the packman user folder), you sign in yourself, and packman waits until <code>/_api/web</code> of
+  the site answers 200 (up to 10 minutes). Every REST call runs as <code>fetch</code> inside that
+  signed-in page. <code>--site</code> can be left out when <code>site</code> is set in
+  <code>packman.sharepoint.json</code>.
+</p>
+<ol class="steps">
+  <li>
+    <h3 id="sp-requirements">Collect requirements</h3>
+    <p>
+      Lists, fields, files and Graph data the components use, from the sources and from the requests
+      of the last <code>sp test</code>:
+    </p>
+    <div class="code" data-output="sp-requirements"></div>
+    <p>
+      <code>--write</code> adds what is missing to <code>packman.sharepoint.json</code>; fill in
+      field types, choices and items by hand (the schema is on the
+      <a href="config.html#sp-config">Configuration</a> page).
+    </p>
+  </li>
+  <li>
+    <h3 id="sp-seed">Seed a dev site</h3>
+    <div class="code">
+      <pre><code>packman sp seed --site https://contoso.sharepoint.com/sites/dev           # plan
+packman sp seed --site https://contoso.sharepoint.com/sites/dev --apply   # create</code></pre>
+    </div>
+    <div class="code" data-lang="output">
+      <pre><code>  planned  list   Events generic
+  planned  field  Events.EventDate DateTime
+  planned  item   Events: [test] Kick-off
+  planned  contentType News Page -> Site Pages add to library
+  planned  page   test-news-1.aspx News Page
+Dry run: nothing written. Use --apply to create it.</code></pre>
+    </div>
+    <p>
+      Illustration from the code and its messages: there is no tenant behind the demo repository.
+      Idempotent: what exists is skipped. A new page is checked out before its columns change; a
+      <code>423 Locked</code> on that change, and a <code>500</code>/<code>503</code> when a fresh
+      content type is added to the library, are retried after 2, 5 and 10 seconds. What was created
+      is recorded in <code>.packman/sharepoint/seeded.json</code>.
+    </p>
+  </li>
+  <li>
+    <h3 id="sp-test">Run the components</h3>
+    <div class="code">
+      <pre><code>packman sp test --site https://contoso.sharepoint.com/sites/dev
+packman sp test --properties</code></pre>
+    </div>
+    <p>
+      For every SPFx project packman starts the dev server with the project Node:
+      <code>heft start</code> for Heft projects, <code>gulp serve</code> for gulp projects; with
+      both installed, the tool named in the <code>start</code> or <code>serve</code> script wins.
+      Web parts load in the hosted workbench, extensions on a page. Problems are sorted into
+      <code>load</code>, <code>runtime</code>, <code>data</code>, <code>host</code> and
+      <code>known</code>; the component ends <code>ok</code>, <code>needs-data</code> or
+      <code>failed</code>.
+    </p>
+    <p>
+      Two fixture keys per component (<code>components.&lt;alias&gt;</code>) change what the browser
+      receives, never the site: <code>properties</code> are laid over the web part's preconfigured
+      properties from the manifest, and <code>page</code> (a site-relative <code>.aspx</code>) hosts
+      the web part in that page's canvas instead of the workbench, so it runs with the real page
+      context. The result line names the page:
+    </p>
+    <div class="code" data-lang="output">
+      <pre><code>&gt; apps/news-feed
+  ok         NewsFeedWebPart 4 bundles
+  needs-data NewsBannerWebPart 4 bundles, https://contoso.sharepoint.com/sites/dev/SitePages/test-news-1.aspx
+    data    404 https://contoso.sharepoint.com/sites/dev/_api/web/lists/getByTitle('News')/items</code></pre>
+    </div>
+    <p>
+      <code>--properties</code> walks every property pane control of each web part in the workbench
+      (not on pages). Results, logs and screenshots go to
+      <code>.packman/validation/&lt;time&gt;-sharepoint/</code>.
+    </p>
+  </li>
+  <li>
+    <h3 id="sp-clean">Clean up</h3>
+    <div class="code">
+      <pre><code>packman sp clean --site https://contoso.sharepoint.com/sites/dev</code></pre>
+    </div>
+    <div class="code" data-lang="output">
+      <pre><code>  page Site Pages: item 12
+  contentType 0x0101009D1CB255DA76424F860D91F20E6C4118009A (and its copy on Site Pages)
+  list Events (with its items and columns)
+  file SiteAssets/footer/contacts.json
+Delete what packman created on https://contoso.sharepoint.com/sites/dev? [y/N]</code></pre>
+    </div>
+    <p>
+      Prints everything the seed record holds (subsites, pages, content types, items, columns,
+      lists, files, folders), then asks. Without an interactive terminal and without
+      <code>-y</code> it only prints the list. It deletes exactly what <code>seed</code> created;
+      after a clean run without failures the record is empty.
+    </p>
+  </li>
+</ol>
+
+<h2 id="safety">Scenario E: dry run, --apply, backups, journal, exit codes</h2>
+<h3 id="dry-run">Dry run and --apply</h3>
+<p>
+  <code>fix</code>, <code>align</code>, <code>profile apply</code>, <code>upgrade</code>,
+  <code>add</code>, <code>remove</code> and <code>sp seed</code> without <code>--apply</code> only
+  show what they would do. With <code>--apply</code> they ask <code>[y/N]</code>. Without an
+  interactive terminal (CI, pipes, some IDE terminals) the answer is always "no", so
+  <code>-y</code> is needed there. When a file changed between the preview and the write, packman
+  writes nothing and asks you to review the diff again.
+</p>
+<div class="table-wrap">
+  <table>
+    <thead>
+      <tr>
+        <th scope="col">Command</th>
+        <th scope="col">Writes without --apply?</th>
+        <th scope="col">Asks [y/N]?</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>
+          <code>check</code>, <code>list</code>, <code>groups</code>, <code>versions</code>,
+          <code>outdated</code>, <code>audit</code>, <code>node</code>, <code>spfx</code>,
+          <code>store plan</code>, <code>store status</code>
+        </td>
+        <td>no (only <code>check --md</code>)</td>
+        <td>no</td>
+      </tr>
+      <tr>
+        <td>
+          <code>fix</code>, <code>align</code>, <code>profile apply</code>, <code>upgrade</code>,
+          <code>sp seed</code>
+        </td>
+        <td>no</td>
+        <td>yes, with <code>--apply</code></td>
+      </tr>
+      <tr>
+        <td>
+          <code>install</code>, <code>clean</code>, <code>store link</code>,
+          <code>store prune</code>, <code>sp clean</code>
+        </td>
+        <td>yes</td>
+        <td>yes</td>
+      </tr>
+      <tr>
+        <td>
+          <code>relock</code>, <code>store unlink</code>, <code>store verify</code>,
+          <code>init</code>, <code>ignore add/remove</code>, <code>data update</code>,
+          <code>hooks</code>, <code>log --prune</code>
+        </td>
+        <td>yes</td>
+        <td>no</td>
+      </tr>
+      <tr>
+        <td><code>profile generate</code>, <code>sp requirements</code></td>
+        <td>only with <code>--write</code></td>
+        <td>no</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+<h3 id="backups">Backups and the journal</h3>
+<ul>
+  <li>
+    Every file is copied to <code>.packman/backups/&lt;time&gt;-&lt;random&gt;/</code> with its
+    relative path before an edit. To restore, copy the files back or take them from git.
+  </li>
+  <li>
+    Every operation writes a line to <code>.packman/journal.jsonl</code>:
+    <code>packman log</code> (last 30), <code>log -n 5</code>, <code>log --json</code>,
+    <code>log --prune 90</code>.
+  </li>
+  <li>
+    The TUI writes files with backups but does not relock and does not write to the journal: run
+    <code>packman relock</code> after it.
+  </li>
+  <li>
+    After version edits in <code>package.json</code>, <code>fix</code>, <code>align</code>,
+    <code>profile apply</code> and <code>upgrade</code> relock by themselves (<code
+      >--no-relock</code
+    >
+    turns that off).
+  </li>
+</ul>
+<div class="code" data-output="log-n"></div>
+<h3 id="exit-codes">Exit codes</h3>
+<div class="table-wrap">
+  <table>
+    <thead>
+      <tr>
+        <th scope="col">Code</th>
+        <th scope="col">When</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><code>0</code></td>
+        <td>Success; for <code>check</code>: no findings at the <code>--fail-on</code> level.</td>
+      </tr>
+      <tr>
+        <td><code>1</code></td>
+        <td>
+          <code>check</code>: a finding at the <code>--fail-on</code> level (default
+          <code>error</code>). <code>audit</code>: a critical or error vulnerability.
+          <code>upgrade</code>: blockers. <code>install</code>: a drifted lockfile or no Node.
+          <code>relock</code>, <code>store status --check</code>, <code>sp test</code>: failures.
+          Any refused operation (a message without a stack; the stack with
+          <code>PACKMAN_DEBUG=1</code>).
+        </td>
+      </tr>
+      <tr>
+        <td><code>2</code></td>
+        <td>Invalid <code>packman.config.json</code> (the message names the key).</td>
+      </tr>
+      <tr>
+        <td>npm code</td>
+        <td>
+          <code>install</code>, <code>store verify</code>, <code>upgrade --install/--verify</code>
+          return the code of the failed npm.
+        </td>
+      </tr>
+    </tbody>
+  </table>
+</div>
