@@ -1,0 +1,506 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>packman troubleshooting</title>
+    <meta
+      name="description"
+      content="packman messages and what to do about them: general, lockfiles, Node, the store, SPFx, SharePoint."
+    />
+    <link
+      rel="icon"
+      href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%231f6f43'/%3E%3Ctext x='16' y='22' font-family='monospace' font-size='16' font-weight='700' text-anchor='middle' fill='white'%3Epm%3C/text%3E%3C/svg%3E"
+    />
+    <script>
+      try {
+        var t = localStorage.getItem('pm-theme');
+        if (t === 'light' || t === 'dark') document.documentElement.setAttribute('data-theme', t);
+      } catch (e) {}
+    </script>
+    <link rel="stylesheet" href="assets/site.css" />
+  </head>
+  <body data-page="troubleshooting">
+    <a class="skip" href="#main">Skip to content</a>
+    <header class="site-header">
+      <div class="header-inner">
+        <a class="brand" href="index.html"
+          ><span class="brand-mark" aria-hidden="true">pm</span>packman
+          <small>3.0.0-alpha.0</small></a
+        >
+        <button
+          class="icon-btn menu-btn"
+          type="button"
+          aria-expanded="false"
+          aria-controls="main-nav"
+          aria-label="Menu"
+        >
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            aria-hidden="true"
+          >
+            <path d="M4 7h16M4 12h16M4 17h16" />
+          </svg>
+        </button>
+        <nav class="main-nav" id="main-nav" aria-label="Site sections">
+          <a href="index.html">Home</a>
+          <a href="guide.html">Guide</a>
+          <a href="simulator.html">Simulator</a>
+          <a href="commands.html">Commands</a>
+          <a href="rules.html">Rules</a>
+          <a href="tui.html">TUI</a>
+          <a href="config.html">Configuration</a>
+          <a href="troubleshooting.html" aria-current="page">Troubleshooting</a>
+          <a href="changelog.html">Changelog</a>
+        </nav>
+        <div class="header-tools">
+          <button class="icon-btn search-btn" type="button" data-open-search aria-haspopup="dialog">
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              aria-hidden="true"
+            >
+              <circle cx="11" cy="11" r="7" />
+              <path d="m20 20-3.5-3.5" /></svg
+            ><span class="label">Search</span><kbd>/</kbd>
+          </button>
+          <button
+            class="icon-btn"
+            type="button"
+            id="theme-toggle"
+            aria-label="Theme: system"
+            title="Switch theme"
+          >
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              aria-hidden="true"
+            >
+              <path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z" />
+            </svg>
+          </button>
+        </div>
+      </div>
+    </header>
+    <div class="page with-toc">
+      <nav class="toc" aria-label="Page sections">
+        <details open>
+          <summary class="visually-hidden">Sections</summary>
+          <h2>On this page</h2>
+          <ol id="toc-list"></ol>
+        </details>
+      </nav>
+      <main id="main" class="content" tabindex="-1">
+        <p class="eyebrow">Troubleshooting</p>
+        <h1>Common problems</h1>
+        <p class="lead">
+          The situations come from the messages and errors in the code. Messages are quoted in
+          English (as
+          <code>--lang en</code> prints them). For an unexpected error with a stack trace:
+          <code>PACKMAN_DEBUG=1</code>.
+        </p>
+
+        <h2 id="general">General</h2>
+        <h3 id="aborted">"Aborted." although nothing was asked</h3>
+        <p>
+          The confirmation is read from an interactive stdin. Without one (CI, pipes, some IDE
+          terminals) the answer is always "no". Add <code>-y</code> to the commands that ask:
+          <code>fix</code>, <code>align</code>, <code>profile apply</code>, <code>install</code>,
+          <code>clean</code>, <code>store link</code>, <code>store prune</code>,
+          <code>upgrade</code>, <code>sp seed</code>, <code>sp clean</code>.
+        </p>
+        <h3 id="dry">"Dry run: nothing was written"</h3>
+        <p>Editing commands only show a diff until you add <code>--apply</code>.</p>
+        <h3 id="changed">"file changed since preview"</h3>
+        <p>
+          The file changed between the preview and the write (an editor or another session). Nothing
+          was written; run the command again and review the new diff.
+        </p>
+        <h3 id="exit2">Exit code 2 and a message about packman.config.json</h3>
+        <p>
+          The file is not valid JSON(C) or fails the schema, for example
+          <code>policy.groups.0.node: invalid Node version or range</code> or
+          <code>target.spfx: target must be an exact version</code>. Fix the named key (<a
+            href="config.html"
+            >Configuration</a
+          >).
+        </p>
+        <h3 id="no-projects">"No projects found under &lt;root&gt;"</h3>
+        <p>
+          Check <code>--depth</code> / <code>projects.maxDepth</code> (default 4),
+          <code>include</code>/<code>exclude</code>, <code>requiredFiles</code>, <code>match</code>,
+          <code>-p</code>/<code>-x</code>. Folders starting with <code>.</code> and build folders
+          are not walked; the root is analyzed only with <code>includeRoot: true</code> or when it
+          is the only project.
+        </p>
+        <h3 id="node22">
+          "packman requires Node &gt;= 22.12 ... no newer installed Node was found"
+        </h3>
+        <p>
+          The launcher needs Node 22.12+ installed through nvm-windows, nvm, fnm or Volta (for
+          example,
+          <code>nvm install 24</code>). The active Node of your shell can stay the one your project
+          needs.
+        </p>
+        <h3 id="not-built">"packman is not built: run npm run build"</h3>
+        <p>The packman folder has no <code>dist/</code>. Run <code>npm run build</code> there.</p>
+        <h3 id="npm-missing">"npm not found next to &lt;node&gt;"</h3>
+        <p>
+          The Node selected for the project has no npm next to it. Reinstall that Node with its
+          manager.
+        </p>
+        <h3 id="stale-data">"(data N days old: packman data update)" in the report</h3>
+        <p>
+          The Node schedule or the Node CVE list is older than 30 days.
+          <code>packman data update</code> writes to the user data folder; bundled files do not
+          change.
+          <code>packman data status</code>
+          shows which copy each check uses.
+        </p>
+
+        <h2 id="locks">Lockfiles and installation</h2>
+        <h3 id="drift">
+          "&lt;project&gt;: package-lock.json does not match package.json; run packman relock and
+          review the changes"
+        </h3>
+        <p>
+          <code>install</code> refuses projects with <code>npm/lockfile-drift</code>: an out-of-sync
+          lockfile would let npm pick versions on its own. Run
+          <code>packman relock -p &lt;project&gt;</code>, review the diff (versions that moved away
+          from the verified set are listed), then install. <code>--mode force</code> runs
+          <code>npm install --force</code> when you ask for it.
+        </p>
+        <h3 id="unverified">
+          "N locked versions differ from the set ... last passed with: not verified by a build"
+        </h3>
+        <p>
+          <code>npm/unverified-versions</code>: the lockfile moved away from the versions of the
+          last successful build. When the change is wanted, build again (<code>store verify</code>
+          or <code>upgrade --verify</code>) to record a new set; otherwise restore the lockfile from
+          <code>.packman/backups/</code> or git.
+        </p>
+        <h3 id="tui-relock">Lockfiles did not change after the TUI</h3>
+        <p>
+          The TUI writes files with a backup but without relock and journal. Run
+          <code>packman relock</code> for the changed projects.
+        </p>
+
+        <h2 id="node">Node</h2>
+        <h3 id="node-missing">
+          "No installed Node satisfies ... (recommended ...)" / <code>node/not-installed</code>
+        </h3>
+        <p>
+          The stack ranges, pins, <code>engines</code>, groups or targets have no installed match.
+          Install the recommended version. When <code>engines.node</code> is an exact version nobody
+          has and another installed Node fits the stack,
+          <code>packman fix --rule node/not-installed --risk review</code> offers to put the stack
+          range in <code>engines.node</code>. npm commands skip such projects with exit code 1;
+          <code>install --clean</code> checks every project before deleting anything.
+        </p>
+        <h3 id="pin-conflict"><code>node/pin-conflict</code></h3>
+        <p>
+          <code>.nvmrc</code>, <code>.node-version</code>, <code>volta</code>,
+          <code>devEngines</code> or a group/target pin does not intersect the stack range. Such a
+          pin is ignored when Node is selected; for <code>.nvmrc</code> and
+          <code>.node-version</code>
+          <code>packman fix --rule node/pin-conflict --apply</code> writes the recommended version.
+        </p>
+
+        <h2 id="store">Shared store</h2>
+        <div class="callout warn">
+          <p>
+            The <code>store</code> and <code>align</code> commands are being refined; the messages
+            below match the current code of the branch.
+          </p>
+        </div>
+        <h3 id="need-group">"Pass --group &lt;key&gt; or --of &lt;project&gt;."</h3>
+        <p>
+          <code>store link</code> needs one of them. <code>packman store plan</code> (or with
+          <code>--union</code>) prints the keys.
+        </p>
+        <h3 id="group-not-found">"Group ... not found; run packman store plan."</h3>
+        <ul>
+          <li>
+            Keys change with the manifest, lockfile or Node of any member:
+            <code>packman store link --of &lt;project&gt; --union</code> takes the current group.
+          </li>
+          <li>
+            <code>--union</code> has to match the plan: exact keys come from
+            <code>store plan</code>, union keys (<code>u-...</code>) from
+            <code>store plan --union</code>.
+          </li>
+          <li>
+            A project may be in no group: <code>store plan --union</code> shows candidates with
+            "align first: ...", and <code>--json</code> lists excluded projects with a reason
+            (<code>file:</code>/<code>link:</code>/<code>workspace:</code> dependencies, install
+            scripts, no npm lock v2+ in exact mode).
+          </li>
+        </ul>
+        <h3 id="real-modules">
+          "real node_modules folders found ...; re-run with --replace-existing"
+        </h3>
+        <p>
+          The members have their own node_modules. <code>--replace-existing</code> deletes them only
+          after the store installed successfully; manifests and lockfiles are backed up, modules are
+          not. <code>store unlink --restore</code> restores the manifests,
+          <code>packman install</code> brings local modules back.
+        </p>
+        <h3 id="ci-failed">"npm ci failed in &lt;store&gt; (exit N); nothing was linked"</h3>
+        <p>
+          The store installation failed; no project changed. Read the npm output above (for union it
+          is
+          <code>npm install</code>, even though the message says <code>npm ci</code>).
+        </p>
+        <h3 id="broken-edges">
+          "store ... has dependencies outside their ranges; nothing was linked"
+        </h3>
+        <p>
+          The store tree has broken edges. Align the versions of the listed edges, or relink with
+          <code>--refresh</code> when a verified seed caused it.
+        </p>
+        <h3 id="no-ready">"store ... is linked but has no completed installation"</h3>
+        <p>
+          The store folder has no completed installation for this key and Node. Run
+          <code>packman store unlink -p &lt;members&gt;</code> and link again.
+        </p>
+        <h3 id="stale-drift">
+          <code>stale</code> or <code>drift</code> in <code>store status</code>
+        </h3>
+        <ul>
+          <li>
+            <code>stale</code>: <code>package.json</code> changed after linking. Run
+            <code>store plan --union</code>, align, then
+            <code>store link --of &lt;project&gt; --union</code>.
+          </li>
+          <li>
+            <code>drift</code>: npm ran inside a linked project (replaced links with copies, added
+            or removed folders). Declare the packages in <code>package.json</code> and relink with
+            <code>--of</code>; npm copies go to <code>.packman/trash</code>.
+          </li>
+          <li>
+            After <code>npm ci</code> the folder is a regular one again: relinking needs
+            <code>--replace-existing</code>.
+          </li>
+        </ul>
+        <h3 id="versions-differ">
+          <code>versions-differ</code> in <code>store plan --union</code>
+        </h3>
+        <p>
+          Shared packages of the group are on different versions. The plan prints an order, and it
+          matters:
+          <code>packman check</code>, then <code>packman fix --apply</code>, then
+          <code>packman align --package &lt;name&gt;</code>. <code>fix</code> first moves the
+          packages whose peer ranges would reject the most common version; if you start with
+          <code>align</code>, it warns "N peer ranges exclude ..." and lists who declares them.
+        </p>
+        <h3 id="vite-cache">
+          "vite: set cacheDir per project, node_modules/.vite would be shared"
+        </h3>
+        <p>
+          Exact groups only: there the project <code>node_modules</code> is one junction for all
+          members, so the default Vite cache (<code>node_modules/.vite</code>) is shared. Set
+          <code>cacheDir</code> in the <code>vite.config.ts</code> of every project. In union groups
+          <code>node_modules</code> stays a folder of the project, and there is no warning.
+        </p>
+        <h3 id="webpack-realpath">
+          "gulpfile.js webpack rule include matches &lt;project&gt;/node_modules"
+        </h3>
+        <p>
+          A gulpfile webpack rule is written against the project's own modules, for example
+          <code>include: path.join(__dirname, 'node_modules', '@pnp')</code>. Webpack follows the
+          junctions to the real path in <code>.packman/store/...</code>, the rule stops matching,
+          and the package is bundled without its loader ("Module parse failed"). Wrap the path:
+        </p>
+        <div class="code">
+          <pre><code>include: fs.realpathSync(path.join(__dirname, 'node_modules', '@pnp')),</code></pre>
+        </div>
+        <h3 id="store-ship">SPFx production build after linking</h3>
+        <p>
+          <code>store verify</code> runs <code>build</code> by default, which is a dev build. Verify
+          the build that goes to the app catalog: a script with <code>--ship</code>.
+        </p>
+        <div class="code">
+          <pre><code>packman store verify --script buildp   # "buildp": "gulp bundle --ship &amp;&amp; gulp package-solution --ship"</code></pre>
+        </div>
+        <h3 id="store-npm-ci">Can I run <code>npm ci</code> in a linked project</h3>
+        <p>
+          The lockfiles <code>store link</code> writes (union syncs them from the store tree) work
+          for a plain <code>npm ci</code>: CI or a colleague without packman gets the same versions.
+          After such an <code>npm ci</code> the folder is a regular one again and
+          <code>store status</code> shows <code>drift</code>.
+        </p>
+        <h3 id="upgrade-linked">
+          Blocker "... is already linked; unlink it before changing its dependency set"
+        </h3>
+        <p>
+          <code>upgrade</code> without <code>--shared</code> does not migrate linked projects.
+          Unlink them or migrate the whole group: <code>upgrade --apply --shared</code>.
+        </p>
+
+        <h2 id="spfx">SPFx builds</h2>
+        <h3 id="eslint-ship">
+          <code>gulp bundle --ship</code> fails on ESLint warnings after an upgrade
+        </h3>
+        <p>
+          typescript-eslint 8 removed rules (<code>ban-types</code>, <code>no-throw-literal</code>,
+          ...) and changed the default <code>caughtErrors</code> from <code>none</code> to
+          <code>all</code>; SPFx <code>--ship</code> fails on warnings unless the gulpfile
+          suppresses them. <code>check</code> reports <code>eslint/unknown-rule</code> and
+          <code>eslint/caught-errors</code>:
+        </p>
+        <div class="code">
+          <pre><code>packman fix --rule eslint/unknown-rule eslint/caught-errors --risk review --apply</code></pre>
+        </div>
+        <h3 id="tsconfig-compiler"><code>spfx/tsconfig-compiler</code></h3>
+        <p>
+          The <code>@microsoft/rush-stack-compiler-*</code> package is right, but
+          <code>tsconfig.json</code> still <code>extends</code> a file of another compiler (typical
+          after an upgrade):
+        </p>
+        <div class="code">
+          <pre><code>packman fix --rule spfx/tsconfig-compiler --apply</code></pre>
+        </div>
+        <p>
+          When the compiler package itself is wrong, <code>spfx/compiler-mismatch</code> fires, and
+          its fix rewrites <code>extends</code> too.
+        </p>
+        <h3 id="eslint-legacy"><code>eslint/legacy-config-ignored</code></h3>
+        <p>
+          ESLint 10 does not read old <code>.eslintrc*</code> files. Move to a flat config by hand
+          or through <code>packman upgrade</code> for SPFx with ESLint 9+.
+        </p>
+
+        <h2 id="sharepoint">SharePoint runs</h2>
+        <h3 id="no-site">"No SharePoint site: pass --site or set "site""</h3>
+        <p>
+          The dev site URL goes in <code>--site</code> or in <code>packman.sharepoint.json</code>.
+        </p>
+        <h3 id="sign-in">"Sign in to &lt;site&gt; in the browser packman opened; waiting..."</h3>
+        <p>
+          Sign in in the window packman opened; it continues as soon as
+          <code>/_api/web</code> answers 200 and stops after 10 minutes. When another Chromium
+          already listens on the debugging port (default 9333), packman attaches to it; for another
+          port use <code>--port</code>.
+        </p>
+        <h3 id="not-signed-in">"Not signed in to &lt;site&gt; within 600 s."</h3>
+        <p>
+          Nobody signed in within 10 minutes. Run the command again and sign in in the packman
+          browser.
+        </p>
+        <h3 id="browser-stuck">
+          "The packman browser does not answer; close it ... and run again."
+        </h3>
+        <p>
+          The browser stopped answering DevTools: one command got no answer in 120 s, or the sign-in
+          probe (15 s each) got none. packman stops instead of hanging. Close the packman browser,
+          or end the
+          <code>msedge</code>/<code>chrome</code> process that uses the packman profile, and run
+          again. The sign-in is kept in the profile.
+        </p>
+        <h3 id="no-browser">"No Edge or Chrome found"</h3>
+        <p>Set <code>PACKMAN_BROWSER</code> to the path of a Chromium browser.</p>
+        <h3 id="port">"port 4321 is already in use"</h3>
+        <p>
+          Another dev server (<code>gulp serve</code> or <code>heft start</code>) is running. The
+          port comes from the project <code>config/serve.json</code> (default 4321). Stop it and run
+          <code>sp test</code> again.
+        </p>
+        <h3 id="serve-exited">"gulp serve exited" / "heft start did not start in 300 s"</h3>
+        <p>
+          The dev server crashed or is slow. See <code>&lt;project&gt;-serve.log</code> in the run
+          folder under <code>.packman/validation/</code>. Heft projects run <code>heft start</code>,
+          gulp projects <code>gulp serve</code>; with both installed, the tool named in the
+          <code>start</code> or <code>serve</code> script of <code>package.json</code> is used.
+        </p>
+        <h3 id="no-gulp">"neither gulp nor heft is installed in the project"</h3>
+        <p>
+          <code>sp test</code> skips projects without an installed gulp or heft. Install the project
+          first.
+        </p>
+        <h3 id="http423"><code>sp seed</code>: HTTP 423 Locked on a page</h3>
+        <p>
+          A new page is locked for changes until it is checked out. packman checks it out to the
+          signed-in user before it sets the columns and retries a <code>423</code> after 2, 5 and 10
+          s. If the page still fails, it is deleted, so <code>sp seed --apply</code> again creates
+          it anew; only the missing steps run.
+        </p>
+        <h3 id="http500">
+          <code>sp seed</code>: HTTP 500 or 503 when adding a content type to a library
+        </h3>
+        <p>
+          SharePoint does not see a content type made a moment ago everywhere yet. packman retries
+          after 2, 5 and 10 s before it reports <code>failed</code>. Run
+          <code>sp seed --apply</code> again: the content type now exists and is only added to the
+          library (the dry run shows <code>add to library</code>).
+        </p>
+        <h3 id="clean-nothing"><code>sp clean</code> prints the list and stops</h3>
+        <p>
+          Without an interactive terminal the answer is "no": the list of what would be deleted is
+          printed and nothing is removed. Pass <code>-y</code>. "Nothing to clean." means the seed
+          record for that site is empty.
+        </p>
+        <h3 id="property-pane">
+          "properties: the property pane did not open, nothing was checked"
+        </h3>
+        <p>
+          packman could not open the web part property pane (5 attempts). Exit code 1. See the
+          component screenshot.
+        </p>
+        <h3 id="host">Exceptions from the workbench or the page</h3>
+        <p>
+          Errors that SharePoint's own bundles raise, including
+          <code>Uncaught (in promise)</code> with a plain value, are classified as
+          <code>host</code>: they never fail a component and are hidden from the text output.
+          <code>summary.json</code> keeps them with the rejected value and up to three stack frames,
+          so you can see where they came from. An exception whose stack points at the dev server is
+          <code>runtime</code> and fails the component.
+        </p>
+        <h3 id="known">A data problem keeps failing the run although it comes from the page</h3>
+        <p>
+          Add its text to <code>components.&lt;alias&gt;.known</code>: such problems are reported as
+          <code>known</code> and do not fail the run. Missing lists and fields are
+          <code>needs-data</code>: run <code>sp requirements --write</code>, complete the fixtures,
+          then <code>sp seed --apply</code>.
+        </p>
+      </main>
+    </div>
+    <footer class="site-footer">
+      <div class="footer-inner">
+        <span>packman 3.0.0-alpha.0 · branch <code>feat/packman-3</code> · license MIT</span>
+        <span
+          >Generated from the code (<code>src/cli/**</code>, <code>docs/rules.md</code>) ·
+          <span id="gen-date"></span
+        ></span>
+      </div>
+    </footer>
+    <dialog class="search" id="search-dialog" aria-label="Site search">
+      <div class="search-head">
+        <label class="visually-hidden" for="search-input">Search for</label>
+        <input
+          id="search-input"
+          type="search"
+          placeholder="Command, option, rule, message..."
+          autocomplete="off"
+          role="combobox"
+          aria-expanded="true"
+          aria-controls="search-results"
+          aria-autocomplete="list"
+        />
+        <button class="icon-btn" type="button" data-close-search aria-label="Close search">
+          Esc
+        </button>
+      </div>
+      <ul class="search-results" id="search-results" role="listbox" aria-label="Results"></ul>
+    </dialog>
+    <script src="assets/data.js"></script>
+    <script src="assets/notes.js"></script>
+    <script src="assets/site.js"></script>
+  </body>
+</html>

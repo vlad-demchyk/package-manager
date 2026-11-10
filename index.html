@@ -1,0 +1,352 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>packman package manager</title>
+    <meta
+      name="description"
+      content="packman 3.0: check, align and install dependencies in SPFx and JS repositories with many projects."
+    />
+    <link
+      rel="icon"
+      href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%231f6f43'/%3E%3Ctext x='16' y='22' font-family='monospace' font-size='16' font-weight='700' text-anchor='middle' fill='white'%3Epm%3C/text%3E%3C/svg%3E"
+    />
+    <script>
+      try {
+        var t = localStorage.getItem('pm-theme');
+        if (t === 'light' || t === 'dark') document.documentElement.setAttribute('data-theme', t);
+      } catch (e) {}
+    </script>
+    <link rel="stylesheet" href="assets/site.css" />
+  </head>
+  <body data-page="index">
+    <a class="skip" href="#main">Skip to content</a>
+    <header class="site-header">
+      <div class="header-inner">
+        <a class="brand" href="index.html"
+          ><span class="brand-mark" aria-hidden="true">pm</span>packman
+          <small>3.0.0-alpha.0</small></a
+        >
+        <button
+          class="icon-btn menu-btn"
+          type="button"
+          aria-expanded="false"
+          aria-controls="main-nav"
+          aria-label="Menu"
+        >
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            aria-hidden="true"
+          >
+            <path d="M4 7h16M4 12h16M4 17h16" />
+          </svg>
+        </button>
+        <nav class="main-nav" id="main-nav" aria-label="Site sections">
+          <a href="index.html" aria-current="page">Home</a>
+          <a href="guide.html">Guide</a>
+          <a href="simulator.html">Simulator</a>
+          <a href="commands.html">Commands</a>
+          <a href="rules.html">Rules</a>
+          <a href="tui.html">TUI</a>
+          <a href="config.html">Configuration</a>
+          <a href="troubleshooting.html">Troubleshooting</a>
+          <a href="changelog.html">Changelog</a>
+        </nav>
+        <div class="header-tools">
+          <button class="icon-btn search-btn" type="button" data-open-search aria-haspopup="dialog">
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              aria-hidden="true"
+            >
+              <circle cx="11" cy="11" r="7" />
+              <path d="m20 20-3.5-3.5" /></svg
+            ><span class="label">Search</span><kbd>/</kbd>
+          </button>
+          <button
+            class="icon-btn"
+            type="button"
+            id="theme-toggle"
+            aria-label="Theme: system"
+            title="Switch theme"
+          >
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              aria-hidden="true"
+            >
+              <path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z" />
+            </svg>
+          </button>
+        </div>
+      </div>
+    </header>
+    <div class="page">
+      <main id="main" class="content" tabindex="-1">
+        <section class="hero" aria-labelledby="hero-title">
+          <div>
+            <p class="eyebrow">packman 3.0 · CLI and TUI</p>
+            <h1 id="hero-title">Dependencies of many projects, under control</h1>
+            <p class="lead">
+              packman finds every project in a repository, detects its stacks (SPFx, React, Angular,
+              Vite ...), picks an installed Node for each one, checks versions, lockfiles and
+              vulnerabilities and shows fixes as a diff. It writes only with <code>--apply</code>,
+              with a backup and a journal.
+            </p>
+            <div class="code">
+              <pre><code>$ packman check</code></pre>
+            </div>
+            <div class="actions">
+              <a class="btn primary" href="guide.html">Start with the guide</a>
+              <a class="btn" href="simulator.html">Open the simulator</a>
+            </div>
+          </div>
+          <figure style="margin: 0">
+            <svg class="diagram" viewBox="0 0 520 330" role="img" aria-labelledby="dg-t dg-d">
+              <title id="dg-t">How packman works</title>
+              <desc id="dg-d">
+                A workspace with projects goes into the analysis: stack providers, version groups
+                and the baseline, policy from packman.config.json. The analysis produces findings
+                with fixes. Then a dry run with a diff, and only with --apply a write with a backup
+                and a journal, relock and, when wanted, a shared node_modules store.
+              </desc>
+              <defs>
+                <marker
+                  id="ar"
+                  viewBox="0 0 10 10"
+                  refX="9"
+                  refY="5"
+                  markerWidth="7"
+                  markerHeight="7"
+                  orient="auto-start-reverse"
+                >
+                  <path class="arrow" d="M0 0 10 5 0 10z" />
+                </marker>
+              </defs>
+              <rect class="box" x="10" y="20" width="150" height="120" rx="10" />
+              <text x="24" y="44" font-weight="600">Workspace</text>
+              <text class="mono" x="24" y="68">apps/news-feed/</text>
+              <text class="mono" x="24" y="88">webparts/…/</text>
+              <text class="mono" x="24" y="108">tools/vite-…/</text>
+              <text class="muted" x="24" y="128">package.json, lock, Node</text>
+              <rect class="box-accent" x="200" y="10" width="150" height="140" rx="10" />
+              <text x="214" y="34" font-weight="600">Analysis</text>
+              <text x="214" y="58">stack providers</text>
+              <text x="214" y="78">groups and baseline</text>
+              <text x="214" y="98">policy and profiles</text>
+              <text x="214" y="118">advisories, Node CVEs</text>
+              <text class="muted" x="214" y="138">packman check</text>
+              <rect class="box" x="390" y="20" width="120" height="120" rx="10" />
+              <text x="404" y="44" font-weight="600">Findings</text>
+              <text class="mono" x="404" y="68">npm/…</text>
+              <text class="mono" x="404" y="88">spfx/…</text>
+              <text class="mono" x="404" y="108">node/…</text>
+              <text class="muted" x="404" y="128">+ fix and risk</text>
+              <rect class="box" x="10" y="200" width="150" height="110" rx="10" />
+              <text x="24" y="224" font-weight="600">Dry run</text>
+              <text x="24" y="248">diff, no write</text>
+              <text class="mono" x="24" y="272">fix, align,</text>
+              <text class="mono" x="24" y="292">upgrade</text>
+              <rect class="box-accent" x="200" y="200" width="150" height="110" rx="10" />
+              <text x="214" y="224" font-weight="600">--apply</text>
+              <text x="214" y="248">.packman/backups</text>
+              <text x="214" y="268">journal, relock</text>
+              <text class="muted" x="214" y="292">confirm [y/N]</text>
+              <rect class="box" x="390" y="200" width="120" height="110" rx="10" />
+              <text x="404" y="224" font-weight="600">Store</text>
+              <text x="404" y="248">one install</text>
+              <text x="404" y="268">per group</text>
+              <text class="mono" x="404" y="292">store link</text>
+              <path class="edge" d="M160 80H196" marker-end="url(#ar)" />
+              <path class="edge" d="M350 80H386" marker-end="url(#ar)" />
+              <path class="edge" d="M450 140V170H85V196" marker-end="url(#ar)" />
+              <path class="edge" d="M160 255H196" marker-end="url(#ar)" />
+              <path class="edge" d="M350 255H386" marker-end="url(#ar)" />
+            </svg>
+          </figure>
+        </section>
+
+        <h2 id="features">What it does</h2>
+        <div class="grid">
+          <div class="card">
+            <h3>Stacks and Node</h3>
+            <p>
+              Detects SPFx from the installed packages, not from <code>.yo-rc.json</code>; also
+              React, Angular, Vite, Next.js, Vue, Electron, ESLint, Jest, Vitest. Every project gets
+              its own installed Node (nvm-windows, nvm, fnm, Volta).
+            </p>
+          </div>
+          <div class="card">
+            <h3>Groups and baseline</h3>
+            <p>
+              Projects with the same primary stack (for example, <code>spfx@1.21.1</code>) and Node
+              major form a group, or you define groups in <code>policy.groups</code>. The largest
+              group is the baseline. Inside a group every shared package should converge on the most
+              common version.
+            </p>
+          </div>
+          <div class="card">
+            <h3>Rules with fixes</h3>
+            <p>
+              76 rules: lockfiles, ranges, peer dependencies, SPFx lockstep, compiler, ESLint, Node
+              EOL. Every fix has a risk: <span class="badge risk-safe">safe</span>
+              <span class="badge risk-review">review</span>
+              <span class="badge risk-breaking">breaking</span>.
+            </p>
+          </div>
+          <div class="card">
+            <h3>Safe changes</h3>
+            <p>
+              A diff before writing, <code>--apply</code> to write, a backup of every file, an
+              operation journal, relock with the project Node after version edits.
+            </p>
+          </div>
+          <div class="card">
+            <h3>Shared store</h3>
+            <p>
+              One node_modules installation per group of identical projects, linked with junctions.
+              Drift detection after <code>git pull</code>.
+            </p>
+          </div>
+          <div class="card">
+            <h3>SharePoint</h3>
+            <p>
+              Collects what components need from lists and files, seeds a dev site, loads every
+              component in the workbench or on a real page, walks the property pane and cleans up
+              what it created.
+            </p>
+          </div>
+        </div>
+
+        <h2 id="how">How it works</h2>
+        <ol class="steps">
+          <li>
+            <h3>Project discovery</h3>
+            <p>
+              Every folder with a <code>package.json</code> down to depth 4 (except
+              <code>node_modules</code>, <code>dist</code>, <code>lib</code>, <code>temp</code> and
+              folders starting with <code>.</code>). The project id is its relative path, for
+              example <code>apps/news-feed</code>.
+            </p>
+          </li>
+          <li>
+            <h3>Analysis</h3>
+            <p>
+              Stack providers, Node selection, an import scan, npm advisories in one cached request
+              for the whole workspace.
+            </p>
+          </li>
+          <li>
+            <h3>Findings</h3>
+            <p>Each has a rule id, a severity, evidence and, when possible, a fix with a risk.</p>
+          </li>
+          <li>
+            <h3>Review and write</h3>
+            <p>
+              Commands that change files show a diff first. Writing happens only with
+              <code>--apply</code> and a confirmation.
+            </p>
+          </li>
+        </ol>
+
+        <h2 id="quickstart">Quick start</h2>
+        <div class="code">
+          <pre><code>git clone https://github.com/vlad-demchyk/package-manager.git
+cd package-manager
+npm ci
+npm run build
+npm link            # makes the packman and pm commands global
+
+cd C:\repo\workspace
+packman check       # read-only
+packman             # opens the TUI in a regular terminal</code></pre>
+        </div>
+        <p>
+          packman runs on Node 22.12+. Your projects stay on their own Node: the launcher finds a
+          newer installed Node for itself. Details in the <a href="guide.html#install">guide</a>.
+        </p>
+
+        <h2 id="sections">Sections</h2>
+        <div class="grid">
+          <a class="card" href="guide.html" style="text-decoration: none; color: inherit"
+            ><h3>Guide</h3>
+            <p>
+              Scenarios: one project without alignment, the whole repository, the store, SharePoint,
+              safe changes.
+            </p></a
+          >
+          <a class="card" href="simulator.html" style="text-decoration: none; color: inherit"
+            ><h3>Simulator</h3>
+            <p>Build a command with toggles and see what it reads, writes and prints.</p></a
+          >
+          <a class="card" href="commands.html" style="text-decoration: none; color: inherit"
+            ><h3>Commands</h3>
+            <p>Every command and option from the CLI code, explained.</p></a
+          >
+          <a class="card" href="rules.html" style="text-decoration: none; color: inherit"
+            ><h3>Rules</h3>
+            <p>Search and filter by prefix and severity, fixes and risk.</p></a
+          >
+          <a class="card" href="tui.html" style="text-decoration: none; color: inherit"
+            ><h3>TUI</h3>
+            <p>The seven tabs of the interactive interface and its keys.</p></a
+          >
+          <a class="card" href="config.html" style="text-decoration: none; color: inherit"
+            ><h3>Configuration</h3>
+            <p>
+              <code>packman.config.json</code>, <code>packman.sharepoint.json</code>, environment
+              variables.
+            </p></a
+          >
+          <a class="card" href="troubleshooting.html" style="text-decoration: none; color: inherit"
+            ><h3>Troubleshooting</h3>
+            <p>packman messages and what to do about them.</p></a
+          >
+          <a class="card" href="changelog.html" style="text-decoration: none; color: inherit"
+            ><h3>Changelog</h3>
+            <p>What is new in 3.0 (from CHANGELOG.md).</p></a
+          >
+        </div>
+      </main>
+    </div>
+    <footer class="site-footer">
+      <div class="footer-inner">
+        <span>packman 3.0.0-alpha.0 · branch <code>feat/packman-3</code> · license MIT</span>
+        <span
+          >Generated from the code (<code>src/cli/**</code>, <code>docs/rules.md</code>) ·
+          <span id="gen-date"></span
+        ></span>
+      </div>
+    </footer>
+    <dialog class="search" id="search-dialog" aria-label="Site search">
+      <div class="search-head">
+        <label class="visually-hidden" for="search-input">Search for</label>
+        <input
+          id="search-input"
+          type="search"
+          placeholder="Command, option, rule, message..."
+          autocomplete="off"
+          role="combobox"
+          aria-expanded="true"
+          aria-controls="search-results"
+          aria-autocomplete="list"
+        />
+        <button class="icon-btn" type="button" data-close-search aria-label="Close search">
+          Esc
+        </button>
+      </div>
+      <ul class="search-results" id="search-results" role="listbox" aria-label="Results"></ul>
+    </dialog>
+    <script src="assets/data.js"></script>
+    <script src="assets/notes.js"></script>
+    <script src="assets/site.js"></script>
+  </body>
+</html>
