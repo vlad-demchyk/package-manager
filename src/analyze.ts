@@ -49,7 +49,7 @@ import { annotateBreakingFixes } from './fixes/breaks.js';
 import { apiSplitFindings, checkApiMigration } from './providers/api.js';
 import { checkDuplicateDeclarations, checkUsage, npmProvider } from './providers/npm.js';
 import { spfxProvider } from './providers/spfx/index.js';
-import { spfxMatrix } from './providers/spfx/matrix.js';
+import { loadSpfxRegistry, SPFX_ANCHOR, spfxMatrix } from './providers/spfx/matrix.js';
 import type { ProjectContext, StackProvider } from './providers/types.js';
 import { configReferences } from './scan/implicit.js';
 import { scanSources, type SourceScan } from './scan/sources.js';
@@ -66,6 +66,12 @@ import {
   packageVulnerabilityFindings,
   type NetworkUsage,
 } from './security/exposure.js';
+import {
+  loadRemediationData,
+  planRemediations,
+  remediationNames,
+  type Remediation,
+} from './security/remediation.js';
 
 export const PROVIDERS: StackProvider[] = [
   npmProvider,
@@ -114,6 +120,8 @@ export interface ProjectReport {
   /** API-break pattern id (`data/api-breaks.json`) -> `file:line` places in the source scan. */
   apiUsage: Record<string, string[]>;
   findings: Finding[];
+  /** Per vulnerable package: chain, patched target inside the stack, or why there is none. */
+  remediation?: Remediation[];
 }
 
 export interface Report {
@@ -133,6 +141,19 @@ export async function analyze(workspace: Workspace, options: AnalyzeOptions): Pr
   const installedNodes = options.installedNodes ?? (await listInstalledNodes());
   const disabled = new Set(options.config.checks.disabled);
   const reports: ProjectReport[] = [];
+
+  // Network lookups run with the advisories: the SPFx registry tells a newer, unverified patch
+  // apart from the newest verified matrix row.
+  if (
+    options.security !== false &&
+    workspace.projects.some((project) =>
+      project.dependencies.some((dep) => dep.name === SPFX_ANCHOR),
+    )
+  )
+    await loadSpfxRegistry({
+      offline: options.offline ?? false,
+      ...(options.fetchImpl ? { fetchImpl: options.fetchImpl } : {}),
+    });
 
   let index = 0;
   for (const project of workspace.projects) {
@@ -158,10 +179,32 @@ export async function analyze(workspace: Workspace, options: AnalyzeOptions): Pr
       },
     );
     advisoryStatus = status;
-    for (const report of reports) {
-      const vulns = projectVulnerabilities(report.project, advisories);
-      report.findings.push(
-        ...packageVulnerabilityFindings(report.project, vulns, report.exposure, report.network),
+    const vulnerable = reports.map((entry) => ({
+      entry,
+      vulns: projectVulnerabilities(entry.project, advisories),
+    }));
+    const versions = new Map<string, string[]>();
+    for (const { vulns } of vulnerable)
+      for (const vuln of vulns)
+        versions.set(vuln.name, [...new Set([...(versions.get(vuln.name) ?? []), vuln.version])]);
+    // Remediation needs registry documents; offline it uses what the caches hold.
+    const data =
+      versions.size > 0
+        ? await loadRemediationData(await remediationNames(vulnerable), versions, {
+            offline: options.offline ?? false,
+            ...(options.fetchImpl ? { fetchImpl: options.fetchImpl } : {}),
+          })
+        : undefined;
+    for (const { entry, vulns } of vulnerable) {
+      entry.remediation = data ? await planRemediations(entry, vulns, data) : [];
+      entry.findings.push(
+        ...packageVulnerabilityFindings(
+          entry.project,
+          vulns,
+          entry.exposure,
+          entry.network,
+          entry.remediation,
+        ),
       );
     }
   }

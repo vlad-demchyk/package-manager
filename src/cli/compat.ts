@@ -54,9 +54,9 @@ export function printCompat(result: CompatReport): void {
   console.log(
     result.current
       ? t('compat.current', {
-          version: result.current.version,
-          source: result.current.source,
-          spec: result.current.spec,
+          // Which of declared / locked / installed the version comes from; the bare source
+          // ("manifest") read like an installed version.
+          evidence: result.evidence ?? `${result.current.version} (${result.current.source})`,
           section: result.current.section,
         })
       : t('compat.notDeclared'),

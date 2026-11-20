@@ -413,6 +413,64 @@ describe('explicit SPFx migrations and blockers', () => {
     );
   });
 
+  it('never lowers a major through a group pin: @pnp/logging 4 stays when @pnp/sp 3 is the lockstep', async () => {
+    const files = { ...spfx('base', '1.18.2'), ...spfx('detail', '1.18.2') };
+    const deps = (id: string) =>
+      (files[`${id}/package.json`] as { dependencies: Record<string, string> }).dependencies;
+    deps('base')['@pnp/sp'] = '3.26.0';
+    deps('detail')['@pnp/sp'] = '3.26.0';
+    deps('detail')['@pnp/logging'] = '^4.1.1';
+    const { report } = await setup(files);
+    const plan = await planUpgrade(report, {
+      config: config(),
+      to: '1.21.1',
+      fetchImpl: registry,
+    });
+    const detail = plan.projects.find((project) => project.id === 'detail');
+    expect(
+      detail?.edits.some(
+        (edit) => edit.kind === 'json-set' && edit.path.join('.') === 'dependencies.@pnp/logging',
+      ),
+    ).toBe(false);
+    expect(detail?.issues).toContainEqual(
+      expect.objectContaining({
+        code: 'major-downgrade-kept',
+        level: 'review',
+        message: expect.objectContaining({
+          params: expect.objectContaining({
+            name: '@pnp/logging',
+            wanted: '3.26.0',
+            reason: '@pnp packages follow @pnp/sp 3.26.0',
+          }) as unknown,
+        }) as unknown,
+      }),
+    );
+    // Same-major pins still apply.
+    expect(
+      plan.projects.every((project) => project.issues.every((i) => i.code !== 'major-downgrade')),
+    ).toBe(true);
+  });
+
+  it('lowers a major only when the target stack requires it, as a breaking review issue', async () => {
+    const files = { ...spfx('base', '1.18.2'), ...spfx('other', '1.18.2') };
+    for (const id of ['base', 'other'])
+      (files[`${id}/package.json`] as { dependencies: Record<string, string> }).dependencies[
+        '@pnp/spfx-property-controls'
+      ] = '4.0.0';
+    const { report } = await setup(files);
+    const plan = await planUpgrade(report, { config: config(), to: '1.21.1', fetchImpl: registry });
+    const base = plan.projects.find((project) => project.id === 'base');
+    expect(base?.edits).toContainEqual(
+      expect.objectContaining({
+        path: ['dependencies', '@pnp/spfx-property-controls'],
+        value: '3.22.0',
+      }),
+    );
+    expect(base?.issues).toContainEqual(
+      expect.objectContaining({ code: 'major-downgrade', level: 'review' }),
+    );
+  });
+
   it('moves a kept .eslintrc to typescript-eslint 8 so --ship builds do not fail on its warnings', async () => {
     const files = { ...spfx('old', '1.18.2'), ...spfx('new', '1.21.1') };
     files['old/.eslintrc.js'] = `require('@rushstack/eslint-config/patch/modern-module-resolution');

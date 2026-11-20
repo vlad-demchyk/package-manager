@@ -5,6 +5,7 @@ import { t } from '../i18n/index.js';
 import { isTopLevel, peerRangesOn } from '../core/lockfile.js';
 import type { DependencySection } from '../core/types.js';
 import { minVersionOf, resolveVersion, satisfies, type VersionSource } from '../core/versions.js';
+import { versionEvidence } from '../providers/api.js';
 import { corePackages } from '../providers/spfx/core.js';
 import {
   expectedCompiler,
@@ -39,6 +40,11 @@ export interface CompatReport {
   project: string;
   package: string;
   current?: { version: string; source: VersionSource; spec: string; section: DependencySection };
+  /**
+   * Declared, locked and installed versions and the one the checks used (`versionEvidence`):
+   * without node_modules the installed version is unknown, never the lockfile one.
+   */
+  evidence?: string;
   target?: string;
   node?: string;
   /** Stack ranges for the package: SPFx matrix, framework matrix, scaffold, compiler. */
@@ -97,6 +103,7 @@ export function packageCompatibility(
       spec: declared.spec,
       section: declared.section,
     };
+  if (declared) report.evidence = versionEvidence(project, name);
   if (target) report.target = target;
   if (entry.node.selected) report.node = entry.node.selected.version;
 

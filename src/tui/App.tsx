@@ -3,17 +3,19 @@ import { Box, Text, useApp, useInput, useWindowSize } from 'ink';
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import semver from 'semver';
 import type { ProjectReport, Report } from '../analyze.js';
-import { fix, msg, setDependency, SEVERITY_ORDER } from '../core/findings.js';
-import type { Finding, Fix, Project, Severity } from '../core/types.js';
+import { summaryLines } from '../cli/versions.js';
+import { SEVERITY_ORDER } from '../core/findings.js';
+import type { Finding, Fix, Severity } from '../core/types.js';
 import { collectEdits, lineDiff, previewEdits, type FilePreview } from '../fixes/apply.js';
 import { t, tm } from '../i18n/index.js';
 import { nodeLineStatus, nodeVulnerabilities } from '../node/releases.js';
 import { alignPackage } from '../ops/align.js';
 import { versionMatrix, type MatrixRow } from '../ops/matrix.js';
-import type { OutdatedRow } from '../ops/outdated.js';
+import type { PlannedOutdatedRow } from '../policy/bump.js';
 import { allFindings, summarize } from '../report/model.js';
 import { planStore, type StorePlan } from '../store/store.js';
 import { Counts, KeyHints, List, SEVERITY_COLOR, SEVERITY_ICON, tone } from './components.js';
+import type { JobPreview, JobRequest, JobResult } from './jobs.js';
 
 /** Read-only views first; Fixes, where selected changes are reviewed and written, comes last. */
 export type Tab = 'overview' | 'projects' | 'versions' | 'outdated' | 'node' | 'store' | 'fixes';
@@ -23,8 +25,27 @@ const SEVERITIES: Severity[] = ['info', 'warning', 'error', 'critical'];
 export interface AppProps {
   load: (onProgress: (done: number, total: number, id: string) => void) => Promise<Report>;
   apply: (previews: FilePreview[]) => Promise<{ files: string[]; backupDir: string }>;
-  /** Registry lookup behind the Outdated tab, run the first time the tab opens. */
-  loadOutdated?: (projects: Project[]) => Promise<OutdatedRow[]>;
+  /**
+   * Registry lookup behind the Outdated tab, run the first time the tab opens. Each row carries the
+   * in-major update the compatibility checks allow (`policy/bump.ts`), or why none is allowed.
+   */
+  loadOutdated?: (report: Report) => Promise<PlannedOutdatedRow[]>;
+  /**
+   * Plans a managed operation (add, remove, sync, build) without writing: scope, checks, diff.
+   * Absent: the managed keys say they are not available here.
+   */
+  planJob?: (request: JobRequest) => Promise<JobPreview>;
+  /** Runs a confirmed preview: the TUI closes, the job runs in the terminal, the TUI comes back. */
+  onRun?: (preview: JobPreview) => void;
+  /** Result of the job that ran before the TUI opened again, shown first. */
+  result?: JobResult;
+  initialTab?: Tab;
+}
+
+interface PromptState {
+  kind: 'add' | 'remove';
+  projectId: string;
+  text: string;
 }
 
 interface SelectedFix {
@@ -36,13 +57,21 @@ interface SelectedFix {
 const fixKey = (item: Finding, fix: Fix): string =>
   `${item.projectId ?? '*'}|${item.ruleId}|${fix.id}|${JSON.stringify(item.message.params ?? {})}`;
 
-export function App({ load, apply, loadOutdated }: AppProps): ReactNode {
+export function App({
+  load,
+  apply,
+  loadOutdated,
+  planJob,
+  onRun,
+  result,
+  initialTab,
+}: AppProps): ReactNode {
   const { exit } = useApp();
   const { rows } = useWindowSize();
   const [report, setReport] = useState<Report>();
   const [progress, setProgress] = useState('');
   const [error, setError] = useState<string>();
-  const [tab, setTab] = useState<Tab>('overview');
+  const [tab, setTab] = useState<Tab>(initialTab ?? 'overview');
   const [cursor, setCursor] = useState<Record<Tab, number>>({
     overview: 0,
     projects: 0,
@@ -52,7 +81,7 @@ export function App({ load, apply, loadOutdated }: AppProps): ReactNode {
     outdated: 0,
     store: 0,
   });
-  const [outdatedRows, setOutdatedRows] = useState<OutdatedRow[]>();
+  const [outdatedRows, setOutdatedRows] = useState<PlannedOutdatedRow[]>();
   const [outdatedError, setOutdatedError] = useState<string>();
   const [detail, setDetail] = useState<number>();
   const [detailCursor, setDetailCursor] = useState(0);
@@ -62,6 +91,14 @@ export function App({ load, apply, loadOutdated }: AppProps): ReactNode {
   const [confirming, setConfirming] = useState(false);
   const [notice, setNotice] = useState<string>();
   const [applying, setApplying] = useState(false);
+  const [shownResult, setShownResult] = useState<JobResult | undefined>(result);
+  const [prompt, setPrompt] = useState<PromptState>();
+  const promptRef = useRef<PromptState>(undefined);
+  const updatePrompt = (next: PromptState | undefined): void => {
+    promptRef.current = next;
+    setPrompt(next);
+  };
+  const [job, setJob] = useState<{ preview?: JobPreview; error?: string; loading?: string }>();
   const loadId = useRef(0);
 
   const reload = useCallback(() => {
@@ -113,7 +150,7 @@ export function App({ load, apply, loadOutdated }: AppProps): ReactNode {
   useEffect(() => {
     if (tab !== 'outdated' || !report || !loadOutdated || outdatedRows || outdatedError) return;
     const request = loadId.current;
-    loadOutdated(report.projects.map((entry) => entry.project))
+    loadOutdated(report)
       .then((next) => {
         if (request === loadId.current) setOutdatedRows(next);
       })
@@ -204,6 +241,22 @@ export function App({ load, apply, loadOutdated }: AppProps): ReactNode {
     });
   };
 
+  /** Plans a managed operation; the preview replaces the tab until it is run or dismissed. */
+  const requestJob = (request: JobRequest): void => {
+    if (!planJob) {
+      setNotice(t('tui.job.unavailable'));
+      return;
+    }
+    setJob({ loading: t('tui.job.planning') });
+    planJob(request)
+      .then((preview) => {
+        setJob({ preview });
+      })
+      .catch((reason: unknown) => {
+        setJob({ error: reason instanceof Error ? reason.message : String(reason) });
+      });
+  };
+
   const move = (delta: number, total: number): void => {
     if (current) {
       setDetailCursor((value) => clamp(value + delta, total));
@@ -239,11 +292,45 @@ export function App({ load, apply, loadOutdated }: AppProps): ReactNode {
       }
       return;
     }
+    // The result of a managed job that just ran: any key closes it.
+    if (shownResult) {
+      setShownResult(undefined);
+      return;
+    }
+    // Typing package names for add/remove: Enter plans, Esc cancels; nothing is written yet.
+    // The ref, not the rendered state: keys typed (or pasted) faster than a render must all count.
+    const typing = promptRef.current;
+    if (typing) {
+      if (key.escape) updatePrompt(undefined);
+      else if (key.return) {
+        updatePrompt(undefined);
+        requestJob({ kind: typing.kind, projectId: typing.projectId, packages: typing.text });
+      } else if (key.backspace || key.delete)
+        updatePrompt({ ...typing, text: typing.text.slice(0, -1) });
+      else if (input && !key.ctrl && !key.meta)
+        updatePrompt({ ...typing, text: typing.text + input });
+      return;
+    }
+    // A previewed job: y runs it (the TUI closes while it runs), Esc goes back without writing.
+    if (job) {
+      if (key.escape || input === 'n' || input === 'q') setJob(undefined);
+      else if (
+        (input === 'y' || input === 's' || input === 'т') &&
+        job.preview &&
+        !job.preview.blocked &&
+        onRun
+      ) {
+        onRun(job.preview);
+        exit();
+      }
+      return;
+    }
     if (input === 'q' || (key.ctrl && input === 'c')) {
       exit();
       return;
     }
     if (!report) return;
+    const focused = current ?? (tab === 'projects' ? projects[cursor.projects] : undefined);
 
     const total = current
       ? detailFindings.length
@@ -284,12 +371,16 @@ export function App({ load, apply, loadOutdated }: AppProps): ReactNode {
         );
     } else if (input === ' ' && !current && tab === 'outdated') {
       const row = outdatedRows?.[cursor.outdated];
-      if (row)
-        toggleFix(
-          `outdated|${row.projectId}|${row.name}`,
-          bumpInMajor(projects.find((entry) => entry.project.id === row.projectId)?.project, row),
-          row.projectId,
+      // Only the target the compatibility checks allow is selectable; a refused one never
+      // reaches the Fixes tab.
+      if (row && !row.bump.fix && row.bump.blocked)
+        setNotice(
+          t('tui.bumpBlocked', {
+            version: row.bump.blockedVersion ?? '?',
+            reason: row.bump.blocked[0] ?? '?',
+          }),
         );
+      else if (row) toggleFix(`outdated|${row.projectId}|${row.name}`, row.bump.fix, row.projectId);
     } else if (input === ' ') {
       toggleFixes(
         current
@@ -317,6 +408,18 @@ export function App({ load, apply, loadOutdated }: AppProps): ReactNode {
       setCursor((value) => ({ ...value, overview: 0 }));
     } else if (input === 'r') {
       reload();
+    } else if ((input === '+' || input === '-') && focused) {
+      updatePrompt({
+        kind: input === '+' ? 'add' : 'remove',
+        projectId: focused.project.id,
+        text: '',
+      });
+    } else if (input === 'b' && focused) {
+      requestJob({ kind: 'build', projectId: focused.project.id });
+    } else if (input === 'c') {
+      requestJob({ kind: 'sync' });
+    } else if ((input === '+' || input === '-' || input === 'b') && !focused) {
+      setNotice(t('tui.job.pickProject'));
     } else if (input === 'a' && tab === 'fixes' && previews.length > 0) {
       setConfirming(true);
     }
@@ -355,7 +458,17 @@ export function App({ load, apply, loadOutdated }: AppProps): ReactNode {
         <Text dimColor>{t('tui.minSeverity', { severity: t(`severity.${minSeverity}`) })}</Text>
       </Box>
       <Box flexDirection="column" flexGrow={1} marginTop={1}>
-        {current ? (
+        {shownResult ? (
+          <JobResultView result={shownResult} />
+        ) : prompt ? (
+          <Text>
+            {t(`tui.job.prompt.${prompt.kind}`, { project: prompt.projectId })}{' '}
+            <Text color="cyan">{prompt.text}</Text>
+            <Text inverse> </Text>
+          </Text>
+        ) : job ? (
+          <JobView job={job} root={report.root} height={listHeight} />
+        ) : current ? (
           <ProjectDetail
             entry={current}
             findings={detailFindings}
@@ -418,6 +531,9 @@ export function App({ load, apply, loadOutdated }: AppProps): ReactNode {
           ['s', t('tui.key.severity')],
           ['a', t('tui.key.apply')],
           ['r', t('tui.key.reload')],
+          ['+/-', t('tui.key.addRemove')],
+          ['b', t('tui.key.build')],
+          ['c', t('tui.key.sync')],
           ['q', t('tui.key.quit')],
         ]}
       />
@@ -673,27 +789,8 @@ function FixesTab(props: {
   );
 }
 
-/**
- * Raises an exact or `^`/`~` spec to the newest release of its current major, keeping the operator.
- * Other ranges are left to the user: rewriting them would change their meaning.
- */
-export function bumpInMajor(project: Project | undefined, row: OutdatedRow): Fix | undefined {
-  const target = row.latestInMajor;
-  const operator = /^([\^~]?)\d+\.\d+\.\d+$/.exec(row.spec)?.[1];
-  if (!project || !target || operator === undefined) return undefined;
-  if (row.current && semver.valid(row.current) && !semver.gt(target, row.current)) return undefined;
-  const value = `${operator}${target}`;
-  if (value === row.spec) return undefined;
-  return fix(
-    'outdated/in-major',
-    msg('fix.bumpInMajor', { name: row.name, version: value }),
-    'review',
-    [setDependency(project, row.name, value)],
-  );
-}
-
 function OutdatedTab(props: {
-  rows: OutdatedRow[] | undefined;
+  rows: PlannedOutdatedRow[] | undefined;
   error: string | undefined;
   cursor: number;
   height: number;
@@ -721,7 +818,10 @@ function OutdatedTab(props: {
               <Text color={picked ? 'green' : 'gray'}>{picked ? '[x] ' : '[ ] '}</Text>
               <Text bold={active}>{item.name}</Text>
               <Text dimColor>{`  ${item.projectId}  ${item.current ?? '-'}`}</Text>
-              {` → ${item.latestInMajor ?? '-'}`}
+              {` → ${item.bump.target ?? '-'}`}
+              {item.bump.blocked && (
+                <Text color="yellow">{` ✗ ${item.bump.blockedVersion ?? '?'}`}</Text>
+              )}
               <Text {...tone(major ? 'red' : undefined)} dimColor={!major}>
                 {`  latest ${item.latest ?? '-'}`}
               </Text>
@@ -741,6 +841,14 @@ function OutdatedTab(props: {
           <Text wrap="truncate-end">
             {`${row.name} ${row.spec}: wanted ${row.wanted ?? '-'}, ${t('tui.inMajor')} ${row.latestInMajor ?? '-'}, latest ${row.latest ?? '-'}`}
           </Text>
+          {row.bump.blocked && (
+            <Text color="yellow" wrap="truncate-end">
+              {t('tui.bumpBlocked', {
+                version: row.bump.blockedVersion ?? '?',
+                reason: row.bump.blocked.join('; '),
+              })}
+            </Text>
+          )}
           {row.deprecated && (
             <Text color="red" wrap="truncate-end">
               {row.deprecated}
@@ -866,8 +974,109 @@ function VersionsTab(props: {
               </Text>
             </Text>
           ))}
+          {summaryLines(selected).map((line) => (
+            <Text key={line} dimColor wrap="truncate-end">
+              {line}
+            </Text>
+          ))}
         </Box>
       )}
+    </Box>
+  );
+}
+
+const NOTE_COLOR = { error: 'red', warning: 'yellow', info: undefined } as const;
+
+/** A planned managed operation: scope, checks and the diff, then y to run or Esc to go back. */
+function JobView(props: {
+  job: { preview?: JobPreview; error?: string; loading?: string };
+  root: string;
+  height: number;
+}): ReactNode {
+  const { job, root, height } = props;
+  if (job.loading) return <Text dimColor>{job.loading}</Text>;
+  if (job.error || !job.preview)
+    return (
+      <Box flexDirection="column">
+        <Text color="red">{job.error ?? '?'}</Text>
+        <Text dimColor>{t('tui.job.back')}</Text>
+      </Box>
+    );
+  const { preview } = job;
+  const diff = preview.previews.flatMap((item) => [
+    `# ${path.relative(root, item.file)}${item.deleted ? ' (delete)' : ''}`,
+    ...lineDiff(item.before, item.after),
+  ]);
+  const room = Math.max(3, height - preview.scope.length - preview.notes.length - 6);
+  return (
+    <Box flexDirection="column">
+      <Text bold>{preview.title}</Text>
+      {preview.scope.map((line) => (
+        <Text key={`scope-${line}`} wrap="truncate-end">
+          {`  · ${line}`}
+        </Text>
+      ))}
+      {preview.notes.map((note, index) => (
+        <Text key={`note-${index}`} wrap="truncate-end" {...tone(NOTE_COLOR[note.tone])}>
+          {`  ${note.tone === 'error' ? '!' : note.tone === 'warning' ? '~' : ' '} ${note.text}`}
+        </Text>
+      ))}
+      {diff.length > 0 && (
+        <Box flexDirection="column" borderStyle="round" borderColor="gray" paddingX={1}>
+          {diff.slice(0, room).map((line, index) => (
+            <Text
+              key={index}
+              {...tone(line.startsWith('+') ? 'green' : line.startsWith('-') ? 'red' : undefined)}
+              bold={line.startsWith('#')}
+              dimColor={line.startsWith(' ')}
+              wrap="truncate-end"
+            >
+              {line}
+            </Text>
+          ))}
+          {diff.length > room && <Text dimColor>{`… +${diff.length - room}`}</Text>}
+        </Box>
+      )}
+      <Text color={preview.blocked ? 'red' : 'yellow'} bold>
+        {preview.blocked ? t('tui.job.blocked') : t('tui.job.confirm')}
+      </Text>
+    </Box>
+  );
+}
+
+/** What the last managed job did: each step, the exit code and what is still left. */
+function JobResultView({ result }: { result: JobResult }): ReactNode {
+  return (
+    <Box flexDirection="column">
+      <Text bold>{result.title}</Text>
+      {result.steps.map((step, index) => (
+        <Text key={index} wrap="truncate-end">
+          <Text
+            {...tone(
+              step.status === 'ok' ? 'green' : step.status === 'skipped' ? undefined : 'red',
+            )}
+            dimColor={step.status === 'skipped'}
+          >
+            {step.status.padEnd(9)}
+          </Text>
+          {` ${step.step}`}
+          {step.detail && <Text dimColor>{`  ${step.detail}`}</Text>}
+        </Text>
+      ))}
+      <Text color={result.ok ? 'green' : 'red'} bold>
+        {t('tui.job.exit', {
+          code: result.exitCode,
+          state: result.cancelled
+            ? t('tui.job.cancelled')
+            : result.ok
+              ? t('tui.job.done')
+              : t('tui.job.failed'),
+        })}
+      </Text>
+      <Text dimColor wrap="truncate-end">
+        {result.remaining}
+      </Text>
+      <Text dimColor>{t('tui.job.anyKey')}</Text>
     </Box>
   );
 }

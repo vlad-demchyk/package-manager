@@ -6,7 +6,7 @@ import picomatch from 'picomatch';
 import type { Report } from '../analyze.js';
 import { CONFIG_FILE, ConfigError } from '../core/config.js';
 import { SEVERITY_ORDER } from '../core/findings.js';
-import type { Fix, Risk, Severity } from '../core/types.js';
+import type { Risk, Severity } from '../core/types.js';
 import { runWithNode } from '../exec/run.js';
 import { setLanguage, t, type Language } from '../i18n/index.js';
 import { nodeLineStatus, nodeVulnerabilities } from '../node/releases.js';
@@ -28,7 +28,7 @@ import {
   langOption,
   progressReporter,
   reviewAndApply,
-  RISK_ORDER,
+  selectFixesBy,
   verifyProjects,
 } from './shared.js';
 import { existsSync, readFileSync } from 'node:fs';
@@ -73,6 +73,9 @@ export function buildProgram(): Command {
   const program = new Command('packman')
     .description(t('cli.description'))
     .version(pkg.version)
+    // Root options (-V/--version, -h/--help) only before the command name, so a command may
+    // define its own option with the same name (`align --package x --version 1.2.3`).
+    .enablePositionalOptions()
     .showHelpAfterError()
     .hook('preAction', (_program, action) => {
       const { lang } = action.opts<{ lang?: Language | 'auto' }>();
@@ -139,7 +142,7 @@ export function buildProgram(): Command {
     .action(async (root: string, options: FixOptions & { relock?: boolean }) => {
       const session = await openSession(root, options);
       const report = await runAnalysis(session, options, progressReporter(false));
-      await reviewAndApply(session, report, selectFixes(report, options), {
+      await reviewAndApply(session, report, selectFixesBy(report, options), {
         ...options,
         command: 'fix',
       });
@@ -585,17 +588,6 @@ export function buildProgram(): Command {
   return program;
 }
 
-function selectFixes(report: Report, options: FixOptions): Fix[] {
-  const maxRisk = RISK_ORDER[options.risk ?? 'safe'];
-  return allFindings(report)
-    .filter((item) => !options.rule || options.rule.includes(item.ruleId))
-    .flatMap((item) => item.fixes)
-    .filter(
-      (entry) =>
-        RISK_ORDER[entry.risk] <= maxRisk && (!options.fix || options.fix.includes(entry.id)),
-    );
-}
-
 function exitCodeFor(report: Report, failOn: Severity | 'none'): number {
   if (failOn === 'none') return 0;
   const threshold = SEVERITY_ORDER[failOn];
@@ -608,13 +600,19 @@ function worstSeverity(values: string[]): string {
   return values[0] ?? '-';
 }
 
+const ROOT_FLAGS = new Set(['-V', '--version', '-h', '--help']);
+
 export async function main(argv = process.argv): Promise<void> {
   try {
     // Without a command in an interactive terminal, open the TUI (the 2.x menu entry point).
     const args = argv.slice(2);
     const interactive = process.stdout.isTTY && process.stdin.isTTY && !process.env.CI;
+    // Root flags stay with the root command: `packman --version` prints the version, not `tui`.
+    const rootFlag = args.some((arg) => ROOT_FLAGS.has(arg));
     const effective =
-      interactive && (args.length === 0 || args.every((arg) => !/^[a-z]/.test(arg) || arg === '.'))
+      interactive &&
+      !rootFlag &&
+      (args.length === 0 || args.every((arg) => !/^[a-z]/.test(arg) || arg === '.'))
         ? [...argv.slice(0, 2), 'tui', ...args]
         : argv;
     await buildProgram().parseAsync(effective);

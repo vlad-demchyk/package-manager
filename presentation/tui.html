@@ -212,7 +212,8 @@ Node fragmentation, pin violations, repository targets. Project findings: tab 2.
 ╭─────────────────────────────────────────────────────────────────────╮
 │ @pnp/sp ^3.20.1: wanted 3.26.0, newest in major 3.26.0, latest 4.22.0 │
 ╰─────────────────────────────────────────────────────────────────────╯
-<span style="color:var(--term-dim)">Space: update within the major (outdated/in-major, review risk); exact, ^ and ~ versions only.
+<span style="color:var(--term-dim)">Space: update to the highest version of the major that the stack, peer and group checks allow
+(outdated/in-major, review risk); exact, ^ and ~ versions only. ✗ marks a refused newer version; the box gives the reason.
 A red latest means a new major version.</span></pre>
           </div>
           <div role="tabpanel" id="p5" aria-labelledby="t5" tabindex="0" hidden>
@@ -291,10 +292,14 @@ A red latest means a new major version.</span></pre>
                 <td>4</td>
                 <td>Outdated</td>
                 <td>
-                  Asks the npm registry the first time the tab opens: current, newest in major,
-                  latest, deprecated.
+                  Asks the npm registry the first time the tab opens: current, the allowed target in
+                  the major, a refused newer version with its reason (stack, peers, group), latest,
+                  deprecated.
                 </td>
-                <td>update within the major (<code>outdated/in-major</code>)</td>
+                <td>
+                  update to the highest allowed version in the major
+                  (<code>outdated/in-major</code>)
+                </td>
               </tr>
               <tr>
                 <td>5</td>

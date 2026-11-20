@@ -1,7 +1,7 @@
 # Command reference
 
 Every command, subcommand and option as defined in `src/cli/main.ts`, `src/cli/commands.ts`,
-`src/cli/add.ts`, `src/cli/upgrade.ts`, `src/cli/sharepoint.ts` and `src/cli/hooks.ts`. `pm` is an
+`src/cli/add.ts`, `src/cli/upgrade.ts`, `src/cli/sync.ts`, `src/cli/sharepoint.ts` and `src/cli/hooks.ts`. `pm` is an
 alias of `packman`.
 
 - [Conventions](#conventions)
@@ -10,9 +10,10 @@ alias of `packman`.
 - Fixes and edits: [fix](#fix), [align](#align), [profile apply](#profile-apply),
   [profile generate](#profile-generate), [add](#add), [remove](#remove), [install](#install),
   [clean](#clean), [relock](#relock), [ignore](#ignore), [data](#data)
-- [upgrade](#upgrade)
+- [upgrade](#upgrade), [sync](#sync)
 - Store: [store plan](#store-plan), [store link](#store-link), [store status](#store-status),
-  [store verify](#store-verify), [store unlink](#store-unlink), [store prune](#store-prune)
+  [store verify](#store-verify), [store unlink](#store-unlink), [store prune](#store-prune),
+  [store rollback](#store-rollback)
 - SharePoint: [sp requirements](#sp-requirements), [sp seed](#sp-seed), [sp clean](#sp-clean),
   [sp test](#sp-test)
 - [hooks](#hooks), [tui](#tui), [init](#init), [log](#log)
@@ -54,6 +55,10 @@ them; most still accept `--lang`.
 stdout and stdin are terminals, the `CI` variable is not set and no argument starts with a lowercase
 letter (except `.`). So `packman` and `packman ../repo` open the TUI in a terminal, while
 `packman > out.txt` or a CI job runs `check`.
+
+The root options `-V, --version` and `-h, --help` count only before the command name (they never open
+the TUI). After it, an option belongs to the command: `packman align --package ajv --version 6.15.0`
+is the same as `--version=6.15.0`, and `packman check --version` is an unknown option.
 
 ### Language
 
@@ -246,10 +251,28 @@ Version of every declared package in every project (peer dependencies excluded).
 
 The version of a cell is the installed version, else the locked one, else the lowest of the spec
 (`resolveVersion`). Text output marks diverging packages with `≠` and lists which projects use each
-version.
+version, then one line per source, so drift is visible before choosing a target:
 
-`--json`: `{ projects: string[], rows: [{ name, cells: { <projectId>: { spec, section, version? } },
-versions: string[], diverging: boolean }] }`.
+```text
+≠ @microsoft/sp-core-library (66)  declared and locked versions disagree
+    declared     latest 1.22.0, most common 1.22.0 (39/66)
+    locked       latest 1.22.0, most common 1.7.0 (32/64); unknown in 2/66 (no lockfile)
+    installed    unknown in 66/66 (no node_modules)
+```
+
+- **declared**: the specs in `package.json`; **locked**: the top-level lockfile version;
+  **installed**: `node_modules/<name>/package.json`. `(n/m)`: projects with the most common value
+  out of the projects where that source has a value.
+- A project without `node_modules` counts as `unknown` for **installed**, never as installed; one
+  without a lockfile counts as `unknown` for **locked**.
+- The drift mark (also `≠`) means the most common locked version does not satisfy the most common
+  declared spec (`1.22.0` declared, `1.7.0` locked). A package with drift but a single resolved
+  version is shown in the full output; `--diverging` keeps its meaning.
+
+`--json`: `{ projects: string[], rows: [{ name, cells: { <projectId>: { spec, section, version?,
+versionSource?, locked?, installed? } }, versions: string[], diverging: boolean, drift: boolean,
+summary: { declared|locked|installed: { total, count, unknown, latest?, mostCommon?: { version,
+count } } } }] }`. The TUI Versions tab shows the same three lines in its detail box.
 
 ### outdated
 
@@ -272,6 +295,7 @@ deprecated? }`.
 
 ```text
 packman audit [options] [path]
+packman audit --plan [--json] [options] [path]
 ```
 
 Only security findings (`security/package-vulnerability`, `security/node-vulnerable` and any other
@@ -282,6 +306,15 @@ Exit code 1 when any of these findings is `critical` or `error`.
 
 `--json`: an array of raw findings `{ ruleId, severity, projectId?, message: { key, params },
 evidence, fixes, tags }`. Unlike `check --json`, `message` is not translated.
+
+`--plan`: the remediation plan of every vulnerable package per project (see
+[Rules: remediation plan](rules.md#remediation-plan)): status (`direct`, `relock`, `parent`,
+`override`, `blocked`, `no-fix`, `unknown`), patched target, changes, risk, reason, the first
+dependency chain and the `packman fix -p <project> -f security/<package> --risk <risk>` command, then
+a summary line. Registry documents are fetched with at most 8 requests at a time and cached 12 hours;
+`--offline` uses the caches only. `--plan --json`:
+`{ root, advisories, summary, projects: [{ id, remediation: [...] }] }` with translated `reason` and
+its `reasonKey`. `check --json` carries the same `remediation` array per project.
 
 ### node
 
@@ -321,8 +354,12 @@ off; `-p` names the project, optional when the workspace has one project), plus:
 
 Text output, in order:
 
-- **current**: resolved version and its source (`installed`, `lockfile`, `manifest`), declared spec
-  and section; or `not declared in this project`.
+- **current**: declared spec, locked version, installed version, then the version the checks use
+  and where it comes from (`installed`, `locked` or `inferred from the declared range`), and the
+  section, e.g. `current: <pkg>: declared 1.22.0, locked 1.7.0, installed unknown (no
+node_modules); checked 1.7.0 (locked); in dependencies`. Without `node_modules` the installed
+  version is `unknown`, never the lockfile one. `--json` keeps `current.source` (`installed`,
+  `lockfile`, `manifest`) and adds the same text as `evidence`. Or `not declared in this project`.
 - **Stack ranges**: SPFx lockstep or build tools version, the scaffold version, the PnP controls
   line built for the project's SPFx (`spfx/library-target-mismatch`), the recommended PnPjs major,
   the compiler's TypeScript, and framework matrix ranges (`data/frameworks.json`); each with
@@ -368,6 +405,10 @@ edit on the same JSON path wins, but a removal made by one fix is never undone b
 
 See [dry run, confirmation and backups](#dry-run-confirmation-and-backups). Journal command: `fix`.
 
+`fix` writes files only. A linked project whose manifest changed is reported as stale
+(`packman sync --apply rebuilds the store, relinks, builds and checks again`): [`sync`](#sync) runs
+the same selection and then the store switch, the builds and the final check in one run.
+
 ### align
 
 ```text
@@ -390,7 +431,7 @@ off), plus:
 
 Modes:
 
-- `--package <name> [--version <v>]`: sets the declared spec of `<name>` in every section that
+- `--package <name> [--version <v>]` (or `--version=<v>`): sets the declared spec of `<name>` in every section that
   declares it (`dependencies`, `devDependencies`, `optionalDependencies`; never
   `peerDependencies`) of every selected project. Fix `align/package`, risk `breaking` when a
   declared major differs from the target, `review` otherwise. Before the preview, the peer ranges
@@ -665,7 +706,9 @@ The data behind the checks (`src/ops/data.ts`, `src/core/data.ts`).
 
 `status` lists every data file with the date of the bundled copy, the date of the updated copy (or
 `-`, or `curated` for files edited by hand) and which copy is used. `--json`:
-`{ dir: string | null, files: [{ name, bundled, updated?, active: "bundled"|"updated", updatable }] }`.
+`{ dir: string | null, files: [{ name, bundled, updated?, active: "bundled"|"updated", updatable }], spfx }`.
+A last line (`spfx` in JSON) compares the latest verified SPFx of the matrix with the npm latest
+(looked up in this process, or recorded by `update`) and lists published patches not yet verified.
 
 `update` downloads, in parallel:
 
@@ -673,7 +716,13 @@ The data behind the checks (`src/ops/data.ts`, `src/core/data.ts`).
   into `node.json`;
 - Node core vulnerabilities (`nodejs/security-wg` `vuln/core/index.json`) into `node-vulns.json`;
 - registry documents of `@angular/core`, `@angular/compiler-cli`, `next` and `vite` into
-  `frameworks.json` (Angular 14+, Next.js 13+, Vite 4+).
+  `frameworks.json` (Angular 14+, Next.js 13+, Vite 4+);
+- the registry document of `@microsoft/sp-core-library` into `spfx-registry.json`: published SPFx
+  releases and the npm latest. It never changes the verified matrix (`data/spfx.json`): a newer
+  patch of a known minor is listed as published and not yet verified (the constraints of the newest
+  verified patch of its minor are assumed) and becomes usable offline as an unverified
+  `upgrade --to` target. A failed SPFx lookup
+  leaves that file out; fewer releases than already recorded refuse the update.
 
 It prints the changes per file. Without `--dry-run` it writes the three files to the per-user data
 folder (`%LOCALAPPDATA%\packman\data` on Windows, `~/.cache/packman/data` elsewhere,
@@ -694,24 +743,80 @@ packman upgrade [options] [path]
 Converge projects on the newest stack already present in the repository. Full explanation in
 [Upgrade](upgrade.md). Common options (security forced off; analysis against target versions), plus:
 
-| Option                     | Meaning                                                                                                                                         |
-| -------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
-| `--stack <names...>`       | Framework families to migrate: `spfx`, `angular`, `next`, `electron`, `vue`, `vite`, `react`, `typescript`, `eslint`, `jest`, `vitest`, `node`. |
-| `--to <version>`           | Explicit target version or line (default: newest existing project). Needs one family.                                                           |
-| `--node <version>`         | Explicit Node version or range (default: a common installed Node).                                                                              |
-| `--json`                   | Print the migration plan as JSON (read-only; cannot be combined with `--apply`).                                                                |
-| `--apply`                  | Write the reviewed migration and the repository policy.                                                                                         |
-| `--relock` / `--no-relock` | As for `fix` (ignored with `--shared`, which writes locks from the store).                                                                      |
-| `--install`                | Install migrated projects (`npm install` with the plan's Node).                                                                                 |
-| `--shared`                 | Install once, delete local modules and link the migrated group; back up manifests/locks only.                                                   |
-| `--verify`                 | Install and run the build (or test) script of every migrated project.                                                                           |
-| `--no-policy`              | Migrate the projects only: no `upgrade/policy` fix, so `packman.config.json` (targets, `packman-<stack>` profiles and groups) is left as it is. |
-| `-y, --yes`                | Do not ask for confirmation.                                                                                                                    |
+| Option                     | Meaning                                                                                                                                          |
+| -------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `--stack <names...>`       | Framework families to migrate: `spfx`, `angular`, `next`, `electron`, `vue`, `vite`, `react`, `typescript`, `eslint`, `jest`, `vitest`, `node`.  |
+| `--to <version>`           | Explicit target version or line (default: newest existing project). Needs one family.                                                            |
+| `--node <version>`         | Explicit Node version or range (default: a common installed Node).                                                                               |
+| `--json`                   | Print the migration plan as JSON (read-only; cannot be combined with `--apply`).                                                                 |
+| `--apply`                  | Write the reviewed migration and the repository policy.                                                                                          |
+| `--relock` / `--no-relock` | As for `fix` (ignored with `--shared`, which writes locks from the store).                                                                       |
+| `--install`                | Install migrated projects (`npm install` with the plan's Node).                                                                                  |
+| `--shared`                 | Install once, delete local modules and link the migrated group; back up manifests/locks only.                                                    |
+| `--verify [script]`        | Install and run the build (or test) script, or `script`, of every migrated project. Linked groups: builds after the switch, rollback on failure. |
+| `--install-node`           | With `--apply`: install a missing target Node with the detected manager (`nvm install`, `fnm install`, `volta fetch`); never switches Node.      |
+| `--sync`                   | After a successful migration, run [`sync`](#sync) passes with `--apply` (fix, store switch, build, check).                                       |
+| `--risk <level>`           | With `--sync`: highest fix risk the passes apply (default `safe`).                                                                               |
+| `--no-policy`              | Migrate the projects only: no `upgrade/policy` fix, so `packman.config.json` (targets, `packman-<stack>` profiles and groups) is left as it is.  |
+| `-y, --yes`                | Do not ask for confirmation.                                                                                                                     |
 
 Without `--apply` it prints the plan and the diff and writes nothing. Exit codes: 1 when the plan has
 blockers (also with `--json`, after printing the plan), 1 when no project matches, the npm or script
 exit code when an install or a verification build fails. `--json` prints the `UpgradePlan`
-(`src/upgrade/types.ts`): `{ root, targets, projects, order, fixes, issues, nodeVersion?, node? }`.
+(`src/upgrade/types.ts`): `{ root, targets, projects, order, fixes, issues, nodeVersion?, node?,
+nodeSetup? }`; `nodeSetup` (`{ command, manager?, note }`) is the command that installs a missing
+target Node.
+
+Projects already linked to a shared store are migrated with their group: there is no `linked`
+blocker any more. The plan says `Linked group: ...`, and `--apply` switches the group to a new store
+(prepare, relink, build with `--verify`, restore the previous links and files when a step fails; see
+[Switching a linked group](shared-store.md#switching-a-linked-group)). Blockers: `linked-partial`
+(the store is also used by projects outside the selection) and `linked-mixed` (some selected projects
+have their own `node_modules`; `--shared` links them too).
+
+---
+
+## sync
+
+```text
+packman sync [options] [path]
+```
+
+The full cycle as one command, dry run unless `--apply`:
+
+1. **Preflight**: every project has an installed Node. A missing one prints the exact install command
+   of the manager in use (nvm-windows, nvm, fnm, Volta) and fails the run with `--apply`;
+   `--install-node --apply` runs that command (never `nvm use` or any command that changes the
+   active Node).
+2. **Pass** (up to `--max-passes`): the fixes `fix --risk <level>` would apply, without any that would
+   undo an earlier pass (reported as a cycle, `held`); written with backups; projects with their
+   own `node_modules` are relocked, installed and built; every linked group with a changed member is
+   switched to a new store: prepare, relink, build, rollback on failure.
+3. **Final check**: the check runs again; the run is complete when no allowed fix is left and no
+   linked project is stale.
+
+Each npm step has a time limit (`--timeout`); a step that exceeds it, or Ctrl+C, kills the whole
+process tree (`taskkill /T` on Windows, the process group elsewhere) and the store switch in progress
+rolls back. One summary lists every step as `ok`, `failed`, `held`, `skipped` or `cancelled`.
+
+| Option                | Meaning                                                                           |
+| --------------------- | --------------------------------------------------------------------------------- |
+| `-r, --rule <ids...>` | Only fixes of findings with these rule ids.                                       |
+| `-f, --fix <ids...>`  | Only these fix ids.                                                               |
+| `--risk <level>`      | Highest fix risk: `safe` (default), `review`, `breaking`.                         |
+| `--script <name>`     | npm script that verifies every changed project (default `build`; SPFx: `buildp`). |
+| `--no-verify`         | Do not build after a store switch (the final check still runs).                   |
+| `--max-passes <n>`    | Fix passes before the run stops as not stable (default 3).                        |
+| `--timeout <minutes>` | Time limit of each npm step; `0` for none (default 30).                           |
+| `--install-node`      | Install a missing Node with the detected manager (with `--apply`).                |
+| `--refresh`           | Resolve rebuilt stores fresh instead of from their verified set.                  |
+| `--apply`             | Run the cycle and write the changes.                                              |
+| `-y, --yes`           | Do not ask for confirmation of each pass.                                         |
+
+With `-p`/`-x`, fixes come from the selected projects, while store groups are planned, snapshotted
+and switched over the whole workspace. Exit code 1 when a step failed, was cancelled, a cycle was
+held back or fixes are left after the last pass. Journal: `sync`, `sync:fix:<pass>`,
+`sync:store:<pass>`, `sync:verify`.
 
 ---
 
@@ -745,11 +850,15 @@ Warnings (`! ...` under a group, [stack notes](shared-store.md#stack-notes)):
   `node_modules` is one junction. Union groups keep Vite's cache in each project's own folder and
   get no warning.
 - `spfx: run packman store verify (gulp/heft build) on the linked projects`.
-- `<project>: gulpfile.js webpack rule include|exclude matches <project>/node_modules, but webpack
-resolves linked packages to the store; wrap that path in fs.realpathSync(...)`: the project's
-  `gulpfile.js` has a webpack rule condition built with `path.join`/`path.resolve(__dirname,
-'node_modules', ...)`, which stops matching once the package is a junction into the store. Only a
-  direct call in `gulpfile.js` is detected, not Heft or separate webpack configs.
+- `<project>: gulpfile.js:<line> include|exclude path.join(__dirname, 'node_modules', '<pkg>') ...`:
+  the project's `gulpfile.js` has a webpack rule condition on its own `node_modules` path, which
+  webpack no longer matches once `<pkg>` is a junction into the store (webpack resolves the real
+  path). The line says which case applies: `stops matching once linked` (not linked yet),
+  `is inactive while linked ... no build has passed since linking` (run `store verify`), or, prefixed
+  `info:`, inactive but a build passed linked after the link was made, so the loader is not needed
+  with this toolchain. Each names the reviewable edit (`fs.realpathSync(...)`), which packman never
+  applies. A rule over all of `node_modules` is a manual review item; `symlinks: false` in the
+  gulpfile silences the check. Details: [stack notes](shared-store.md#stack-notes).
 
 `--json`: `{ groups: [{ key, mode: "exact"|"union", projectIds, node?, nodeMajor?, lockSource?,
 manifest?, warnings }], candidates: [{ projectIds, reason, packages? }], excluded: [{ projectId,
@@ -831,6 +940,18 @@ Remove links created by packman; never deletes a real folder. `-p`/`-x` select l
 lockfiles back; run `packman install` to recreate local modules. A project whose `node_modules` is a
 real folder is skipped (`node_modules is a real folder, left untouched`) and keeps its record.
 Journal command: `store unlink`.
+
+### store rollback
+
+```text
+packman store rollback [--apply] [-y] [path]
+```
+
+Undo the last store switch that `sync` or `upgrade` kept: every member gets its previous link
+again (the old store is still on disk, npm does not run) and the manifests, lockfiles and edited
+files of that pass come back from its snapshot. Dry run without `--apply`. Refused (exit 1) when the
+previous store is gone, a member is no longer linked to the switched store, or a snapshot file
+changed since the switch. Records: `.packman/switches.json`. Journal: `store rollback`.
 
 ### store prune
 
@@ -946,6 +1067,14 @@ packman tui [options] [path]
 ```
 
 Interactive terminal UI with common options. Keys and behaviour: [Getting started](getting-started.md#interactive-tui).
+
+In the Outdated tab, `space` selects the highest version of the current major that passes the
+checks of [`compat`](#compat) and [`add`](#add): stack ranges (SPFx lockstep, scaffold, PnP controls
+line, group and profile constraints), peer ranges both ways, `engines.node`, families, the
+one-spec-per-package rule of a shared-store group, and documented API breaks. When the newest
+release of the major is refused, the row shows `✗ <version>` and the detail box (and `space`) the
+reason (for example SPFx 1.21.1 allows `@pnp/spfx-controls-react` `>=3.22.0 <3.24.0`, so 3.25.0 is
+refused). A refused version is never added to the Fixes tab.
 
 ## init
 

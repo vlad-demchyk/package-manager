@@ -125,22 +125,24 @@ packman            # same, in an interactive terminal
 
 Tabs (keys `1`-`7`, or `tab` / arrows): Overview, Projects, Versions, Outdated, Node, Store, Fixes.
 
-| Key                                  | Action                                                                                                                                                    |
-| ------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `↑` `↓` `j` `k`, PgUp/PgDn, Home/End | move                                                                                                                                                      |
-| `enter`                              | open a project (Projects tab)                                                                                                                             |
-| `esc`, backspace                     | back                                                                                                                                                      |
-| `space`                              | select the fixes of a finding; in Versions, align the package (like `align --package`); in Outdated, raise the package to the newest release of its major |
-| `u`                                  | select (or deselect) every profile fix, like `profile apply`                                                                                              |
-| `s`                                  | cycle the minimum severity shown                                                                                                                          |
-| `a`                                  | in Fixes: apply the selected fixes after a `y` confirmation                                                                                               |
-| `r`                                  | reload                                                                                                                                                    |
-| `q`, `ctrl+c`                        | quit                                                                                                                                                      |
+| Key                                  | Action                                                                                                                                                                                                  |
+| ------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `↑` `↓` `j` `k`, PgUp/PgDn, Home/End | move                                                                                                                                                                                                    |
+| `enter`                              | open a project (Projects tab)                                                                                                                                                                           |
+| `esc`, backspace                     | back                                                                                                                                                                                                    |
+| `space`                              | select the fixes of a finding; in Versions, align the package (like `align --package`); in Outdated, raise the package to the highest version of its major that passes the stack, peer and group checks |
+| `u`                                  | select (or deselect) every profile fix, like `profile apply`                                                                                                                                            |
+| `s`                                  | cycle the minimum severity shown                                                                                                                                                                        |
+| `a`                                  | in Fixes: apply the selected fixes after a `y` confirmation                                                                                                                                             |
+| `r`                                  | reload                                                                                                                                                                                                  |
+| `q`, `ctrl+c`                        | quit                                                                                                                                                                                                    |
 
 Applying in the TUI writes the previewed files with backups in `.packman/backups/`, then reloads. It
 does not relock lockfiles and does not write a journal entry (`src/tui/run.tsx`); run
 `packman relock` afterwards when versions changed. The Outdated tab offers in-major bumps only for
-exact, `^` and `~` specs. The Store tab is read-only: linking is a CLI command because it installs
+exact, `^` and `~` specs, and only to a version allowed by the same checks as `compat` and `add` (stack
+ranges, peers both ways, `engines.node`, the shared-store group spec, API breaks): a refused newer
+version is shown as `✗ <version>` with the reason, and `space` explains it instead of selecting it. The Store tab is read-only: linking is a CLI command because it installs
 and replaces `node_modules`.
 
 ## Creating a configuration

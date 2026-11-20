@@ -11,6 +11,14 @@ import {
   userDataDir,
 } from '../core/data.js';
 import type { NodeVuln } from '../node/releases.js';
+import {
+  resetSpfxRegistry,
+  SPFX_ANCHOR,
+  SPFX_REGISTRY_FILE,
+  spfxRegistryFrom,
+  unverifiedPatches,
+  type SpfxRegistryRecord,
+} from '../providers/spfx/matrix.js';
 
 const SCHEDULE_URL = 'https://raw.githubusercontent.com/nodejs/Release/main/schedule.json';
 const INDEX_URL = 'https://nodejs.org/dist/index.json';
@@ -182,6 +190,19 @@ export async function updateData(
     ),
   ]);
   const today = (options.today ?? new Date()).toISOString().slice(0, 10);
+  // SPFx releases on npm: recorded apart from the curated matrix, as published, never verified.
+  const spfxUrl = `${REGISTRY}${SPFX_ANCHOR.replace('/', '%2F')}`;
+  const spfxPublished = spfxRegistryFrom(
+    await fetchJson(spfxUrl, 'application/vnd.npm.install-v1+json').catch(() => undefined),
+  );
+  const spfxBefore = readRecord(path.join(dir, SPFX_REGISTRY_FILE));
+  if (spfxPublished && spfxBefore && spfxPublished.versions.length < spfxBefore.versions.length)
+    throw new Error(
+      `${spfxUrl}: ${spfxPublished.versions.length} releases, fewer than the ${spfxBefore.versions.length} already known`,
+    );
+  const spfxRecord: SpfxRegistryRecord | undefined = spfxPublished
+    ? { fetchedAt: today, source: spfxUrl, ...spfxPublished }
+    : undefined;
 
   const currentNode = loadData<NodeData>('node.json');
   const currentVulns = loadData<VulnData>('node-vulns.json');
@@ -240,6 +261,22 @@ export async function updateData(
         after: today,
         changes: frameworkChanges(currentFrameworks, frameworks),
       },
+      ...(spfxRecord
+        ? [
+            {
+              name: SPFX_REGISTRY_FILE,
+              before: spfxBefore?.fetchedAt ?? '-',
+              after: today,
+              changes: [
+                ...(spfxRecord.latest ? [`npm latest ${spfxRecord.latest}`] : []),
+                ...unverifiedPatches(spfxRecord).map(
+                  (patch) =>
+                    `${patch.version}: published, not yet verified (constraints of ${patch.inferredFrom} assumed)`,
+                ),
+              ],
+            },
+          ]
+        : []),
     ],
   };
   if (options.write === false) return result;
@@ -247,6 +284,10 @@ export async function updateData(
   await writeAtomic(path.join(dir, 'node.json'), node);
   await writeAtomic(path.join(dir, 'node-vulns.json'), vulnData);
   await writeAtomic(path.join(dir, 'frameworks.json'), frameworks);
+  if (spfxRecord) {
+    await writeAtomic(path.join(dir, SPFX_REGISTRY_FILE), spfxRecord);
+    resetSpfxRegistry();
+  }
   resetData();
   return result;
 }
@@ -368,6 +409,14 @@ function frameworkChanges(before: FrameworkData, after: FrameworkData): string[]
     }
   return changes;
 }
+function readRecord(file: string): SpfxRegistryRecord | undefined {
+  try {
+    return JSON.parse(readFileSync(file, 'utf8')) as SpfxRegistryRecord;
+  } catch {
+    return undefined;
+  }
+}
+
 async function writeAtomic(file: string, value: unknown): Promise<void> {
   const temp = `${file}.${process.pid}.tmp`;
   await writeFile(temp, `${JSON.stringify(value, null, 2)}\n`, 'utf8');

@@ -71,8 +71,9 @@ projects without version edits or lockfile).
 
 The TUI collects fixes the same way everywhere and writes them only after a diff and a confirmation
 (tab 7 Fixes, key `a`): `space` selects the fix of a finding, aligns a diverging package in Versions
-(like `align --package`) or raises an outdated package to the newest release of its major in
-Outdated (tab 4, exact, `^` and `~` specs only); `u` selects every profile fix (like `profile apply`).
+(like `align --package`) or raises an outdated package in
+Outdated (tab 4, exact, `^` and `~` specs only) to the highest version of its major that the stack,
+peer and group checks allow, showing the refused newer version and why; `u` selects every profile fix (like `profile apply`).
 Store (tab 6) shows the union plan and which projects are linked; linking stays a CLI command because
 it installs and replaces `node_modules`.
 

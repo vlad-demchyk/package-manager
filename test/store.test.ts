@@ -612,9 +612,13 @@ describe('store plan warnings', () => {
     });
     const group = planStore(report).groups.find((item) => item.projectIds.includes('app-a'));
     const found = group?.warnings.filter((warning) => warning.includes('gulpfile.js'));
-    expect(found).toEqual([
-      'app-a: gulpfile.js webpack rule include matches <project>/node_modules, but webpack resolves linked packages to the store; wrap that path in fs.realpathSync(...)',
-    ]);
+    expect(found).toHaveLength(1);
+    expect(found?.[0]).toMatch(
+      /^app-a: gulpfile\.js:2 include path\.join\(__dirname, 'node_modules', 'web-push'\) stops matching once linked/,
+    );
+    expect(found?.[0]).toContain(
+      "fs.realpathSync(path.join(__dirname, 'node_modules', 'web-push'))",
+    );
   });
 });
 

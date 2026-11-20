@@ -20,7 +20,7 @@ import {
   verifyProjects,
 } from './shared.js';
 
-interface EditOptions {
+export interface EditOptions {
   project: string[];
   cwd: string;
   depth?: number;
@@ -183,13 +183,26 @@ async function selectProjects(options: EditOptions): Promise<{
     process.exitCode = 1;
     return { session, report, scans };
   }
+  for (const [id, scan] of await scanTargets(session, targets)) scans.set(id, scan);
+  return { session, report, targets, scans };
+}
+
+/**
+ * Scans the sources of the selected projects only and writes imports and API usage into their
+ * report entries (the API-break check and `remove` need them). Also used by the TUI.
+ */
+export async function scanTargets(
+  session: Session,
+  targets: ProjectReport[],
+): Promise<Map<string, SourceScan>> {
+  const scans = new Map<string, SourceScan>();
   for (const entry of targets) {
     const scan = await scanSources(entry.project.dir, session.loaded.config.checks.ignorePaths);
     scans.set(entry.project.id, scan);
     entry.imports = [...scan.imports.keys()].sort();
     entry.apiUsage = Object.fromEntries(scan.api);
   }
-  return { session, report, targets, scans };
+  return scans;
 }
 
 /**
@@ -197,7 +210,7 @@ async function selectProjects(options: EditOptions): Promise<{
  * node_modules runs `npm install` with its Node; a project linked to the shared store never runs npm
  * itself, its group's store is rebuilt, every member relinked and their lockfiles synchronized.
  */
-async function applyAndInstall(
+export async function applyAndInstall(
   session: Session,
   report: Report,
   targets: ProjectReport[],

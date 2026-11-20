@@ -98,3 +98,91 @@ describe('packages named by build configs count as used', () => {
     expect(unused).not.toContain('ts-jest');
   });
 });
+
+/** Runtime dependencies `npm/unused-dependency` reports for one project. */
+async function unusedRuntime(files: FileTree, id: string): Promise<string[]> {
+  const { root, cleanup } = await makeWorkspace(files);
+  try {
+    const config = configSchema.parse({});
+    const report = await analyze(await discoverWorkspace(root, { config }), {
+      config,
+      today: TODAY,
+      security: false,
+      offline: true,
+      installedNodes: fakeNodes('18.20.8'),
+    });
+    const entry = report.projects.find((item) => item.project.id === id);
+    return (
+      entry?.findings
+        .filter((item) => item.ruleId === 'npm/unused-dependency')
+        .flatMap((item) => item.evidence.map((line) => /^(@?[^@]+)@/.exec(line)?.[1] ?? line)) ?? []
+    );
+  } finally {
+    await cleanup();
+  }
+}
+
+function spfxProject(name: string, spfxConfig: object): FileTree {
+  const dependencies = {
+    '@microsoft/sp-core-library': '1.18.2',
+    '@pnp/spfx-property-controls': '3.14.0',
+    '@pnp/spfx-controls-react': '3.21.0',
+    jquery: '3.7.1',
+    'left-pad': '1.3.0',
+  };
+  return {
+    [`${name}/package.json`]: { name, dependencies },
+    [`${name}/package-lock.json`]: lockfile(name, {}, dependencies),
+    [`${name}/config/config.json`]: spfxConfig,
+    [`${name}/src/index.ts`]:
+      'import * as strings from "GalleryWebPartStrings";\nexport { strings };\n',
+  };
+}
+
+describe('SPFx config/config.json references count as used (PMT10)', () => {
+  it('keeps packages named by localizedResources and externals, still reports the rest', async () => {
+    const unused = await unusedRuntime(
+      spfxProject('gallery', {
+        $schema: 'https://developer.microsoft.com/json-schemas/spfx-build/config.2.0.schema.json',
+        version: '2.0',
+        bundles: {
+          'gallery-web-part': {
+            components: [
+              {
+                entrypoint: './lib/webparts/gallery/GalleryWebPart.js',
+                manifest: './src/webparts/gallery/GalleryWebPart.manifest.json',
+              },
+            ],
+          },
+        },
+        externals: { jquery: 'node_modules/jquery/dist/jquery.min.js' },
+        localizedResources: {
+          GalleryWebPartStrings: 'lib/webparts/gallery/loc/{locale}.js',
+          PropertyControlStrings: 'node_modules/@pnp/spfx-property-controls/lib/loc/{locale}.js',
+          ControlStrings: 'node_modules\\@pnp\\spfx-controls-react\\lib\\loc\\{locale}.js',
+        },
+      }),
+      'gallery',
+    );
+    expect(unused).not.toContain('@pnp/spfx-property-controls');
+    expect(unused).not.toContain('@pnp/spfx-controls-react');
+    expect(unused).not.toContain('jquery');
+    expect(unused).toContain('left-pad');
+  });
+
+  it('counts an externals key that maps to a CDN URL', async () => {
+    const unused = await unusedRuntime(
+      spfxProject('cdn', {
+        version: '2.0',
+        bundles: {},
+        externals: {
+          jquery: { path: 'https://code.jquery.com/jquery-3.7.1.min.js', globalName: 'jQuery' },
+        },
+        localizedResources: {},
+      }),
+      'cdn',
+    );
+    expect(unused).not.toContain('jquery');
+    expect(unused).toContain('@pnp/spfx-property-controls');
+  });
+});

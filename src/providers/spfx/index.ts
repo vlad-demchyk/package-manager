@@ -14,7 +14,9 @@ import {
   latestSpfx,
   libraryRangeFor,
   libraryTarget,
+  registryLatestSpfx,
   spfxMatrix,
+  spfxRegistry,
   type SpfxVersion,
 } from './matrix.js';
 
@@ -158,6 +160,21 @@ export const spfxProvider: StackProvider = {
         ),
       );
       return findings;
+    }
+    if (entry.inferredFrom) {
+      findings.push(
+        finding(
+          'spfx/unverified-patch',
+          'info',
+          project,
+          msg('spfx.unverifiedPatch', {
+            version: entry.version,
+            base: entry.inferredFrom,
+            verifiedAt: spfxMatrix().verifiedAt,
+          }),
+          { tags: ['spfx'] },
+        ),
+      );
     }
     if (entry.withdrawn) {
       findings.push(
@@ -605,8 +622,15 @@ function checkPnpjs(ctx: ProjectContext, entry: SpfxVersion): Finding[] {
 /** Proposes the nearest upgrade that keeps the toolchain, and the latest overall. */
 function suggestUpgrade(ctx: ProjectContext, entry: SpfxVersion, toolchain: Toolchain): Finding[] {
   const { project } = ctx;
-  const latest = latestSpfx();
-  if (!latest || semver.gte(entry.version, latest.version)) return [];
+  const verified = latestSpfx();
+  if (!verified) return [];
+  // The registry may already publish a newer patch: named as npm latest, never as verified.
+  const published = registryLatestSpfx();
+  const npmLatest = spfxRegistry()?.latest;
+  const latest = published && semver.gt(published.version, verified.version) ? published : verified;
+  const newMinor =
+    npmLatest && !published && semver.gt(npmLatest, verified.version) ? npmLatest : undefined;
+  if (semver.gte(entry.version, latest.version) && !newMinor) return [];
   const sameToolchain = latestSpfx((item) =>
     toolchain === 'heft' ? item.toolchain === 'heft' : item.toolchain === 'gulp',
   );
@@ -618,13 +642,27 @@ function suggestUpgrade(ctx: ProjectContext, entry: SpfxVersion, toolchain: Tool
   ) {
     steps.push(describeStep(entry, sameToolchain));
   }
-  steps.push(describeStep(entry, latest));
+  if (semver.gt(latest.version, entry.version)) steps.push(describeStep(entry, latest));
+  if (latest.inferredFrom)
+    steps.push(
+      `SPFx ${latest.version}: npm latest, not yet verified (matrix ${spfxMatrix().verifiedAt}); constraints of ${latest.inferredFrom} assumed`,
+    );
+  if (newMinor)
+    steps.push(
+      `SPFx ${newMinor}: npm latest, a release line the matrix (${spfxMatrix().verifiedAt}) does not describe yet`,
+    );
   return [
     finding(
       'spfx/upgrade-available',
       'info',
       project,
-      msg('spfx.upgradeAvailable', { version: entry.version, latest: latest.version }),
+      latest.inferredFrom || newMinor
+        ? msg('spfx.upgradeAvailableUnverified', {
+            version: entry.version,
+            npm: newMinor ?? latest.version,
+            latest: verified.version,
+          })
+        : msg('spfx.upgradeAvailable', { version: entry.version, latest: latest.version }),
       {
         evidence: steps,
         tags: ['spfx', 'upgrade'],

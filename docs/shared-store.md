@@ -285,6 +285,35 @@ relinking first moves every real entry npm left in it to `.packman/trash/<time>/
 is deleted) and reports `npm copies moved to .packman/trash before relinking`. After `npm ci` the
 marker is gone, the folder is a real `node_modules`, and relinking asks for `--replace-existing`.
 
+## Switching a linked group
+
+`packman sync` and `upgrade` on linked projects move a whole group to the store its edited
+manifests need without unlinking it and without npm in the projects (`switchGroup`,
+`src/store/switch.ts`):
+
+1. **Snapshot**: every manifest, lockfile and `.nvmrc` of the group, plus every file the pass edits,
+   is copied to `.packman/backups/<time>/` before anything is written (files that did not exist are
+   remembered and removed again on rollback).
+2. **Prepare**: the new store is installed and tree-checked (`linkGroup` with `prepareOnly`). No
+   project is touched; the members keep using the old store.
+3. **Switch**: every member is relinked to the new store and its lockfile written from the store tree.
+4. **Verify**: the build script runs in every member.
+
+When prepare, switch or verify fails, the members get their previous links back (`restoreLinks`:
+every previous store is checked to exist first; npm copies found in a linked folder go to
+`.packman/trash`) and the snapshot is restored, so the group is in its previous working state. The
+old store is never deleted by a switch (only `store prune` deletes unreferenced stores), which is
+what makes the rollback free of npm. A member that was not linked before (first `--shared` link)
+cannot go back to its deleted folder: the state is kept and reported as failed.
+
+A switch that succeeded is recorded in `.packman/switches.json` (last 10): the members, the store
+they moved to, their previous link records, the snapshot and a hash of every snapshot file right
+after the switch. `packman store rollback` previews the last one and `--apply` undoes it the same
+way (previous links, snapshot files, no npm). It refuses when the previous store is gone, a member
+is no longer linked to the switched store, or a snapshot file changed since the switch (a later edit
+would be lost). Without it, going back after a kept switch means a new `store link`: the store key
+is computed from the current manifests and locks, so the old store is not found again by key.
+
 ## Unlink and prune
 
 - `store unlink [-p ...] [-x ...]` unlinks recorded projects: a junction is unlinked; a packages-mode
@@ -328,6 +357,9 @@ call by hand); `packman hooks uninstall` removes only files with the marker.
   `store prune --trash`).
 - Manifests and lockfiles are backed up before linking and before lock sync.
 - `store prune` never deletes a store referenced by `.packman/links.json`.
+- Switching a linked group to a new store (`sync`, `upgrade` on linked projects) prepares the new
+  store before any link changes and restores the previous links and files when a step fails
+  ([Switching a linked group](#switching-a-linked-group)).
 - A completed store is reused only when its ready marker matches the key and Node; Node versions,
   member lockfiles and the store format all enter the key, so a new installation does not rebuild a
   store other projects use.
@@ -344,13 +376,20 @@ call by hand); `packman hooks uninstall` removes only files with the marker.
   scaffold's `build` script does not pass `--ship`, so a production check needs a script that does:
   `packman store verify --script buildp` (or whatever script in your projects runs
   `gulp bundle --ship`).
-- **gulpfile webpack rules against `<project>/node_modules`**: when a member's `gulpfile.js` contains
-  a webpack rule with `include:` or `exclude:` set to `path.join(__dirname, 'node_modules', ...)` or
-  `path.resolve(__dirname, 'node_modules', ...)`, the warning reads
-  `<project>: gulpfile.js webpack rule include matches <project>/node_modules, but webpack resolves
-linked packages to the store; wrap that path in fs.realpathSync(...)`. Webpack follows the junction
-  to the package's real path under `.packman/store/...`, so the condition stops matching and the
-  package is bundled without its loader (SPFx 1.18 GlobalLoader: `Module parse failed`). Wrapping the
-  path in `fs.realpathSync(...)` makes the rule match the store path. The detector only reads a direct
-  `path.join`/`path.resolve(__dirname, 'node_modules'` call in `gulpfile.js`; rules in Heft or separate
-  webpack config files are not inspected.
+- **gulpfile webpack rules against `<project>/node_modules`** (`gulpRuleWarnings`): a member's
+  `gulpfile.js` with a rule `include:`/`exclude:` set to `path.join(__dirname, 'node_modules', '<pkg>')`
+  or `path.resolve(__dirname, 'node_modules/<pkg>')`. Linking makes `node_modules/<pkg>` a junction;
+  webpack resolves modules to their real path under `.packman/store/...` (SPFx keeps
+  `resolve.symlinks` on), so the rule no longer matches and its loader is not applied. Whether that
+  matters depends on the loader: webpack 5 parses ES2020 that older toolchains needed Babel for.
+  The warning names the file and line and states the case:
+  - not linked yet: `... stops matching once linked`;
+  - linked, no passing build since the link: `... is inactive while linked ... Run packman store
+verify -p <project>; if webpack reports "Module parse failed" in <pkg>: <edit>`;
+  - linked and the project's verified set is newer than its link (a build passed linked):
+    `info: ... is inactive while linked ...; \`buildp\` passed linked on <date>, so the loader is not
+    needed with this toolchain`.
+Every case proposes the same reviewable edit, `include: fs.realpathSync(path.join(__dirname,
+    'node_modules', '<pkg>'))`with`const fs = require('fs')`, which matches both layouts; packman never
+writes it. Copying from the same path (CopyWebpackPlugin `from`) reads through the junction and is
+not reported. A rule over all of `node_modules`is a manual review item. A gulpfile that sets`symlinks: false` gets no warning. Rules in Heft or separate webpack config files are not inspected.

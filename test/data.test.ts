@@ -13,6 +13,13 @@ import {
   updateData,
   type FrameworkData,
 } from '../src/ops/data.js';
+import {
+  latestSpfx,
+  resetSpfxRegistry,
+  resolveSpfxTarget,
+  spfxDataStatus,
+  spfxMatrix,
+} from '../src/providers/spfx/matrix.js';
 import { makeWorkspace, TODAY } from './helpers.js';
 
 interface Line {
@@ -167,6 +174,40 @@ describe('packman data', () => {
       'fewer than',
     );
     expect(existsSync(dir)).toBe(false);
+  });
+
+  it('records published SPFx patches of known minors as unverified, never in the matrix', async () => {
+    const verified = latestSpfx()?.version ?? '';
+    const next = `${verified.split('.').slice(0, 2).join('.')}.98`;
+    const base = fakeFetch(sources());
+    const fetchImpl: typeof fetch = (input, init) =>
+      String(input instanceof Request ? input.url : input).endsWith('sp-core-library')
+        ? Promise.resolve(
+            new Response(
+              JSON.stringify({
+                'dist-tags': { latest: next },
+                versions: { [verified]: {}, [next]: {}, '9.0.0-beta.1': {} },
+              }),
+            ),
+          )
+        : base(input, init);
+    resetSpfxRegistry();
+    const result = await updateData({ fetchImpl, today: TODAY });
+    expect(result.files.find((file) => file.name === 'spfx-registry.json')?.changes).toEqual([
+      `npm latest ${next}`,
+      `${next}: published, not yet verified (constraints of ${verified} assumed)`,
+    ]);
+    // Offline after the update: the recorded patch is a planned target, flagged unverified.
+    expect(spfxDataStatus()).toMatchObject({
+      latestVerified: verified,
+      registryLatest: next,
+      registry: 'recorded',
+      unverified: [{ version: next, inferredFrom: verified }],
+    });
+    expect(resolveSpfxTarget(next)).toMatchObject({ ok: true, entry: { inferredFrom: verified } });
+    expect(spfxMatrix().versions.some((entry) => entry.version === next)).toBe(false);
+    expect(latestSpfx()?.version).toBe(verified);
+    resetSpfxRegistry();
   });
 });
 

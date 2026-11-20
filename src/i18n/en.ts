@@ -80,7 +80,11 @@ export const en = {
     '{library} {version} is built for SPFx {target}, the project uses SPFx {spfx} (consider {suggested})',
   'spfx.pnpjsMajor':
     'PnPjs v{major} is not the recommended major for SPFx {spfx} (recommended v{recommended})',
-  'spfx.upgradeAvailable': 'SPFx {version} can be upgraded (latest {latest})',
+  'spfx.upgradeAvailable': 'SPFx {version} can be upgraded (latest verified {latest})',
+  'spfx.upgradeAvailableUnverified':
+    'SPFx {version} can be upgraded (npm latest {npm}, not yet verified; latest verified {latest})',
+  'spfx.unverifiedPatch':
+    'SPFx {version} is newer than the verified matrix ({verifiedAt}): constraints of {base} are assumed, not yet verified',
 
   // Frameworks
   'react.typesMajor': '@types/react {types} does not match react {react}',
@@ -109,6 +113,38 @@ export const en = {
   'node.eolNotAssessed': 'EOL: {count} known CVE, later ones not assessed or patched',
 
   // Security
+  'remediation.unknown': 'no registry data for this package (offline without cache): plan unknown',
+  'remediation.noFix':
+    'no patched version of {package} is published after {version}: not fixable by an update; remove or replace the package that pulls it in',
+  'remediation.blockedDirect':
+    'patched {target} is outside what the stack allows ({sources}): fixable only by changing the stack target',
+  'remediation.parentBlocked':
+    'the parent release that pulls a patched version ({parent}) is blocked by {sources}',
+  'remediation.majorBlockedByStack':
+    'patched only in {target}, a new major; {root} is pinned by {source}: not fixable inside this stack',
+  'remediation.peerBlocked': 'patched {target} is rejected by peer ranges ({peers})',
+  'remediation.notNpm':
+    '{package} needs an override, which packman writes for npm lockfiles only (lockfile: {kind})',
+  'remediation.override':
+    'the dependents ({dependents}) declare ranges without a patched version: npm overrides force one inside the same major',
+  'remediation.overrideMajor':
+    'the dependents ({dependents}) declare ranges without a patched version and {target} is a new major: the override may break them',
+  'remediation.overrideUnderStack':
+    'forced under {root} ({source}): the stack keeps the parent, so the override changes code the stack ships; review the build',
+  'remediation.relock':
+    'every dependent already allows {package}@{target}; the lockfile keeps the vulnerable version until it is pinned and relocked',
+  'remediation.relockManual':
+    'every dependent already allows {package}@{target}: update the lockfile (npm update {package})',
+  'remediation.noChain':
+    'no package of the lockfile requires {package} (extraneous copy): reinstall or relock to drop it',
+  'remediation.direct': 'declared dependency: update to {package}@{target}',
+  'remediation.parent':
+    'update the declared parent ({parents}) to a release that requires a patched version',
+  'audit.planTitle': 'Remediation plan ({count} vulnerable packages)',
+  'audit.planSummary':
+    'plan: {fixable} with a fix, {relock} of them by relock, {blocked} blocked by the stack or peers, {noFix} without a patched version, {unknown} unknown',
+  'audit.buildNote':
+    'A passing build does not clear these: the vulnerable code is still installed or shipped.',
   'security.packageVulns':
     '{count} vulnerable packages ({direct} direct, {network} in network code)',
   'security.nodeVuln': 'Node {version}: {count} known vulnerabilities ({context})',
@@ -122,9 +158,9 @@ export const en = {
 
   // API breaks
   'api.oldUsage':
-    '{package} {version} is installed but {count} places still use the API of versions before {since} ({title})',
+    '{package} resolves to {version} but {count} places still use the API of versions before {since} ({title})',
   'api.newUsage':
-    '{package} {version} is installed but {count} places use the API introduced in {since} ({title})',
+    '{package} resolves to {version} but {count} places use the API introduced in {since} ({title})',
   'api.split':
     '{package}: {old} projects below {since} and {new} at or above it; {work} still use the old API and need code changes to converge',
   'api.fixBreaks':
@@ -133,11 +169,20 @@ export const en = {
     '{package} {from} -> {to}: {count} places use the API of the version being left; see the code changes below.',
   'upgrade.codeChanges': 'Code changes required:',
   'compat.title': '{package} in {project}',
-  'compat.current': 'current: {version} ({source}), declared {spec} in {section}',
+  'compat.current': 'current: {evidence}; in {section}',
   'compat.notDeclared': 'current: not declared in this project',
+  'versions.source.declared': 'declared',
+  'versions.source.locked': 'locked',
+  'versions.source.installed': 'installed',
+  'versions.summary': 'latest {latest}, most common {version} ({count}/{total})',
+  'versions.none': 'none',
+  'versions.unknown': 'unknown in {count}/{total} ({reason})',
+  'versions.noLockfile': 'no lockfile',
+  'versions.noModules': 'no node_modules',
+  'versions.drift': 'declared and locked versions disagree',
   'compat.target': 'target: {version}',
   'compat.constraints': 'Stack ranges',
-  'compat.peers': 'Peer ranges of installed packages',
+  'compat.peers': 'Peer ranges of locked packages',
   'compat.engines': 'Node:',
   'compat.breaks': 'API breaks between current and target',
   'compat.breaksAhead': 'API breaks ahead of the current version',
@@ -149,6 +194,7 @@ export const en = {
 
   // Fixes
   'fix.syncYoRc': 'Update .yo-rc.json to {version}',
+  'fix.securityRemediation': 'Remediate {package}: patched {target} ({status})',
   'fix.alignSpfxPackages': 'Set all SPFx packages to {version}',
   'fix.replaceCompiler': 'Use {compiler}',
   'fix.removeCompiler': 'Remove rush-stack-compiler',
@@ -179,6 +225,40 @@ export const en = {
   'tui.outdatedLoading': 'Asking the npm registry…',
   'tui.outdatedUnavailable': 'Registry lookup is not available here: run packman outdated.',
   'tui.inMajor': 'newest in major',
+  'tui.bumpBlocked': '{version} not allowed: {reason}',
+  'tui.key.addRemove': 'add/remove package',
+  'tui.key.build': 'build',
+  'tui.key.sync': 'sync',
+  'tui.job.pickProject': 'Pick a project in the Projects tab first (+ add, - remove, b build).',
+  'tui.job.unavailable': 'Managed operations are not available here: use the CLI commands.',
+  'tui.job.planning': 'Planning… nothing is written yet.',
+  'tui.job.back': 'Esc: back',
+  'tui.job.blocked': 'Cannot run: fix what is marked ! first. Esc: back',
+  'tui.job.confirm':
+    'Run it? y runs (Esc or Ctrl+C cancels while it runs, sync rolls back), Esc goes back',
+  'tui.job.anyKey': 'Press any key to return to the TUI.',
+  'tui.job.running': 'Running outside the TUI; Esc or Ctrl+C cancels the running step.',
+  'tui.job.exit': 'exit {code}: {state}',
+  'tui.job.cancelled': 'cancelled',
+  'tui.job.done': 'done',
+  'tui.job.failed': 'failed',
+  'tui.job.remaining': 'Still left: {counts}; {fixes} safe fixes, {stale} stale linked projects',
+  'tui.job.needInput': 'Name at least one package and a project.',
+  'tui.job.scopeInstall': '{project}: npm install with Node {node}',
+  'tui.job.scopeNoGroup': '{project}: linked, but no store group fits; the store is not rebuilt',
+  'tui.job.scopeStore': 'store {key} rebuilt and relinked for {projects}',
+  'tui.job.scopeFiles': '{count} files change',
+  'tui.job.scopeBuild': '{project}: npm run {script} with Node {node}',
+  'tui.job.scopeProjects': 'projects changed: {projects}',
+  'tui.job.scopeSyncPasses':
+    'then store switches, builds and further passes until stable, and a final check',
+  'tui.job.prompt.add':
+    'Add to {project} (name or name@range, space separated; Enter plans, Esc cancels):',
+  'tui.job.prompt.remove': 'Remove from {project} (names; Enter plans, Esc cancels):',
+  'tui.job.title.add': 'Add {packages} to {project}',
+  'tui.job.title.remove': 'Remove {packages} from {project}',
+  'tui.job.title.build': 'Build {project} (npm run {script})',
+  'tui.job.title.sync': 'Sync: safe fixes, store switches, builds, final check',
   'tui.storeLinked': '{count}/{total} linked',
   'tui.storeHint':
     'Link with: packman store link -g {key} --union (installs, then replaces node_modules); change a linked project with packman add <pkg> -p <project>',
@@ -285,6 +365,8 @@ export const en = {
   'cli.notANumber': '{value} is not a whole number of 0 or more.',
   'data.usingUpdated': 'using the updated copy',
   'data.usingBundled': 'using the bundled copy',
+  'data.spfxStatus':
+    'SPFx: latest verified {verified} (matrix {verifiedAt}), npm latest {npm} ({source}); published, not yet verified: {unverified}',
   'data.dir': 'Updated data folder: {dir}',
   'data.file': '{name}: {before} -> {after}',
   'data.noChanges': 'no changes',
@@ -331,6 +413,12 @@ export const en = {
   'upgrade.nodeIncompatible': 'No common Node satisfies all target stacks: {ranges}',
   'upgrade.unknownVersion': 'Cannot determine the existing {stack} version.',
   'upgrade.unknownSpfx': 'SPFx {version} has no verified migration data.',
+  'upgrade.spfxUnverified':
+    'SPFx {version} is published on npm but not yet verified in the matrix ({verifiedAt}): the plan assumes the constraints of {base}; read the release notes before applying.',
+  'upgrade.spfxNoTarget':
+    'No published SPFx release known to packman matches {to} (verified matrix {verifiedAt}). Nearest verified version: {nearest}.',
+  'upgrade.spfxUnconfirmed':
+    'SPFx {to} is not in the verified matrix ({verifiedAt}) and the npm registry could not confirm it (offline?). Nearest verified version: {nearest}; retry online to plan {to} as a not yet verified patch.',
   'upgrade.downgrade':
     'This would downgrade {from} to {to}; choose the newest existing project instead.',
   'upgrade.linked': '{project} is already linked; unlink it before changing its dependency set.',
@@ -388,6 +476,63 @@ export const en = {
   'install.linkedOk':
     'linked to the store, up to date (use packman add <pkg> -p {project} to change it)',
   'install.syncStore': 'rebuilding the store of {count} changed linked projects',
+  'sync.linkedHint':
+    'linked to the store, package.json changed: packman sync --apply rebuilds the store, relinks, builds and checks again',
+  'sync.cancelling':
+    'Cancelling: stopping the running npm step, then restoring the previous state…',
+  'sync.phasePreflight': 'Preflight: Node versions',
+  'sync.phaseFix': 'Pass {pass}/{max}: fixes',
+  'sync.phaseCheck': 'Final check',
+  'sync.stepNode': 'Node preflight',
+  'sync.stepPass': 'pass {pass}',
+  'sync.stepCycle': 'pass {pass}: fix held back (cycle)',
+  'sync.stepFix': 'pass {pass}: fixes written',
+  'sync.stepStore': 'pass {pass}: store of {project}',
+  'sync.stepProject': 'pass {pass}: {project} install and build',
+  'sync.stepCheck': 'final check',
+  'sync.stable': 'no allowed fix left and no linked project is stale',
+  'sync.preview': '{fixes} fixes, {groups} linked groups to rebuild (dry run)',
+  'sync.previewNext':
+    'Dry run: nothing written. With --apply each pass writes the fixes, switches the linked stores (prepare, relink, build; rollback on failure) and checks again until stable.',
+  'sync.wouldSwitch': 'store rebuilt and switched for: {projects}',
+  'sync.notWritten': 'fixes not written (declined or failed)',
+  'sync.fixesApplied': '{count} fixes in {files} files',
+  'sync.noGroup': '{project} has no shared group with these manifests ({reason})',
+  'sync.switch.prepare':
+    'Preparing store {key} for {count} projects (the current links keep working)',
+  'sync.switch.switch': 'Switching {count} projects to store {key}',
+  'sync.switch.verify': 'Building {count} projects on store {key}',
+  'sync.switch.rollback': 'Restoring the previous links, manifests and lockfiles',
+  'sync.switched': '{count} projects on {dir}',
+  'sync.rolledBack': '{phase} failed, previous state restored: {error}',
+  'sync.switchFailed': '{phase} failed, state kept for inspection: {error}',
+  'sync.noNode': 'no installed Node for {project}',
+  'sync.nodeMissing':
+    'Node {version} is not installed (needed by {projects}). Prepare it with: {command}',
+  'sync.nodePrepare': 'run {command}, or pass --install-node',
+  'sync.nodeStillMissing': 'Node {version} still not found',
+  'sync.noFixesLeft': 'no allowed fix left',
+  'sync.fixesLeft': '{count} allowed fixes left',
+  'sync.notStable':
+    'not stable after {passes} passes: {count} allowed fixes left, {stale} stale linked projects',
+  'sync.summary': 'Summary',
+  'sync.complete': 'Complete.',
+  'sync.incomplete': 'Incomplete: a step failed, was cancelled or left work; see above.',
+  'upgrade.linkedSwitch':
+    'Linked group: the migration prepares a new store, switches all {count} projects and restores the previous store links if a step fails (no unlink, no npm in the projects).',
+  'upgrade.linkedPartial':
+    'The store of the selected linked projects is also used by {projects}; include them (a store is switched as a whole).',
+  'upgrade.linkedMixed':
+    '{projects} have their own node_modules while the others are linked; pass --shared to link them too, or select only the linked group with -p.',
+  'upgrade.majorDowngradeKept':
+    '{name} stays at {current}: the planned {wanted} ({reason}) would lower its major and the target stack does not require it. Align by hand if needed.',
+  'upgrade.majorDowngradeRequired':
+    '{name} {current} -> {wanted} lowers the major because {target} requires it; review the API changes (breaking).',
+  'rollback.plan':
+    'Last store switch ({at}): {count} projects from {from} back to {to}; {files} manifest/lock/edited files restored from its snapshot.',
+  'rollback.refused': 'Not rolled back: the state changed since that switch (see above).',
+  'rollback.confirm': 'Restore the previous links and files?',
+  'rollback.done': '{count} projects are back on their previous store links.',
 } as const;
 
 export type MessageKey = keyof typeof en;

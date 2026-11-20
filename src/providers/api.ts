@@ -1,7 +1,8 @@
 import semver from 'semver';
 import { finding, msg } from '../core/findings.js';
 import type { Finding, Project } from '../core/types.js';
-import { resolveVersion } from '../core/versions.js';
+import { isTopLevel } from '../core/lockfile.js';
+import { resolveVersion, type VersionSource } from '../core/versions.js';
 import {
   apiBreaks,
   locationsOf,
@@ -15,6 +16,8 @@ interface BreakSide {
   name: string;
   version: string;
   side: 'old' | 'new';
+  /** Where `version` comes from: node_modules, the lockfile, or the minimum of the declared range. */
+  source: VersionSource;
   /** Packages of the same family resolved on the other side of `since` (mixed majors). */
   mixed?: BreakSide[];
 }
@@ -28,13 +31,15 @@ function breakSides(project: Project, item: ApiBreak): BreakSide[] {
     sides.push({
       name,
       version: resolved.version,
+      source: resolved.source,
       side: semver.gte(resolved.version, item.since) ? 'new' : 'old',
     });
   }
   if (sides.length > 0) return sides;
   for (const name of item.replaces ?? []) {
     const resolved = resolveVersion(project, name);
-    if (resolved) sides.push({ name, version: resolved.version, side: 'old' });
+    if (resolved)
+      sides.push({ name, version: resolved.version, source: resolved.source, side: 'old' });
   }
   return sides;
 }
@@ -52,8 +57,33 @@ function breakSide(project: Project, item: ApiBreak): BreakSide | undefined {
   return mixed.length > 0 ? { ...main, mixed } : main;
 }
 
+const SOURCE_LABEL: Record<VersionSource, string> = {
+  installed: 'installed',
+  lockfile: 'locked',
+  manifest: 'inferred from the declared range',
+};
+
 /**
- * `api/migration-required`: the installed version of a package is on one side of a documented
+ * Declared, locked and installed versions of one package, and which one the check used. Without
+ * node_modules the installed version is unknown, so a version from the lockfile or the declared
+ * range is never presented as installed.
+ */
+export function versionEvidence(project: Project, name: string): string {
+  const declared = project.dependencies.find((dep) => dep.name === name);
+  const resolved = resolveVersion(project, name);
+  const locked = project.lockfile?.packages.find((pkg) => pkg.name === name && isTopLevel(pkg));
+  const installed = project.installed[name];
+  const parts = [
+    `declared ${declared ? declared.spec : 'no'}`,
+    `locked ${locked ? locked.version : project.lockfile ? 'no' : 'unknown (no lockfile)'}`,
+    `installed ${installed ?? (project.nodeModules === 'absent' ? 'unknown (no node_modules)' : 'no')}`,
+  ];
+  const used = resolved ? `${resolved.version} (${SOURCE_LABEL[resolved.source]})` : 'none';
+  return `${name}: ${parts.join(', ')}; checked ${used}`;
+}
+
+/**
+ * `api/migration-required`: the resolved (installed, else locked, else inferred) version of a package is on one side of a documented
  * API break while the source still (or already) uses the API of the other side.
  */
 export async function checkApiMigration(ctx: ProjectContext): Promise<Finding[]> {
@@ -89,9 +119,11 @@ export async function checkApiMigration(ctx: ProjectContext): Promise<Finding[]>
           since: item.since,
           count: places.length,
           title: item.title,
+          versionSource: side.source,
         }),
         {
           evidence: [
+            versionEvidence(ctx.project, side.name),
             ...patterns.flatMap((pattern) => [
               `${pattern.what}${pattern.verified === false ? ' (unverified)' : ''}`,
               ...(usage[pattern.id] ?? []).map((place) => `  ${place}`),

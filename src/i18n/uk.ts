@@ -82,7 +82,11 @@ export const uk: Catalogue = {
     '{library} {version} зібрано під SPFx {target}, проєкт на SPFx {spfx} (розгляньте {suggested})',
   'spfx.pnpjsMajor':
     'PnPjs v{major} не рекомендована для SPFx {spfx} (рекомендовано v{recommended})',
-  'spfx.upgradeAvailable': 'SPFx {version} можна оновити (остання {latest})',
+  'spfx.upgradeAvailable': 'SPFx {version} можна оновити (остання перевірена {latest})',
+  'spfx.upgradeAvailableUnverified':
+    'SPFx {version} можна оновити (npm latest {npm}, ще не перевірена; остання перевірена {latest})',
+  'spfx.unverifiedPatch':
+    'SPFx {version} новіша за перевірену матрицю ({verifiedAt}): припущено обмеження {base}, ще не перевірено',
 
   'react.typesMajor': '@types/react {types} не відповідає react {react}',
   'typescript.v7Api':
@@ -109,6 +113,38 @@ export const uk: Catalogue = {
     'Node {version} має відомі вразливості; {recommended} виправлений і сумісний',
   'node.eolNotAssessed': 'EOL: відомих CVE {count}, новіші не оцінюються і не виправляються',
 
+  'remediation.unknown': 'немає даних registry для пакета (offline без кешу): план невідомий',
+  'remediation.noFix':
+    'виправленої версії {package} після {version} не опубліковано: оновленням не усувається; приберіть або замініть пакет, що його тягне',
+  'remediation.blockedDirect':
+    'виправлена {target} поза межами, які дозволяє стек ({sources}): усувається лише зміною цілі стека',
+  'remediation.parentBlocked':
+    'реліз батьківського пакета з виправленою версією ({parent}) заблокований: {sources}',
+  'remediation.majorBlockedByStack':
+    'виправлено лише в {target}, новій major; {root} зафіксований {source}: у цьому стеку не усувається',
+  'remediation.peerBlocked': 'виправлену {target} відкидають peer-діапазони ({peers})',
+  'remediation.notNpm':
+    '{package} потребує override, а packman пише їх лише для npm lockfile (lockfile: {kind})',
+  'remediation.override':
+    'залежні пакети ({dependents}) оголошують діапазони без виправленої версії: npm overrides примусово ставлять її в межах тієї ж major',
+  'remediation.overrideMajor':
+    'залежні пакети ({dependents}) оголошують діапазони без виправленої версії, а {target} є новою major: override може їх зламати',
+  'remediation.overrideUnderStack':
+    'примусово під {root} ({source}): стек тримає батьківський пакет, тож override змінює код, який постачає стек; перевірте збірку',
+  'remediation.relock':
+    'усі залежні пакети вже дозволяють {package}@{target}; lockfile тримає вразливу версію, доки її не зафіксовано і lock не перегенеровано',
+  'remediation.relockManual':
+    'усі залежні пакети вже дозволяють {package}@{target}: оновіть lockfile (npm update {package})',
+  'remediation.noChain':
+    'жоден пакет lockfile не вимагає {package} (зайва копія): перевстановіть або перегенеруйте lock, щоб її прибрати',
+  'remediation.direct': 'оголошена залежність: оновити до {package}@{target}',
+  'remediation.parent':
+    'оновити оголошений батьківський пакет ({parents}) до релізу, що вимагає виправлену версію',
+  'audit.planTitle': 'План усунення ({count} вразливих пакетів)',
+  'audit.planSummary':
+    'план: {fixable} з виправленням, з них {relock} через relock, {blocked} заблоковано стеком або peer, {noFix} без виправленої версії, {unknown} невідомо',
+  'audit.buildNote':
+    'Успішна збірка їх не усуває: вразливий код і далі встановлений або постачається.',
   'security.packageVulns':
     'Вразливих пакетів: {count} (прямих {direct}, у мережевому коді {network})',
   'security.nodeVuln': 'Node {version}: відомих вразливостей {count} ({context})',
@@ -122,9 +158,9 @@ export const uk: Catalogue = {
 
   // API breaks
   'api.oldUsage':
-    '{package} {version} встановлено, але {count} місць досі використовують API версій до {since} ({title})',
+    '{package} визначено як {version}, але {count} місць досі використовують API версій до {since} ({title})',
   'api.newUsage':
-    '{package} {version} встановлено, але {count} місць використовують API, що зʼявилось у {since} ({title})',
+    '{package} визначено як {version}, але {count} місць використовують API, що зʼявилось у {since} ({title})',
   'api.split':
     '{package}: {old} проєктів нижче {since} і {new} на новішому боці; {work} ще використовують старий API і потребують змін у коді, щоб зійтися',
   'api.fixBreaks':
@@ -133,11 +169,20 @@ export const uk: Catalogue = {
     '{package} {from} -> {to}: {count} місць використовують API версії, яку покидаєте; див. потрібні зміни коду нижче.',
   'upgrade.codeChanges': 'Потрібні зміни коду:',
   'compat.title': '{package} у {project}',
-  'compat.current': 'поточна: {version} ({source}), оголошено {spec} у {section}',
+  'compat.current': 'поточна: {evidence}; у {section}',
   'compat.notDeclared': 'поточна: не оголошено в цьому проєкті',
+  'versions.source.declared': 'оголошена',
+  'versions.source.locked': 'у lock-файлі',
+  'versions.source.installed': 'встановлена',
+  'versions.summary': 'найновіша {latest}, найчастіша {version} ({count}/{total})',
+  'versions.none': 'немає',
+  'versions.unknown': 'невідомо в {count}/{total} ({reason})',
+  'versions.noLockfile': 'без lock-файлу',
+  'versions.noModules': 'без node_modules',
+  'versions.drift': 'оголошені версії і версії з lock-файлу розходяться',
   'compat.target': 'ціль: {version}',
   'compat.constraints': 'Діапазони стеку',
-  'compat.peers': 'Peer-діапазони встановлених пакетів',
+  'compat.peers': 'Peer-діапазони пакетів із lock-файлу',
   'compat.engines': 'Node:',
   'compat.breaks': 'Розриви API між поточною і цільовою',
   'compat.breaksAhead': 'Розриви API попереду поточної версії',
@@ -148,6 +193,7 @@ export const uk: Catalogue = {
   'upgrade.noOldApi': 'у просканованих джерелах не знайдено відомого використання старого API',
 
   'fix.syncYoRc': 'Оновити .yo-rc.json до {version}',
+  'fix.securityRemediation': 'Усунути {package}: виправлена {target} ({status})',
   'fix.alignSpfxPackages': 'Встановити всі пакети SPFx на {version}',
   'fix.replaceCompiler': 'Використати {compiler}',
   'fix.removeCompiler': 'Прибрати rush-stack-compiler',
@@ -176,6 +222,43 @@ export const uk: Catalogue = {
   'tui.outdatedLoading': 'Запит до npm-реєстру…',
   'tui.outdatedUnavailable': 'Запит до реєстру тут недоступний: запустіть packman outdated.',
   'tui.inMajor': 'найновіша в major',
+  'tui.bumpBlocked': '{version} не дозволена: {reason}',
+  'tui.key.addRemove': 'додати/видалити пакет',
+  'tui.key.build': 'збірка',
+  'tui.key.sync': 'sync',
+  'tui.job.pickProject':
+    'Спершу виберіть проєкт на вкладці Проєкти (+ додати, - видалити, b збірка).',
+  'tui.job.unavailable': 'Керовані операції тут недоступні: використайте команди CLI.',
+  'tui.job.planning': 'Планування… поки нічого не записується.',
+  'tui.job.back': 'Esc: назад',
+  'tui.job.blocked': 'Запустити не можна: спершу виправте позначене !. Esc: назад',
+  'tui.job.confirm':
+    'Запустити? y запускає (Esc або Ctrl+C скасовує під час роботи, sync відкочує), Esc повертає назад',
+  'tui.job.anyKey': 'Натисніть будь-яку клавішу, щоб повернутися до TUI.',
+  'tui.job.running': 'Виконується поза TUI; Esc або Ctrl+C скасовує поточний крок.',
+  'tui.job.exit': 'код виходу {code}: {state}',
+  'tui.job.cancelled': 'скасовано',
+  'tui.job.done': 'готово',
+  'tui.job.failed': 'не вдалося',
+  'tui.job.remaining':
+    'Лишилось: {counts}; безпечних виправлень {fixes}, застарілих привʼязаних проєктів {stale}',
+  'tui.job.needInput': 'Вкажіть хоча б один пакет і проєкт.',
+  'tui.job.scopeInstall': '{project}: npm install з Node {node}',
+  'tui.job.scopeNoGroup':
+    '{project}: привʼязаний, але жодна група store не підходить; store не перебудовується',
+  'tui.job.scopeStore': 'store {key} перебудовується і перепривʼязується для {projects}',
+  'tui.job.scopeFiles': 'змінюється файлів: {count}',
+  'tui.job.scopeBuild': '{project}: npm run {script} з Node {node}',
+  'tui.job.scopeProjects': 'змінені проєкти: {projects}',
+  'tui.job.scopeSyncPasses':
+    'далі заміни store, збірки й нові проходи до стабільності та фінальна перевірка',
+  'tui.job.prompt.add':
+    'Додати до {project} (назва або назва@діапазон через пробіл; Enter планує, Esc скасовує):',
+  'tui.job.prompt.remove': 'Видалити з {project} (назви; Enter планує, Esc скасовує):',
+  'tui.job.title.add': 'Додати {packages} до {project}',
+  'tui.job.title.remove': 'Видалити {packages} з {project}',
+  'tui.job.title.build': 'Збірка {project} (npm run {script})',
+  'tui.job.title.sync': 'Sync: безпечні виправлення, заміни store, збірки, фінальна перевірка',
   'tui.storeLinked': 'привʼязано {count}/{total}',
   'tui.storeHint':
     'Привʼязати: packman store link -g {key} --union (встановлює, потім замінює node_modules); змінити привʼязаний проєкт: packman add <pkg> -p <проєкт>',
@@ -281,6 +364,8 @@ export const uk: Catalogue = {
   'cli.notANumber': '{value} не є цілим числом від 0.',
   'data.usingUpdated': 'використовується оновлена копія',
   'data.usingBundled': 'використовується вбудована копія',
+  'data.spfxStatus':
+    'SPFx: остання перевірена {verified} (матриця {verifiedAt}), npm latest {npm} ({source}); опубліковані, ще не перевірені: {unverified}',
   'data.dir': 'Тека оновлених даних: {dir}',
   'data.file': '{name}: {before} -> {after}',
   'data.noChanges': 'без змін',
@@ -328,6 +413,12 @@ export const uk: Catalogue = {
   'upgrade.nodeIncompatible': 'Немає спільного Node для всіх цільових стеків: {ranges}',
   'upgrade.unknownVersion': 'Не вдалося визначити наявну версію {stack}.',
   'upgrade.unknownSpfx': 'Для SPFx {version} немає перевірених даних міграції.',
+  'upgrade.spfxUnverified':
+    'SPFx {version} опублікована в npm, але ще не перевірена в матриці ({verifiedAt}): план припускає обмеження {base}; прочитайте release notes перед застосуванням.',
+  'upgrade.spfxNoTarget':
+    'Жоден відомий packman опублікований реліз SPFx не відповідає {to} (перевірена матриця {verifiedAt}). Найближча перевірена версія: {nearest}.',
+  'upgrade.spfxUnconfirmed':
+    'SPFx {to} немає в перевіреній матриці ({verifiedAt}), і npm registry не зміг її підтвердити (offline?). Найближча перевірена версія: {nearest}; повторіть онлайн, щоб спланувати {to} як ще не перевірений patch.',
   'upgrade.downgrade': 'Це понизить {from} до {to}; виберіть найновіший наявний проєкт.',
   'upgrade.linked': '{project} уже підʼєднано; перед зміною залежностей відʼєднайте його.',
   'upgrade.controls':
@@ -385,4 +476,61 @@ export const uk: Catalogue = {
   'install.linkedOk':
     'привʼязано до сховища, актуально (packman add <pkg> -p {project}, щоб змінити)',
   'install.syncStore': 'перебудова сховища для {count} змінених привʼязаних проєктів',
+  'sync.linkedHint':
+    'привʼязано до сховища, package.json змінено: packman sync --apply перебудує сховище, перепривʼяже, збере і перевірить знову',
+  'sync.cancelling': 'Скасування: зупиняю поточний крок npm, потім відновлюю попередній стан…',
+  'sync.phasePreflight': 'Попередня перевірка: версії Node',
+  'sync.phaseFix': 'Прохід {pass}/{max}: виправлення',
+  'sync.phaseCheck': 'Фінальна перевірка',
+  'sync.stepNode': 'перевірка Node',
+  'sync.stepPass': 'прохід {pass}',
+  'sync.stepCycle': 'прохід {pass}: виправлення затримано (цикл)',
+  'sync.stepFix': 'прохід {pass}: виправлення записано',
+  'sync.stepStore': 'прохід {pass}: сховище {project}',
+  'sync.stepProject': 'прохід {pass}: встановлення і збірка {project}',
+  'sync.stepCheck': 'фінальна перевірка',
+  'sync.stable': 'дозволених виправлень не лишилось, застарілих привʼязаних проєктів немає',
+  'sync.preview': '{fixes} виправлень, {groups} привʼязаних груп до перебудови (пробний прогін)',
+  'sync.previewNext':
+    'Пробний прогін: нічого не записано. З --apply кожен прохід записує виправлення, перемикає привʼязані сховища (підготовка, перепривʼязка, збірка; відкат за помилки) і перевіряє знову до стабільного стану.',
+  'sync.wouldSwitch': 'сховище перебудовується і перемикається для: {projects}',
+  'sync.notWritten': 'виправлення не записано (відхилено або помилка)',
+  'sync.fixesApplied': '{count} виправлень у {files} файлах',
+  'sync.noGroup': '{project} не має спільної групи з цими маніфестами ({reason})',
+  'sync.switch.prepare':
+    'Готую сховище {key} для {count} проєктів (поточні привʼязки працюють далі)',
+  'sync.switch.switch': 'Перемикаю {count} проєктів на сховище {key}',
+  'sync.switch.verify': 'Збираю {count} проєктів на сховищі {key}',
+  'sync.switch.rollback': 'Відновлюю попередні привʼязки, маніфести і lock-файли',
+  'sync.switched': '{count} проєктів на {dir}',
+  'sync.rolledBack': '{phase}: помилка, попередній стан відновлено: {error}',
+  'sync.switchFailed': '{phase}: помилка, стан лишено для аналізу: {error}',
+  'sync.noNode': 'немає встановленого Node для {project}',
+  'sync.nodeMissing':
+    'Node {version} не встановлено (потрібен для {projects}). Підготуйте командою: {command}',
+  'sync.nodePrepare': 'виконайте {command} або передайте --install-node',
+  'sync.nodeStillMissing': 'Node {version} досі не знайдено',
+  'sync.noFixesLeft': 'дозволених виправлень не лишилось',
+  'sync.fixesLeft': 'лишилось {count} дозволених виправлень',
+  'sync.notStable':
+    'нестабільно після {passes} проходів: лишилось {count} дозволених виправлень, {stale} застарілих привʼязаних проєктів',
+  'sync.summary': 'Підсумок',
+  'sync.complete': 'Завершено.',
+  'sync.incomplete':
+    'Незавершено: крок завершився помилкою, був скасований або лишив роботу; див. вище.',
+  'upgrade.linkedSwitch':
+    'Привʼязана група: міграція готує нове сховище, перемикає всі {count} проєктів і відновлює попередні привʼязки, якщо крок не вдався (без unlink і без npm у проєктах).',
+  'upgrade.linkedPartial':
+    'Сховище вибраних привʼязаних проєктів використовують також {projects}; додайте їх (сховище перемикається цілим).',
+  'upgrade.linkedMixed':
+    '{projects} мають власні node_modules, а інші привʼязані; передайте --shared, щоб привʼязати і їх, або виберіть лише привʼязану групу через -p.',
+  'upgrade.majorDowngradeKept':
+    '{name} лишається {current}: запланована {wanted} ({reason}) знизила б major, а цільовий стек цього не вимагає. За потреби вирівняйте вручну.',
+  'upgrade.majorDowngradeRequired':
+    '{name} {current} -> {wanted} знижує major, бо цього вимагає {target}; перевірте зміни API (breaking).',
+  'rollback.plan':
+    'Останнє перемикання сховища ({at}): {count} проєктів з {from} назад на {to}; {files} файлів (маніфести, lock, змінені) відновлюються з його знімка.',
+  'rollback.refused': 'Відкат не виконано: стан змінився після того перемикання (див. вище).',
+  'rollback.confirm': 'Відновити попередні привʼязки і файли?',
+  'rollback.done': '{count} проєктів знову на попередніх привʼязках.',
 };

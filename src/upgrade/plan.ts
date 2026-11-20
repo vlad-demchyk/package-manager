@@ -17,7 +17,13 @@ import { pickNode } from '../node/toolchain.js';
 import { generateProfile } from '../ops/generate.js';
 import { fetchPackuments } from '../ops/outdated.js';
 import { corePackages } from '../providers/spfx/core.js';
-import { findSpfxVersion, spfxMatrix } from '../providers/spfx/matrix.js';
+import {
+  findSpfxVersion,
+  loadSpfxRegistry,
+  resolveSpfxTarget,
+  spfxMatrix,
+} from '../providers/spfx/matrix.js';
+import { t } from '../i18n/index.js';
 import { nodeEdits, setPackage } from './edits.js';
 import { spfxMigration, spfxOwned } from './spfx.js';
 import { migrationStack, newestProject, STACK_ANCHORS, stackVersion } from './targets.js';
@@ -64,16 +70,13 @@ export async function planUpgrade(report: Report, options: UpgradeOptions): Prom
     }
     baselines.set(stack, baseline);
     let version = stackVersion(baseline, stack) ?? '';
-    if (options.to) {
-      const candidates =
-        stack === 'spfx'
-          ? spfxMatrix()
-              .versions.filter((entry) => !entry.withdrawn)
-              .map((entry) => entry.version)
-          : selected
-              .filter((entry) => migrationStack(entry) === stack)
-              .map((entry) => stackVersion(entry, stack))
-              .filter((value): value is string => value !== undefined);
+    if (options.to && stack === 'spfx') {
+      version = await spfxTarget(options.to, options);
+    } else if (options.to) {
+      const candidates = selected
+        .filter((entry) => migrationStack(entry) === stack)
+        .map((entry) => stackVersion(entry, stack))
+        .filter((value): value is string => value !== undefined);
       version = semver.maxSatisfying(candidates, options.to) ?? '';
       if (!version) throw new Error(`no supported ${stack} target matches ${options.to}`);
     }
@@ -101,6 +104,14 @@ export async function planUpgrade(report: Report, options: UpgradeOptions): Prom
             ? 'gulp'
             : 'heft';
         ranges.push(data.node);
+        if (data.inferredFrom)
+          plan.issues.push(
+            issue('spfx-unverified', 'review', 'upgrade.spfxUnverified', {
+              version,
+              base: data.inferredFrom,
+              verifiedAt: spfxMatrix().verifiedAt,
+            }),
+          );
       } else plan.issues.push(issue('unknown-spfx', 'blocker', 'upgrade.unknownSpfx', { version }));
     } else if (stack === 'node') {
       ranges.push(version);
@@ -153,7 +164,10 @@ export async function planUpgrade(report: Report, options: UpgradeOptions): Prom
     if (!baseline) continue;
     const entries = selected.filter((entry) => migrationStack(entry) === target.stack);
     const pins = libraryPins(entries, baseline);
+    const libraryOnly = { ...pins };
     await resolveScaffoldPins(target, baseline, entries, pins, options, plan.issues);
+    // Pins the target stack set (scaffold, SPFx library lines, lint): only these may lower a major.
+    const stackPins = new Set(Object.keys(pins).filter((name) => pins[name] !== libraryOnly[name]));
     for (const entry of entries) {
       const project = entry.project;
       const migration: ProjectMigration = {
@@ -186,6 +200,28 @@ export async function planUpgrade(report: Report, options: UpgradeOptions): Prom
         if (dependency.section === 'peerDependencies') continue;
         if (target.stack === 'spfx' && spfxOwned(dependency.name)) continue;
         const wanted = pins[dependency.name];
+        const downgrade = wanted ? majorDowngrade(project, dependency.name, wanted) : undefined;
+        if (wanted && downgrade && !stackPins.has(dependency.name)) {
+          // A group pin (baseline version, @pnp lockstep) never lowers a major the stack allows.
+          migration.issues.push(
+            issue('major-downgrade-kept', 'review', 'upgrade.majorDowngradeKept', {
+              name: dependency.name,
+              current: downgrade,
+              wanted,
+              reason: pinReason(dependency.name, wanted, pins, baseline.project.id),
+            }),
+          );
+          continue;
+        }
+        if (wanted && downgrade)
+          migration.issues.push(
+            issue('major-downgrade', 'review', 'upgrade.majorDowngradeRequired', {
+              name: dependency.name,
+              current: downgrade,
+              wanted,
+              target: `${target.stack} ${target.version}`,
+            }),
+          );
         if (wanted)
           migration.edits.push(
             ...setPackage(
@@ -442,6 +478,26 @@ export async function planUpgrade(report: Report, options: UpgradeOptions): Prom
   return plan;
 }
 
+/**
+ * SPFx `--to`: the newest verified matrix version the range allows, or a published patch of a
+ * known minor (planned with a not-yet-verified review issue). Refusals name the nearest verified.
+ */
+async function spfxTarget(to: string, options: UpgradeOptions): Promise<string> {
+  await loadSpfxRegistry({
+    offline: options.offline ?? false,
+    ...(options.fetchImpl ? { fetchImpl: options.fetchImpl } : {}),
+  });
+  const result = resolveSpfxTarget(to);
+  if (result.ok) return result.version;
+  throw new Error(
+    t(result.reason === 'unconfirmed' ? 'upgrade.spfxUnconfirmed' : 'upgrade.spfxNoTarget', {
+      to,
+      verifiedAt: spfxMatrix().verifiedAt,
+      nearest: result.nearest ?? '-',
+    }),
+  );
+}
+
 function issue(
   code: string,
   level: MigrationIssue['level'],
@@ -449,6 +505,34 @@ function issue(
   params?: Record<string, string>,
 ): MigrationIssue {
   return { code, level, message: msg(key, params) };
+}
+
+/** The project's current version of `name` when `wanted` is a lower major, else undefined. */
+function majorDowngrade(project: Project, name: string, wanted: string): string | undefined {
+  const lowest = (spec: string | undefined): string | undefined =>
+    spec && semver.validRange(spec) ? (semver.minVersion(spec)?.version ?? undefined) : undefined;
+  const current =
+    resolveVersion(project, name)?.version ??
+    lowest(project.dependencies.find((dep) => dep.name === name)?.spec);
+  const target = semver.valid(wanted) ?? lowest(wanted);
+  if (!current || !semver.valid(current) || !target) return undefined;
+  return semver.major(target) < semver.major(current) ? current : undefined;
+}
+
+/** Why a library pin has its version: the @pnp family lockstep or the baseline project. */
+function pinReason(
+  name: string,
+  wanted: string,
+  pins: Record<string, string>,
+  baseline: string,
+): string {
+  if (
+    name !== '@pnp/sp' &&
+    /^@pnp\/(?:graph|logging|core|queryable)$/.test(name) &&
+    pins['@pnp/sp'] === wanted
+  )
+    return `@pnp packages follow @pnp/sp ${wanted}`;
+  return `version of the baseline project ${baseline}`;
 }
 
 function libraryPins(entries: ProjectReport[], baseline: ProjectReport): Record<string, string> {

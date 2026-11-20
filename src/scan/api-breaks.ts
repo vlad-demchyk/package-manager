@@ -2,6 +2,7 @@ import semver from 'semver';
 import { loadData } from '../core/data.js';
 import { minVersionOf, resolveVersion } from '../core/versions.js';
 import type { Project } from '../core/types.js';
+import { originAtIdentifier, originBefore, symbolsOf, type FileSymbols } from './origin.js';
 
 /** A code pattern of one API generation, matched against comment-stripped source text. */
 export interface ApiPattern {
@@ -9,6 +10,12 @@ export interface ApiPattern {
   regex: string;
   /** Second regex that must also match somewhere in the file (the importing package, usually). */
   requires?: string;
+  /**
+   * Regex on the package the receiver or class of the match is traced to (imports, `new X`, SPFx
+   * factories). A match traced to another package is not this API; an untraceable one keeps the
+   * `requires` check.
+   */
+  origin?: string;
   what: string;
   /** `removed`: gone in the new version; `deprecated`: still runs with warnings. Old patterns only. */
   kind?: 'removed' | 'deprecated';
@@ -42,16 +49,28 @@ export function apiBreaks(): ApiBreak[] {
   return loadData<ApiBreaksData>('api-breaks.json').breaks;
 }
 
-const compiled = new Map<string, { regex: RegExp; requires?: RegExp }>();
+const compiled = new Map<string, { regex: RegExp; requires?: RegExp; origin?: RegExp }>();
 
-function compile(pattern: ApiPattern): { regex: RegExp; requires?: RegExp } {
+function compile(pattern: ApiPattern): { regex: RegExp; requires?: RegExp; origin?: RegExp } {
   let entry = compiled.get(pattern.id);
   if (!entry) {
     entry = { regex: new RegExp(pattern.regex, 'g') };
     if (pattern.requires) entry.requires = new RegExp(pattern.requires);
+    if (pattern.origin) entry.origin = new RegExp(pattern.origin);
     compiled.set(pattern.id, entry);
   }
   return entry;
+}
+
+/** Origin of one match: the package its receiver or class is traced to, if any. */
+function originOfMatch(
+  symbols: () => FileSymbols,
+  text: string,
+  match: RegExpMatchArray,
+): string | undefined {
+  const index = match.index ?? 0;
+  if (text[index] === '.') return originBefore(symbols(), text, index);
+  return originAtIdentifier(symbols(), text, index);
 }
 
 /** Locations kept per pattern and file; evidence stays readable and the scan bounded. */
@@ -74,13 +93,21 @@ export function matchApiPatterns(text: string, rel: string, out: Map<string, str
     }
     return low + 1;
   };
+  let fileSymbols: FileSymbols | undefined;
+  const symbols = (): FileSymbols => (fileSymbols ??= symbolsOf(text));
   for (const item of apiBreaks())
     for (const pattern of [...item.old, ...item.new]) {
-      const { regex, requires } = compile(pattern);
-      if (requires && !requires.test(text)) continue;
+      const { regex, requires, origin } = compile(pattern);
+      const fileHasRequired = !requires || requires.test(text);
+      if (!origin && !fileHasRequired) continue;
       regex.lastIndex = 0;
       let count = 0;
       for (const match of text.matchAll(regex)) {
+        if (origin) {
+          const traced = originOfMatch(symbols, text, match);
+          // Traced to another package: not this API, whatever the file imports elsewhere.
+          if (traced !== undefined ? !origin.test(traced) : !fileHasRequired) continue;
+        } else if (!fileHasRequired) continue;
         if (count++ >= MAX_LOCATIONS_PER_FILE) break;
         const list = out.get(pattern.id) ?? [];
         list.push(`${rel}:${lineOf(match.index)}`);

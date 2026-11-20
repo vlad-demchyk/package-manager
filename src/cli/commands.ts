@@ -14,13 +14,15 @@ import { alignPackage, alignToProject, closestProjects, diffProjects } from '../
 import { executeClean, planClean } from '../ops/clean.js';
 import { dataStatus, updateData } from '../ops/data.js';
 import { userDataDir } from '../core/data.js';
+import { spfxDataStatus } from '../providers/spfx/matrix.js';
 import { generateProfile, tsconfigSource, type VersionStrategy } from '../ops/generate.js';
 import { journal, pruneJournal, readJournal } from '../ops/journal.js';
 import { versionMatrix } from '../ops/matrix.js';
 import { outdated } from '../ops/outdated.js';
 import { primaryStack } from '../policy/groups.js';
 import { allFindings } from '../report/model.js';
-import { manifestKey, planStore } from '../store/store.js';
+import { planStore } from '../store/store.js';
+import { planJson, printPlan } from './audit-plan.js';
 import { openSession, runAnalysis, type CommonOptions, type Session } from './context.js';
 import {
   commonOptions,
@@ -33,7 +35,10 @@ import {
   relock,
   reportUnverified,
   reviewAndApply,
+  staleLinkedProjects,
 } from './shared.js';
+import { registerSync } from './sync.js';
+import { printVersionRow } from './versions.js';
 
 type InstallMode = 'normal' | 'legacy-peer-deps' | 'force';
 
@@ -78,7 +83,7 @@ async function runInstall(
   for (const { entry, args } of plan) {
     if (entry.project.nodeModules === 'link') {
       // No npm here: it would replace the junctions with real copies. Say what to do instead.
-      const stale = staleLinks(report).has(entry.project.id);
+      const stale = staleLinkedProjects(report).has(entry.project.id);
       console.log(
         `${entry.project.id}: ${(stale ? pc.yellow : pc.dim)(t(stale ? 'install.linkedStale' : 'install.linkedOk', { project: entry.project.id }))}`,
       );
@@ -122,17 +127,6 @@ async function runInstall(
   return ok;
 }
 
-/** Linked projects whose dependency fields changed since they were linked (`store status` stale). */
-function staleLinks(report: Report): Set<string> {
-  const stale = new Set<string>();
-  for (const entry of report.projects) {
-    const link = report.links?.find((item) => item.projectId === entry.project.id);
-    if (link && link.manifestKey !== manifestKey(entry.project.manifest))
-      stale.add(entry.project.id);
-  }
-  return stale;
-}
-
 /**
  * `install --sync-store`: rebuild the union store of every group that has a stale linked project,
  * relink its members and write their lockfiles; npm never runs inside the projects.
@@ -146,7 +140,7 @@ async function syncStores(
     { ...options, security: false },
     { targetVersions: true },
   );
-  const stale = staleLinks(fresh);
+  const stale = staleLinkedProjects(fresh);
   if (stale.size === 0) return;
   console.log(pc.bold(t('install.syncStore', { count: stale.size })));
   const plan = planStore(fresh, { union: true });
@@ -573,17 +567,7 @@ export function registerCommands(program: Command): void {
           process.stdout.write(`${JSON.stringify(matrix, null, 2)}\n`);
           return;
         }
-        for (const row of matrix.rows) {
-          const header = `${row.diverging ? pc.yellow('≠') : pc.green('=')} ${pc.bold(row.name)} ${pc.dim(`(${Object.keys(row.cells).length})`)}`;
-          console.log(header);
-          if (!row.diverging) continue;
-          for (const version of row.versions) {
-            const users = Object.entries(row.cells)
-              .filter(([, cell]) => (cell.version ?? cell.spec) === version)
-              .map(([id]) => id);
-            console.log(`    ${version.padEnd(16)} ${pc.dim(users.join(', '))}`);
-          }
-        }
+        for (const row of matrix.rows) printVersionRow(row);
       },
     );
 
@@ -622,7 +606,8 @@ export function registerCommands(program: Command): void {
     program.command('audit').description('known vulnerabilities only (packages and Node)'),
   )
     .option('--json', 'print as JSON')
-    .action(async (root: string, options: CommonOptions & { json?: boolean }) => {
+    .option('--plan', 'remediation plan per vulnerable package inside the project stack')
+    .action(async (root: string, options: CommonOptions & { json?: boolean; plan?: boolean }) => {
       const session = await openSession(root, options);
       const report = await runAnalysis(
         session,
@@ -630,7 +615,10 @@ export function registerCommands(program: Command): void {
         progressReporter(options.json === true),
       );
       const findings = allFindings(report).filter((item) => item.tags.includes('security'));
-      if (options.json) {
+      if (options.plan) {
+        if (options.json) process.stdout.write(`${JSON.stringify(planJson(report), null, 2)}\n`);
+        else printPlan(report);
+      } else if (options.json) {
         process.stdout.write(`${JSON.stringify(findings, null, 2)}\n`);
       } else {
         for (const item of findings) {
@@ -753,9 +741,10 @@ export function registerCommands(program: Command): void {
     .option('--json', 'machine-readable output')
     .action((options: { json?: boolean }) => {
       const rows = dataStatus();
+      const spfx = spfxDataStatus();
       if (options.json) {
         process.stdout.write(
-          `${JSON.stringify({ dir: userDataDir() ?? null, files: rows }, null, 2)}\n`,
+          `${JSON.stringify({ dir: userDataDir() ?? null, files: rows, spfx }, null, 2)}\n`,
         );
         return;
       }
@@ -765,11 +754,22 @@ export function registerCommands(program: Command): void {
           `${row.name.padEnd(20)} bundled ${row.bundled.padEnd(10)} ${updated.padEnd(18)} ${row.active === 'updated' ? pc.green(t('data.usingUpdated')) : pc.dim(t('data.usingBundled'))}`,
         );
       }
+      console.log(
+        t('data.spfxStatus', {
+          verified: spfx.latestVerified ?? '-',
+          verifiedAt: spfx.verifiedAt,
+          npm: spfx.registryLatest ?? '-',
+          source: spfx.recordedAt ?? spfx.registry,
+          unverified: spfx.unverified.map((patch) => patch.version).join(', ') || '-',
+        }),
+      );
       console.log(pc.dim(t('data.dir', { dir: userDataDir() ?? '-' })));
     });
   data
     .command('update')
-    .description('refresh Node release lines and Node core vulnerabilities from their sources')
+    .description(
+      'refresh Node release lines, Node core vulnerabilities, framework ranges and published SPFx releases',
+    )
     .addOption(langOption())
     .option('--dry-run', 'show the changes without saving them')
     .option('--json', 'machine-readable output')
@@ -805,4 +805,7 @@ export function registerCommands(program: Command): void {
       report,
     );
   });
+
+  // fix -> store switch -> build -> check, until stable.
+  registerSync(program);
 }

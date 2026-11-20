@@ -82,7 +82,11 @@ export const it: Catalogue = {
     '{library} {version} è compilata per SPFx {target}, il progetto usa SPFx {spfx} (valutare {suggested})',
   'spfx.pnpjsMajor':
     'PnPjs v{major} non è la major consigliata per SPFx {spfx} (consigliata v{recommended})',
-  'spfx.upgradeAvailable': 'SPFx {version} può essere aggiornata (ultima {latest})',
+  'spfx.upgradeAvailable': 'SPFx {version} può essere aggiornata (ultima verificata {latest})',
+  'spfx.upgradeAvailableUnverified':
+    'SPFx {version} può essere aggiornata (ultima su npm {npm}, non ancora verificata; ultima verificata {latest})',
+  'spfx.unverifiedPatch':
+    'SPFx {version} è più recente della matrice verificata ({verifiedAt}): si assumono i vincoli di {base}, non ancora verificati',
 
   'react.typesMajor': '@types/react {types} non corrisponde a react {react}',
   'typescript.v7Api':
@@ -109,6 +113,39 @@ export const it: Catalogue = {
     'Node {version} ha vulnerabilità note; {recommended} è corretto e compatibile',
   'node.eolNotAssessed': 'EOL: {count} CVE note, le successive non valutate né corrette',
 
+  'remediation.unknown':
+    'nessun dato dal registro per questo pacchetto (offline senza cache): piano sconosciuto',
+  'remediation.noFix':
+    'nessuna versione corretta di {package} pubblicata dopo {version}: non risolvibile con un aggiornamento; rimuovere o sostituire il pacchetto che lo include',
+  'remediation.blockedDirect':
+    'la versione corretta {target} è fuori da ciò che lo stack consente ({sources}): risolvibile solo cambiando il target dello stack',
+  'remediation.parentBlocked':
+    'la release del genitore che include una versione corretta ({parent}) è bloccata da {sources}',
+  'remediation.majorBlockedByStack':
+    'corretta solo in {target}, una nuova major; {root} è fissato da {source}: non risolvibile in questo stack',
+  'remediation.peerBlocked': 'la versione corretta {target} è rifiutata da range peer ({peers})',
+  'remediation.notNpm':
+    '{package} richiede un override, che packman scrive solo per lockfile npm (lockfile: {kind})',
+  'remediation.override':
+    'i dipendenti ({dependents}) dichiarano range senza versione corretta: gli overrides npm ne forzano una nella stessa major',
+  'remediation.overrideMajor':
+    'i dipendenti ({dependents}) dichiarano range senza versione corretta e {target} è una nuova major: l’override può romperli',
+  'remediation.overrideUnderStack':
+    'forzato sotto {root} ({source}): lo stack mantiene il genitore, quindi la sostituzione cambia codice fornito dallo stack; verificare la build',
+  'remediation.relock':
+    'tutti i dipendenti consentono già {package}@{target}; il lockfile mantiene la versione vulnerabile finché non viene fissata e il lock rigenerato',
+  'remediation.relockManual':
+    'tutti i dipendenti consentono già {package}@{target}: aggiornare il lockfile (npm update {package})',
+  'remediation.noChain':
+    'nessun pacchetto del lockfile richiede {package} (copia estranea): reinstallare o rigenerare il lock per rimuoverla',
+  'remediation.direct': 'dipendenza dichiarata: aggiornare a {package}@{target}',
+  'remediation.parent':
+    'aggiornare il genitore dichiarato ({parents}) a una release che richiede una versione corretta',
+  'audit.planTitle': 'Piano di correzione ({count} pacchetti vulnerabili)',
+  'audit.planSummary':
+    'piano: {fixable} con correzione, {relock} di cui con rigenerazione del lock, {blocked} bloccati da stack o peer, {noFix} senza versione corretta, {unknown} sconosciuti',
+  'audit.buildNote':
+    'Una build riuscita non le elimina: il codice vulnerabile resta installato o distribuito.',
   'security.packageVulns':
     '{count} pacchetti vulnerabili ({direct} diretti, {network} nel codice di rete)',
   'security.nodeVuln': 'Node {version}: {count} vulnerabilità note ({context})',
@@ -122,9 +159,9 @@ export const it: Catalogue = {
 
   // API breaks
   'api.oldUsage':
-    '{package} {version} è installato ma {count} punti usano ancora le API delle versioni precedenti a {since} ({title})',
+    '{package} è risolto a {version} ma {count} punti usano ancora le API delle versioni precedenti a {since} ({title})',
   'api.newUsage':
-    '{package} {version} è installato ma {count} punti usano le API introdotte in {since} ({title})',
+    '{package} è risolto a {version} ma {count} punti usano le API introdotte in {since} ({title})',
   'api.split':
     '{package}: {old} progetti sotto {since} e {new} sul lato nuovo; {work} usano ancora le vecchie API e richiedono modifiche al codice per convergere',
   'api.fixBreaks':
@@ -133,11 +170,20 @@ export const it: Catalogue = {
     '{package} {from} -> {to}: {count} punti usano le API della versione che si abbandona; vedere le modifiche al codice sotto.',
   'upgrade.codeChanges': 'Modifiche al codice richieste:',
   'compat.title': '{package} in {project}',
-  'compat.current': 'attuale: {version} ({source}), dichiarato {spec} in {section}',
+  'compat.current': 'attuale: {evidence}; in {section}',
   'compat.notDeclared': 'attuale: non dichiarato in questo progetto',
+  'versions.source.declared': 'dichiarata',
+  'versions.source.locked': 'nel lockfile',
+  'versions.source.installed': 'installata',
+  'versions.summary': 'più recente {latest}, più comune {version} ({count}/{total})',
+  'versions.none': 'nessuna',
+  'versions.unknown': 'sconosciuta in {count}/{total} ({reason})',
+  'versions.noLockfile': 'senza lockfile',
+  'versions.noModules': 'senza node_modules',
+  'versions.drift': 'versioni dichiarate e nel lockfile non coincidono',
   'compat.target': 'target: {version}',
   'compat.constraints': 'Intervalli dello stack',
-  'compat.peers': 'Intervalli peer dei pacchetti installati',
+  'compat.peers': 'Intervalli peer dei pacchetti nel lockfile',
   'compat.engines': 'Node:',
   'compat.breaks': 'Rotture di API tra attuale e target',
   'compat.breaksAhead': 'Rotture di API oltre la versione attuale',
@@ -148,6 +194,7 @@ export const it: Catalogue = {
   'upgrade.noOldApi': 'nessun uso noto delle vecchie API nei sorgenti analizzati',
 
   'fix.syncYoRc': 'Aggiornare .yo-rc.json a {version}',
+  'fix.securityRemediation': 'Correggere {package}: versione corretta {target} ({status})',
   'fix.alignSpfxPackages': 'Impostare tutti i pacchetti SPFx a {version}',
   'fix.replaceCompiler': 'Usare {compiler}',
   'fix.removeCompiler': 'Rimuovere rush-stack-compiler',
@@ -178,6 +225,43 @@ export const it: Catalogue = {
   'tui.outdatedUnavailable':
     'Interrogazione del registry non disponibile qui: eseguire packman outdated.',
   'tui.inMajor': 'più recente nella major',
+  'tui.bumpBlocked': '{version} non consentita: {reason}',
+  'tui.key.addRemove': 'aggiungi/rimuovi pacchetto',
+  'tui.key.build': 'build',
+  'tui.key.sync': 'sync',
+  'tui.job.pickProject':
+    'Scegli prima un progetto nella scheda Progetti (+ aggiungi, - rimuovi, b build).',
+  'tui.job.unavailable': 'Operazioni gestite non disponibili qui: usa i comandi CLI.',
+  'tui.job.planning': 'Pianificazione… non viene ancora scritto nulla.',
+  'tui.job.back': 'Esc: indietro',
+  'tui.job.blocked': 'Impossibile eseguire: correggi prima quanto segnato con !. Esc: indietro',
+  'tui.job.confirm':
+    'Eseguire? y esegue (Esc o Ctrl+C annulla durante l’esecuzione, sync ripristina), Esc torna indietro',
+  'tui.job.anyKey': 'Premi un tasto per tornare alla TUI.',
+  'tui.job.running': 'Esecuzione fuori dalla TUI; Esc o Ctrl+C annulla il passo in corso.',
+  'tui.job.exit': 'uscita {code}: {state}',
+  'tui.job.cancelled': 'annullato',
+  'tui.job.done': 'completato',
+  'tui.job.failed': 'fallito',
+  'tui.job.remaining':
+    'Restano: {counts}; {fixes} correzioni sicure, {stale} progetti collegati non aggiornati',
+  'tui.job.needInput': 'Indica almeno un pacchetto e un progetto.',
+  'tui.job.scopeInstall': '{project}: npm install con Node {node}',
+  'tui.job.scopeNoGroup':
+    '{project}: collegato, ma nessun gruppo dello store è adatto; lo store non viene ricostruito',
+  'tui.job.scopeStore': 'store {key} ricostruito e ricollegato per {projects}',
+  'tui.job.scopeFiles': '{count} file cambiano',
+  'tui.job.scopeBuild': '{project}: npm run {script} con Node {node}',
+  'tui.job.scopeProjects': 'progetti modificati: {projects}',
+  'tui.job.scopeSyncPasses':
+    'poi cambi di store, build e altri passaggi fino alla stabilità, e un controllo finale',
+  'tui.job.prompt.add':
+    'Aggiungi a {project} (nome o nome@range, separati da spazi; Invio pianifica, Esc annulla):',
+  'tui.job.prompt.remove': 'Rimuovi da {project} (nomi; Invio pianifica, Esc annulla):',
+  'tui.job.title.add': 'Aggiungi {packages} a {project}',
+  'tui.job.title.remove': 'Rimuovi {packages} da {project}',
+  'tui.job.title.build': 'Build di {project} (npm run {script})',
+  'tui.job.title.sync': 'Sync: correzioni sicure, cambi di store, build, controllo finale',
   'tui.storeLinked': '{count}/{total} collegati',
   'tui.storeHint':
     'Collegare con: packman store link -g {key} --union (installa, poi sostituisce node_modules); per modificare un progetto collegato: packman add <pkg> -p <progetto>',
@@ -285,6 +369,8 @@ export const it: Catalogue = {
   'cli.notANumber': '{value} non è un numero intero maggiore o uguale a 0.',
   'data.usingUpdated': 'in uso la copia aggiornata',
   'data.usingBundled': 'in uso la copia inclusa',
+  'data.spfxStatus':
+    'SPFx: ultima verificata {verified} (matrice {verifiedAt}), ultima su npm {npm} ({source}); pubblicate, non ancora verificate: {unverified}',
   'data.dir': 'Cartella dei dati aggiornati: {dir}',
   'data.file': '{name}: {before} -> {after}',
   'data.noChanges': 'nessuna modifica',
@@ -333,6 +419,12 @@ export const it: Catalogue = {
   'upgrade.nodeIncompatible': 'Nessun Node comune soddisfa tutti gli stack target: {ranges}',
   'upgrade.unknownVersion': 'Impossibile determinare la versione esistente di {stack}.',
   'upgrade.unknownSpfx': 'SPFx {version} non ha dati di migrazione verificati.',
+  'upgrade.spfxUnverified':
+    'SPFx {version} è pubblicata su npm ma non ancora verificata nella matrice ({verifiedAt}): il piano assume i vincoli di {base}; leggere le note di rilascio prima di applicare.',
+  'upgrade.spfxNoTarget':
+    'Nessuna release SPFx pubblicata nota a packman corrisponde a {to} (matrice verificata {verifiedAt}). Versione verificata più vicina: {nearest}.',
+  'upgrade.spfxUnconfirmed':
+    'SPFx {to} non è nella matrice verificata ({verifiedAt}) e il registro npm non ha potuto confermarla (offline?). Versione verificata più vicina: {nearest}; riprovare online per pianificare {to} come patch non ancora verificata.',
   'upgrade.downgrade':
     'Questo ridurrebbe {from} a {to}; scegliere il progetto esistente più recente.',
   'upgrade.linked': '{project} è già collegato; scollegarlo prima di cambiare le dipendenze.',
@@ -392,4 +484,62 @@ export const it: Catalogue = {
   'install.linkedOk':
     'collegato allo store, aggiornato (usa packman add <pkg> -p {project} per modificarlo)',
   'install.syncStore': 'ricostruzione dello store di {count} progetti collegati modificati',
+  'sync.linkedHint':
+    'collegato allo store, package.json modificato: packman sync --apply ricostruisce lo store, ricollega, compila e ricontrolla',
+  'sync.cancelling':
+    'Annullamento: arresto del passo npm in corso, poi ripristino dello stato precedente…',
+  'sync.phasePreflight': 'Verifica preliminare: versioni di Node',
+  'sync.phaseFix': 'Passaggio {pass}/{max}: correzioni',
+  'sync.phaseCheck': 'Controllo finale',
+  'sync.stepNode': 'verifica Node',
+  'sync.stepPass': 'passaggio {pass}',
+  'sync.stepCycle': 'passaggio {pass}: correzione trattenuta (ciclo)',
+  'sync.stepFix': 'passaggio {pass}: correzioni scritte',
+  'sync.stepStore': 'passaggio {pass}: store di {project}',
+  'sync.stepProject': 'passaggio {pass}: installazione e build di {project}',
+  'sync.stepCheck': 'controllo finale',
+  'sync.stable': 'nessuna correzione consentita rimasta e nessun progetto collegato obsoleto',
+  'sync.preview': '{fixes} correzioni, {groups} gruppi collegati da ricostruire (prova)',
+  'sync.previewNext':
+    'Prova: nulla è stato scritto. Con --apply ogni passaggio scrive le correzioni, cambia gli store collegati (preparazione, ricollegamento, build; ripristino in caso di errore) e ricontrolla fino alla stabilità.',
+  'sync.wouldSwitch': 'store ricostruito e cambiato per: {projects}',
+  'sync.notWritten': 'correzioni non scritte (rifiutate o fallite)',
+  'sync.fixesApplied': '{count} correzioni in {files} file',
+  'sync.noGroup': '{project} non ha un gruppo condiviso con questi manifest ({reason})',
+  'sync.switch.prepare':
+    'Preparazione dello store {key} per {count} progetti (i collegamenti attuali restano validi)',
+  'sync.switch.switch': 'Passaggio di {count} progetti allo store {key}',
+  'sync.switch.verify': 'Build di {count} progetti sullo store {key}',
+  'sync.switch.rollback': 'Ripristino di collegamenti, manifest e lockfile precedenti',
+  'sync.switched': '{count} progetti su {dir}',
+  'sync.rolledBack': '{phase} fallito, stato precedente ripristinato: {error}',
+  'sync.switchFailed': '{phase} fallito, stato lasciato per l’analisi: {error}',
+  'sync.noNode': 'nessun Node installato per {project}',
+  'sync.nodeMissing':
+    'Node {version} non è installato (serve a {projects}). Preparalo con: {command}',
+  'sync.nodePrepare': 'esegui {command}, oppure usa --install-node',
+  'sync.nodeStillMissing': 'Node {version} ancora non trovato',
+  'sync.noFixesLeft': 'nessuna correzione consentita rimasta',
+  'sync.fixesLeft': '{count} correzioni consentite rimaste',
+  'sync.notStable':
+    'non stabile dopo {passes} passaggi: {count} correzioni consentite rimaste, {stale} progetti collegati obsoleti',
+  'sync.summary': 'Riepilogo',
+  'sync.complete': 'Completato.',
+  'sync.incomplete':
+    'Incompleto: un passo è fallito, è stato annullato o ha lasciato lavoro; vedi sopra.',
+  'upgrade.linkedSwitch':
+    'Gruppo collegato: la migrazione prepara un nuovo store, cambia tutti i {count} progetti e ripristina i collegamenti precedenti se un passo fallisce (nessun unlink, nessun npm nei progetti).',
+  'upgrade.linkedPartial':
+    'Lo store dei progetti collegati selezionati è usato anche da {projects}; includili (uno store si cambia per intero).',
+  'upgrade.linkedMixed':
+    '{projects} hanno node_modules propri mentre gli altri sono collegati; usa --shared per collegarli, oppure seleziona solo il gruppo collegato con -p.',
+  'upgrade.majorDowngradeKept':
+    '{name} resta a {current}: la versione pianificata {wanted} ({reason}) abbasserebbe la major e lo stack di destinazione non lo richiede. Allinea a mano se serve.',
+  'upgrade.majorDowngradeRequired':
+    '{name} {current} -> {wanted} abbassa la major perché {target} lo richiede; verifica le modifiche alle API (breaking).',
+  'rollback.plan':
+    'Ultimo cambio di store ({at}): {count} progetti da {from} di nuovo a {to}; {files} file (manifest, lock, modificati) ripristinati dalla sua copia.',
+  'rollback.refused': 'Nessun ripristino: lo stato è cambiato dopo quel cambio (vedi sopra).',
+  'rollback.confirm': 'Ripristinare i collegamenti e i file precedenti?',
+  'rollback.done': '{count} progetti sono di nuovo sui collegamenti precedenti.',
 };

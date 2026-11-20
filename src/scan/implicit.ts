@@ -129,6 +129,25 @@ const PACKAGE_KEYS =
   /["']?\b(parser|extends|plugins|presets|preset|types|loader|testEnvironment|transform)\b["']?\s*:\s*(\[[^\]]*\]|\{[^}]*\}|["'`][^"'`]+["'`])/g;
 const REQUIRE = /\b(?:require(?:\.resolve)?\s*\(|import\s*\(|from\s+)\s*["'`]([^"'`]+)["'`]/g;
 const QUOTED = /["'`]([^"'`]+)["'`]/g;
+/** `node_modules/@scope/name/...` or `node_modules\\name\\...` inside a string: that package. */
+const NODE_MODULES_PATH = /node_modules(?:[\\/]+)((?:@[\w.-]+[\\/]+)?[\w.-]+)/g;
+
+/**
+ * Module names of SPFx `config/config.json` `externals`: the bundler maps the import to a script
+ * (`"jquery": "node_modules/jquery/dist/jquery.min.js"` or a CDN URL) instead of bundling it.
+ */
+function spfxExternals(raw: string): string[] {
+  try {
+    const text = raw.charCodeAt(0) === 0xfeff ? raw.slice(1) : raw;
+    const config = JSON.parse(text) as { externals?: unknown };
+    const externals = config.externals;
+    return externals && typeof externals === 'object' && !Array.isArray(externals)
+      ? Object.keys(externals)
+      : [];
+  } catch {
+    return [];
+  }
+}
 
 /** `@scope/name/sub/path` or `name/sub` -> package name; local paths and URLs -> undefined. */
 function toPackageName(spec: string): string | undefined {
@@ -168,6 +187,11 @@ export async function configReferenceMap(projectDir: string): Promise<Map<string
       if (name && !names.has(name)) names.set(name, file);
     };
     for (const match of text.matchAll(REQUIRE)) add(match[1] ?? '');
+    // Paths into a package: SPFx `localizedResources` (`node_modules/<pkg>/lib/loc/{locale}.js`),
+    // `externals` paths, bundle entry points, tsconfig `extends`, copy-assets lists.
+    for (const match of text.matchAll(NODE_MODULES_PATH))
+      add((match[1] ?? '').replace(/[\\/]+/g, '/'));
+    if (isConfigJson && base === 'config.json') for (const name of spfxExternals(raw)) add(name);
     for (const match of text.matchAll(PACKAGE_KEYS)) {
       for (const quoted of (match[2] ?? '').matchAll(QUOTED)) {
         const value = quoted[1] ?? '';

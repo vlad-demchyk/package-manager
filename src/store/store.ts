@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, lstatSync, readFileSync } from 'node:fs';
 import {
   lstat,
   mkdir,
@@ -187,7 +187,11 @@ function localDependencies(project: Project): boolean {
  * `packages` (union) keeps node_modules a real folder of each project, and Vite's caches
  * (.vite, .vite-temp) stay there.
  */
-function stackWarnings(members: ProjectReport[], linkMode: 'folder' | 'packages'): string[] {
+function stackWarnings(
+  members: ProjectReport[],
+  linkMode: 'folder' | 'packages',
+  links?: LinkRecord[],
+): string[] {
   const warnings: string[] = [];
   const stacks = new Set(members.flatMap((member) => member.stacks.map((stack) => stack.provider)));
   if (stacks.has('vite') && linkMode === 'folder')
@@ -195,32 +199,90 @@ function stackWarnings(members: ProjectReport[], linkMode: 'folder' | 'packages'
   if (stacks.has('spfx')) {
     warnings.push('spfx: run `packman store verify` (gulp/heft build) on the linked projects');
   }
-  for (const member of members) {
-    const rule = projectPathRule(member.project.dir);
-    if (rule)
+  for (const member of members)
+    for (const warning of gulpRuleWarnings(
+      member.project,
+      links?.find((link) => link.projectId === member.project.id),
+    ))
+      warnings.push(warning);
+  return warnings;
+}
+
+/**
+ * A webpack rule condition written against the project's own node_modules path:
+ * `include: path.join(__dirname, 'node_modules', 'pkg')` or `path.resolve(__dirname, 'node_modules/pkg')`.
+ * Group 3 or 4 is the package, when the rule names one. A path already wrapped in `fs.realpathSync`
+ * does not match (`include:` must be followed by `path.` directly).
+ */
+const PROJECT_MODULES_RULE =
+  /\b(include|exclude)\s*:\s*\[?\s*path\.(?:join|resolve)\(\s*__dirname\s*,\s*(['"`])node_modules(?:\/([^'"`]+))?\2(?:\s*,\s*['"`]([^'"`]+)['"`])?/g;
+
+/** `resolve: { symlinks: false }`: webpack keeps the junction path and project-path rules still match. */
+const KEEPS_SYMLINKS = /\bsymlinks\s*[:=]\s*false\b/;
+
+/**
+ * Gulpfile webpack rules that a shared store makes inactive, stated precisely. Linking turns
+ * `<project>/node_modules/<pkg>` into a junction; webpack resolves modules to their real path
+ * (`resolve.symlinks` is true in SPFx), `.packman/store/<key>/node_modules/<pkg>/...`, and a rule on the
+ * project path no longer matches it. Whether that breaks the build depends on whether the loader is
+ * still needed (webpack 5 parses ES2020 that webpack 4 needed Babel for):
+ * - linked, and a build passed after linking: the rule is inactive and not needed (info only);
+ * - linked, no passing build since: check the build, the edit below is the fix if it fails;
+ * - not linked yet: the rule stops matching once linked.
+ * Copying files from the same path (CopyWebpackPlugin `from`) reads through the junction and is fine.
+ * The proposed edit wraps the path in `fs.realpathSync(...)`, which matches linked and unlinked
+ * layouts alike; it is printed for review, never applied.
+ */
+export function gulpRuleWarnings(project: Project, link?: LinkRecord): string[] {
+  const file = path.join(project.dir, 'gulpfile.js');
+  if (!existsSync(file)) return [];
+  let text: string;
+  try {
+    text = readFileSync(file, 'utf8');
+  } catch {
+    return [];
+  }
+  if (KEEPS_SYMLINKS.test(text)) return [];
+  const warnings: string[] = [];
+  for (const match of text.matchAll(PROJECT_MODULES_RULE)) {
+    const line = text.slice(0, match.index).split(/\r?\n/).length;
+    const where = `${project.id}: gulpfile.js:${line} ${match[1]}`;
+    const pkg = match[3] ?? match[4];
+    if (!pkg) {
       warnings.push(
-        `${member.project.id}: gulpfile.js webpack rule ${rule} matches <project>/node_modules, but webpack resolves linked packages to the store; wrap that path in fs.realpathSync(...)`,
+        `${where} covers all of <project>/node_modules; linked packages resolve to the store, so the rule matches none of them. Manual review: name the packages and wrap each path in fs.realpathSync(...)`,
       );
+      continue;
+    }
+    const rulePath = `path.join(__dirname, 'node_modules', '${pkg}')`;
+    const edit = `proposed edit (review, not applied): ${match[1]}: fs.realpathSync(${rulePath}) with const fs = require('fs')`;
+    // packages mode links node_modules/<pkg>; folder mode links node_modules itself.
+    const linked =
+      isJunction(path.join(project.dir, 'node_modules', pkg)) ||
+      isJunction(path.join(project.dir, 'node_modules'));
+    const verified = project.verified;
+    if (linked && verified && link && verified.at > link.createdAt) {
+      warnings.push(
+        `info: ${where} ${rulePath} is inactive while linked (webpack resolves ${pkg} to the store); \`${verified.script}\` passed linked on ${verified.at.slice(0, 10)}, so the loader is not needed with this toolchain. To keep the rule active anyway: ${edit}`,
+      );
+    } else if (linked) {
+      warnings.push(
+        `${where} ${rulePath} is inactive while linked (webpack resolves ${pkg} to the store) and no build has passed since linking. Run packman store verify -p ${project.id}; if webpack reports "Module parse failed" in ${pkg}: ${edit}`,
+      );
+    } else {
+      warnings.push(
+        `${where} ${rulePath} stops matching once linked (node_modules/${pkg} becomes a junction and webpack resolves it to the store). Verify the build after linking; if webpack reports "Module parse failed" in ${pkg}: ${edit}`,
+      );
+    }
   }
   return warnings;
 }
 
-/** Webpack rule conditions written against the project's own node_modules path. */
-const PROJECT_MODULES_RULE =
-  /\b(include|exclude)\s*:\s*\[?\s*path\.(?:join|resolve)\(\s*__dirname\s*,\s*['"`]node_modules\b/;
-
-/**
- * `include: path.join(__dirname, 'node_modules', 'pkg')` in a gulpfile: webpack follows junctions to
- * the real path (`.packman/store/...`), so the rule stops matching and the package is bundled without
- * its loader (SPFx 1.18 GlobalLoader: "Module parse failed" for web-push-notifications).
- */
-function projectPathRule(dir: string): string | undefined {
-  const file = path.join(dir, 'gulpfile.js');
-  if (!existsSync(file)) return undefined;
+function isJunction(file: string): boolean {
   try {
-    return PROJECT_MODULES_RULE.exec(readFileSync(file, 'utf8'))?.[1];
+    return lstatSync(file).isSymbolicLink();
   } catch {
-    return undefined;
+    return false;
   }
 }
 
@@ -295,7 +357,7 @@ function planUnion(report: Report): StorePlan {
       mode: 'union',
       projectIds: ids,
       manifest: storeManifest,
-      warnings: stackWarnings(eligible, 'packages'),
+      warnings: stackWarnings(eligible, 'packages', report.links),
     };
     if (node) {
       group.node = node;
@@ -351,7 +413,7 @@ function planExact(report: Report): StorePlan {
       const first = members[0];
       if (members.length < 2 || !first) continue;
       const node = first.node.selected;
-      const warnings = stackWarnings(members, 'folder');
+      const warnings = stackWarnings(members, 'folder', report.links);
       const group: StoreGroup = {
         key: hash(
           canonical({
@@ -404,6 +466,11 @@ export interface LinkOptions {
   syncLocks?: boolean;
   /** Union mode: the group's verified store lockfile to resolve from instead of a fresh tree. */
   seedLock?: Record<string, unknown>;
+  /**
+   * Build and check the store only: no project is linked, relocked or touched. Used to prepare the
+   * new store of a linked group before any manifest is switched to it.
+   */
+  prepareOnly?: boolean;
 }
 
 export interface LinkResult {
@@ -447,6 +514,7 @@ export async function linkGroup(
   const blocked: Project[] = [];
   for (const project of members) {
     if (
+      !options.prepareOnly &&
       (await linkState(path.join(project.dir, 'node_modules'))).kind === 'folder' &&
       !options.replaceExisting
     )
@@ -563,6 +631,8 @@ export async function linkGroup(
     if (changes.length > 0) result.conflicts = changes;
   }
 
+  if (options.prepareOnly) return result;
+
   // Only a tree that passed the edge check above is ever written back into the projects.
   if (options.syncLocks) {
     const warnings = await syncProjectLocks(root, members, storeDir);
@@ -648,6 +718,64 @@ export async function linkGroup(
   }
   await writeLinks(root, links);
   return result;
+}
+
+/**
+ * Puts the listed projects back on the links they had in `previous` (the records read before a
+ * switch to another store). Only links are recreated: the previous store is never deleted, so no npm
+ * runs. Every previous store is checked before anything is touched. A real folder found in place of
+ * a link is left as it is, with its current record. Manifests and locks are the caller's to restore
+ * from its snapshot. Returns the projects whose link was recreated or already pointed back.
+ */
+export async function restoreLinks(
+  root: string,
+  previous: LinkRecord[],
+  projectIds: string[],
+  now = new Date(),
+): Promise<string[]> {
+  const records = previous.filter((record) => projectIds.includes(record.projectId));
+  const gone = records.filter((record) => !existsSync(record.target));
+  if (gone.length > 0)
+    throw new Error(
+      `previous store is gone for ${gone.map((record) => record.projectId).join(', ')}: ${gone[0]?.target ?? ''}`,
+    );
+  const current = await readLinks(root);
+  const restored: string[] = [];
+  const back: LinkRecord[] = [];
+  for (const record of records) {
+    const linkPath = path.join(root, record.projectId, 'node_modules');
+    if (path.resolve(linkPath) !== path.resolve(root, record.projectId, 'node_modules'))
+      throw new Error('node_modules outside project');
+    const state = await linkState(linkPath);
+    if (state.kind === 'folder') {
+      const kept = current.find((link) => link.projectId === record.projectId);
+      if (kept) back.push(kept);
+      continue;
+    }
+    back.push(record);
+    if (state.kind === 'link') {
+      if (
+        record.mode !== 'packages' &&
+        path.resolve(state.target) === path.resolve(record.target)
+      ) {
+        restored.push(record.projectId);
+        continue;
+      }
+      await unlink(linkPath);
+    } else if (state.kind === 'packages') {
+      await trashUnlinked(root, record.projectId, linkPath, now);
+      await removeLinkedFolder(linkPath);
+    }
+    if (record.mode === 'packages')
+      await linkPackages(linkPath, record.target, record.packages ?? []);
+    else await symlink(record.target, linkPath, 'junction');
+    restored.push(record.projectId);
+  }
+  const keep = current.filter(
+    (link) => !records.some((record) => record.projectId === link.projectId),
+  );
+  await writeLinks(root, [...keep, ...back]);
+  return restored;
 }
 
 /**

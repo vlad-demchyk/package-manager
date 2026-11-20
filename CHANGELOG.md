@@ -2,6 +2,67 @@
 
 ## Unreleased
 
+- `packman sync`: the full cycle as one command, dry run unless `--apply`: Node preflight, then
+  passes of fix (`--risk`, `--rule`, `--fix`) -> store switch of every linked group with a changed
+  member -> build (`--script`, default `build`) -> check, until no allowed fix is left
+  (`--max-passes`, default 3). A fix that would undo an earlier pass (a package removed and added
+  back, a version set back) is held back and reported as a cycle. One summary lists every step;
+  a failed, cancelled or unfinished step makes the run incomplete (exit 1).
+- Linked groups switch stores as one operation (`src/store/switch.ts`): the new store is prepared and
+  tree-checked while the members keep the old one, then every member is relinked and built; when a
+  step fails, the previous links and a snapshot of every manifest, lockfile and edited file are
+  restored, without npm in the projects (the old store stays until `store prune`).
+- `upgrade` on projects linked to a shared store no longer stops with `linked`: the group is migrated
+  and switched as above. New blockers `linked-partial` (the store is shared with projects outside the
+  selection) and `linked-mixed` (linked and unlinked projects without `--shared`). `--verify
+[script]` takes a script (`--verify buildp`), `--sync` continues with `sync` passes.
+- Missing Node: `upgrade` and `sync` print the exact install command of the Node manager in use
+  (`nvm install`, `fnm install`, `volta fetch`; `nodeSetup` in `upgrade --json`); `--install-node`
+  with `--apply` runs it. The active Node is never switched.
+- npm steps can be limited and cancelled: `runCommand`/`runWithNode` take a time limit and an abort
+  signal and kill the whole process tree (`taskkill /T` on Windows, the process group elsewhere);
+  `sync --timeout <minutes>` (default 30) and Ctrl+C use them.
+- `store plan`: the gulpfile webpack rule warning names the file and line, the package, why the rule
+  stops matching (webpack resolves the junction to the store) and the reviewable
+  `fs.realpathSync(...)` edit. It is downgraded to `info:` when a build passed after linking (the
+  rule is inactive and not needed with that toolchain), and silent with `symlinks: false`.
+- `fix` on a linked project points to `packman sync --apply` instead of `store link`.
+- `packman store rollback [--apply]`: undoes the last store switch kept by `sync`/`upgrade` from
+  `.packman/switches.json` (previous links and file snapshot, no npm); refused when anything changed
+  since the switch.
+- `upgrade` never lowers a major through a group pin: a project whose package is a major ahead of the
+  pin (for example `@pnp/logging` 4 while `@pnp/sp` 3 sets the `@pnp` lockstep) keeps its version
+  with a `major-downgrade-kept` review issue. A lower major the target stack requires stays, as a
+  `major-downgrade` review issue.
+- Vulnerability remediation plan: every vulnerable package of a project gets its dependency chain,
+  the lowest patched version (releases with their own advisories are skipped) and a status inside
+  the project's stack: `direct`, `relock`, `parent`, `override` (npm `overrides` keyed by release
+  line) with `safe`/`review`/`breaking` risk, or `blocked` (fixed only in a new major under a
+  dependency the SPFx version pins, rejected by stack or peer ranges), `no-fix` (no patched release)
+  and `unknown` (offline without cache), each with its reason and `build`/`browser` context.
+  `security/package-vulnerability` findings now carry `security/<package>` fixes that `fix`
+  previews, `packman audit --plan [--json]` lists the plan, and `check --json` includes
+  `remediation` per project.
+- SPFx matrix vs npm: `check` names the latest verified matrix version and, when npm is ahead, the
+  npm latest as not yet verified (`spfx.upgradeAvailableUnverified`). A newer patch of a known minor
+  gets the constraints of the newest verified patch of that minor (`spfx/unverified-patch`), and
+  `upgrade --to 1.24.1` plans it with a `spfx-unverified` review issue; an unknown or (offline)
+  unconfirmed version is refused with the nearest verified one.
+- `packman align --package <name> --version <v>` runs the align plan again: the root `--version`
+  took the option and printed the packman version. Root `-V, --version` and `-h, --help` now count
+  only before the command name, so `--version <v>` and `--version=<v>` behave the same and
+  `packman --version` still prints the version (also in an interactive terminal, without the TUI).
+- TUI Outdated: `space` writes the highest version of the current major that passes the `compat`
+  and `add` checks (SPFx and other stack ranges, peer ranges both ways, `engines.node`, families,
+  the shared-store group spec, API breaks) instead of the newest release of the major. A refused
+  version shows its reason (`3.25.0 not allowed: SPFx 1.21.1 ... >=3.22.0 <3.24.0`) and never
+  reaches the Fixes tab.
+- `packman versions` (and the TUI Versions tab) summarize declared specs, locked versions and
+  installed versions separately (latest, most common with its count) and mark drift between
+  declared and locked; projects without `node_modules` count as installed `unknown`. `--json` adds
+  `summary`, `drift` and per-cell `versionSource`, `locked`, `installed`. `packman compat` shows
+  `declared ..., locked ..., installed ...; checked <version> (installed|locked|inferred ...)`
+  instead of the raw source (`manifest`), and `--json` adds it as `evidence`.
 - API breaks are data (`data/api-breaks.json`: PnPjs 2/3/4, React 16/18/19, Fluent UI 8, Microsoft
   Graph client 2/3, SPFx `MSGraphClientV3` and Heft, PnP controls 2/3, each with old and new API
   patterns, the official guide and migration steps). `check` reports `api/migration-required` when

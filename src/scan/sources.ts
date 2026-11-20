@@ -202,8 +202,10 @@ export function stripComments(source: string): string {
       while (i < source.length && source[i] !== '\n') i++;
     } else if (ch === '/' && next === '*') {
       const end = source.indexOf('*/', i + 2);
-      i = end === -1 ? source.length : end + 2;
-      out += ' ';
+      const after = end === -1 ? source.length : end + 2;
+      // Keep the line breaks so `file:line` locations of later matches stay exact.
+      out += ' ' + source.slice(i, after).replace(/[^\n]/g, '');
+      i = after;
     } else {
       out += ch;
       i++;

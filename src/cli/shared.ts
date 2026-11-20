@@ -10,13 +10,15 @@ import {
   recordStoreVerified,
   versionChanges,
 } from '../core/verified.js';
-import { runWithNode } from '../exec/run.js';
+import { describeRun, runWithNode } from '../exec/run.js';
 import { applyPreviews, collectEdits, lineDiff, previewEdits } from '../fixes/apply.js';
 import { fixCrossings } from '../fixes/breaks.js';
 import { t } from '../i18n/index.js';
 import { journal } from '../ops/journal.js';
+import { allFindings } from '../report/model.js';
 import {
   linkGroup,
+  manifestKey,
   readLinks,
   type LinkResult,
   type StoreGroup,
@@ -26,6 +28,32 @@ import { readStoreVerified } from '../core/verified.js';
 import { runAnalysis, type Session } from './context.js';
 
 export const RISK_ORDER: Record<Risk, number> = { safe: 0, review: 1, breaking: 2 };
+
+/** Fixes of the report's findings up to `risk`, optionally only some rules or fix ids. */
+export function selectFixesBy(
+  report: Report,
+  options: { risk?: Risk; rule?: string[]; fix?: string[] },
+): Fix[] {
+  const maxRisk = RISK_ORDER[options.risk ?? 'safe'];
+  return allFindings(report)
+    .filter((item) => !options.rule || options.rule.includes(item.ruleId))
+    .flatMap((item) => item.fixes)
+    .filter(
+      (entry) =>
+        RISK_ORDER[entry.risk] <= maxRisk && (!options.fix || options.fix.includes(entry.id)),
+    );
+}
+
+/** Linked projects whose dependency fields changed since they were linked (`store status` stale). */
+export function staleLinkedProjects(report: Report): Set<string> {
+  const stale = new Set<string>();
+  for (const entry of report.projects) {
+    const link = report.links?.find((item) => item.projectId === entry.project.id);
+    if (link && link.manifestKey !== manifestKey(entry.project.manifest))
+      stale.add(entry.project.id);
+  }
+  return stale;
+}
 
 const DEPENDENCY_FIELDS = [
   'dependencies',
@@ -185,9 +213,7 @@ export async function reviewAndApply(
         result.files.some((file) => file.startsWith(entry.project.dir + path.sep))
       )
         console.log(
-          pc.yellow(
-            `${entry.project.id}: ${t('install.linkedStale', { project: entry.project.id })}`,
-          ),
+          pc.yellow(`${entry.project.id}: ${t('sync.linkedHint', { project: entry.project.id })}`),
         );
   // A lockfile must follow the versions it locks: version edits relock by default (`--no-relock` opts
   // out); `--relock` also relocks projects whose other files changed or that had no lockfile yet.
@@ -359,6 +385,16 @@ export async function relinkGroup(
         )
       ).code,
   });
+  await printLinkResult(session, result, options.command);
+  return result;
+}
+
+/** Prints what a link changed (majors, peer gaps, unverified versions, trashed copies) and journals it. */
+export async function printLinkResult(
+  session: Session,
+  result: LinkResult,
+  command: string,
+): Promise<void> {
   for (const conflict of result.conflicts ?? []) console.log(pc.yellow(`  ~ ${conflict}`));
   if (result.peers?.length)
     console.log(pc.yellow(t('store.peers', { count: result.peers.length })));
@@ -368,7 +404,7 @@ export async function relinkGroup(
     console.log(pc.yellow(t('store.unverified', { count: result.unverified.length })));
   for (const line of result.unverified ?? []) console.log(pc.yellow(`    ${line}`));
   await journal(session.root, {
-    command: options.command,
+    command,
     projects: result.linked,
     result: 'ok',
     detail: `${path.relative(session.root, result.storeDir)}${result.conflicts?.length ? `, ${result.conflicts.length} major changes` : ''}${result.peers?.length ? `, ${result.peers.length} peer gaps` : ''}`,
@@ -387,7 +423,6 @@ export async function relinkGroup(
         t('store.trashed', { project: entry.projectId, packages: entry.packages.join(', ') }),
       ),
     );
-  return result;
 }
 
 /** `npm run <script>` in each project with its selected Node; passing projects get verified sets. */
@@ -397,6 +432,8 @@ export async function verifyProjects(
   projectIds: string[],
   script: string,
   command = 'store verify',
+  /** False leaves recording the verified sets to the caller (a switch that may still roll back). */
+  record = true,
 ): Promise<BuildResult[]> {
   const results: BuildResult[] = [];
   for (const entry of report.projects.filter((item) => projectIds.includes(item.project.id))) {
@@ -409,13 +446,13 @@ export async function verifyProjects(
     }
     console.log(pc.bold(`\n> ${entry.project.id}: npm run ${script}`));
     const result = await runWithNode(entry.node.selected, entry.project.dir, ['run', script]);
-    console.log(result.code === 0 ? pc.green('ok') : pc.red(`exit ${result.code}`));
+    console.log(result.code === 0 ? pc.green('ok') : pc.red(describeRun(result)));
     if (result.code !== 0) process.exitCode = result.code;
     await journal(session.root, {
       command,
       projects: [entry.project.id],
       result: result.code === 0 ? 'ok' : 'failed',
-      detail: `npm run ${script} (node ${entry.node.selected.version}) exit ${result.code}`,
+      detail: `npm run ${script} (node ${entry.node.selected.version}) ${describeRun(result)}`,
     });
     results.push({
       project: entry.project,
@@ -424,7 +461,7 @@ export async function verifyProjects(
       ok: result.code === 0,
     });
   }
-  await recordVerifiedBuilds(session.root, results);
+  if (record) await recordVerifiedBuilds(session.root, results);
   return results;
 }
 

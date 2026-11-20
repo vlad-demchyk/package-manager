@@ -48,6 +48,7 @@
           "id": "pnpjs1.new-class",
           "regex": "\\bnew\\s+(?:Web|Site|List|Item|Folder|File|ClientSideWebpart)\\s*\\(",
           "requires": "@pnp/sp",
+          "origin": "^@pnp/",
           "what": "`new Web(...)`: v2 uses factory functions without `new`",
           "kind": "removed"
         },
@@ -92,6 +93,7 @@
           "id": "pnpjs2.sp-setup",
           "regex": "\\b(?:sp|graph)\\s*\\.\\s*setup\\s*\\(",
           "requires": "@pnp/(?:sp|graph)",
+          "origin": "^@pnp/",
           "what": "sp.setup({ spfxContext }): v3 configures an instance with .using(SPFx(context))",
           "kind": "removed"
         },
@@ -99,6 +101,7 @@
           "id": "pnpjs2.get-method",
           "regex": "\\.(?:web|webs|lists?|items?|fields?|folders?|files?|views?|site|currentUser|siteUsers|siteGroups|hubsites?|navigation|profiles|utility|select|filter|expand|top|orderBy|skip|getById|getByTitle|getByName|getByUrl|getByEmail|getByLoginName)\\s*(?:\\([^()]*\\))?\\s*\\.get\\s*(?:<[^>]*>)?\\s*\\(\\s*\\)",
           "requires": "@pnp/(?:sp|graph)",
+          "origin": "^@pnp/",
           "what": ".get() on a PnPjs queryable: v3 invokes the queryable as a function",
           "kind": "removed"
         },
@@ -112,6 +115,7 @@
           "id": "pnpjs2.batch",
           "regex": "\\.inBatch\\s*\\(|\\b(?:sp|graph|web)\\s*\\.\\s*createBatch\\s*\\(",
           "requires": "@pnp/(?:sp|graph)",
+          "origin": "^@pnp/",
           "what": "createBatch()/inBatch(): v3 batches with sp.batched() from @pnp/sp/batching",
           "kind": "removed"
         },
@@ -119,6 +123,7 @@
           "id": "pnpjs2.renamed-methods",
           "regex": "\\.(?:getFolderByServerRelativeUrl|getFileByServerRelativeUrl)\\s*\\(|\\.(?:folders|files)\\s*\\.\\s*add\\s*\\(",
           "requires": "@pnp/sp",
+          "origin": "^@pnp/",
           "what": "getFolderByServerRelativeUrl/getFileByServerRelativeUrl and folders.add/files.add were replaced by *ByServerRelativePath and addUsingPath",
           "kind": "removed"
         },
@@ -144,6 +149,7 @@
           "id": "pnpjs2.using-caching",
           "regex": "\\.usingCaching\\s*\\(",
           "requires": "@pnp/(?:sp|graph)",
+          "origin": "^@pnp/",
           "what": ".usingCaching(): v3 uses .using(Caching()) from @pnp/queryable",
           "kind": "removed",
           "verified": false
@@ -186,6 +192,7 @@
           "id": "pnpjs3.get-all",
           "regex": "\\.getAll\\s*(?:<[^>]*>)?\\s*\\(|[\"']@pnp/sp/items/get-all[\"']",
           "requires": "@pnp/sp",
+          "origin": "^@pnp/",
           "what": "items.getAll() and @pnp/sp/items/get-all were removed in v4 (async iterator)",
           "kind": "removed"
         },
@@ -193,6 +200,7 @@
           "id": "pnpjs3.get-paged",
           "regex": "\\.getPaged\\s*(?:<[^>]*>)?\\s*\\(|\\bPagedItemCollection\\b",
           "requires": "@pnp/sp",
+          "origin": "^@pnp/",
           "what": "items.getPaged() and PagedItemCollection were removed in v4 (async iterator)",
           "kind": "removed"
         },
@@ -200,6 +208,7 @@
           "id": "pnpjs3.graph-paged",
           "regex": "\\.paged\\s*(?:<[^>]*>)?\\s*\\(",
           "requires": "@pnp/graph",
+          "origin": "^@pnp/",
           "what": "graph collection .paged() was removed in v4 (async iterator)",
           "kind": "removed"
         },
@@ -207,6 +216,7 @@
           "id": "pnpjs3.add-update-result",
           "regex": "\\bI(?:Item|List|Web|Folder|File|Field|View|ContentType|Group|User|Attachment|Navigation)(?:Add|Update)Result(?:Data)?\\b|\\.(?:add|update)\\s*\\((?:[^()]|\\([^()]*\\))*\\)\\s*\\)*\\s*\\.(?:data|item)\\b",
           "requires": "@pnp/(?:sp|graph)",
+          "origin": "^@pnp/",
           "what": "add()/update() results with .data/.item: v4 returns the payload (add) or void (update)",
           "kind": "removed"
         },

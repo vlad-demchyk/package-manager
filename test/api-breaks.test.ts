@@ -2,7 +2,9 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { analyze, type ProjectReport, type Report } from '../src/analyze.js';
 import { configSchema } from '../src/core/config.js';
 import { discoverWorkspace } from '../src/core/discovery.js';
-import { apiBreaks, crossings } from '../src/scan/api-breaks.js';
+import { tm } from '../src/i18n/index.js';
+import { apiBreaks, crossings, matchApiPatterns } from '../src/scan/api-breaks.js';
+import { stripComments } from '../src/scan/sources.js';
 import { packageCompatibility, pickProject } from '../src/policy/compat.js';
 import { planUpgrade } from '../src/upgrade/plan.js';
 import { fakeNodes, lockfile, makeWorkspace, TODAY, type FileTree } from './helpers.js';
@@ -77,6 +79,73 @@ const FABRIC_CODE = `import { PrimaryButton } from 'office-ui-fabric-react';
 import { useBoolean } from '@uifabric/react-hooks';
 export { PrimaryButton, useBoolean };
 `;
+// Microsoft Graph clients from the SPFx factory, the legacy `sp-pnp-js` package and jQuery all have
+// `.select(...).get()` or `new Web()`; none of it is @pnp/sp, although the file imports @pnp/sp too.
+const NOT_PNP_CODE = `import { spfi, SPFx } from "@pnp/sp";
+import "@pnp/sp/webs";
+import { MSGraphClientV3 } from "@microsoft/sp-http";
+import { Web } from "sp-pnp-js";
+import * as $ from "jquery";
+/*
+ * A block comment spanning lines must not shift the reported line numbers.
+ */
+export class Panel {
+  private graphClient: MSGraphClientV3;
+  private _client: MSGraphClientV3 = null;
+  public constructor(private context: any) {}
+  public async load(): Promise<unknown> {
+    this.graphClient = await this.context.msGraphClientFactory.getClient("3");
+    return this.graphClient.api("/me").select("displayName").get();
+  }
+  public async local(props: any): Promise<unknown> {
+    const graphClient = await props.context.msGraphClientFactory.getClient("3");
+    return graphClient.api("/users/demo").select("mail").get();
+  }
+  public typed(): void {
+    this.context.msGraphClientFactory.getClient("3").then((client: MSGraphClientV3): void => {
+      client.api("/me/memberOf").select("id").get();
+    });
+  }
+  public untyped(): void {
+    this.context?.msGraphClientFactory
+      .getClient("3")
+      .then((client) => client.api("/me").select("id").get());
+  }
+  public property(): Promise<unknown> {
+    return this._client.api("/groups").select("id").get();
+  }
+  public async legacy(url: string, payload: unknown): Promise<unknown> {
+    const web: Web = new Web(url);
+    await web.lists.getByTitle("Docs").items.select("Id").get();
+    return web.lists.getByTitle("Docs").items.add(payload).then(async (res) => res.item.get());
+  }
+  public dom(el: HTMLElement): unknown[] {
+    return $(el).filter(".x").get();
+  }
+  public sp(): unknown {
+    return spfi().using(SPFx(this.context));
+  }
+}
+`;
+// The same file shape with real PnPjs 2-style calls: traced, untraceable (falls back to the file's
+// @pnp/sp import) and a Graph client between them that must stay out of the evidence.
+const PNP_REAL_CODE = `import { spfi, SPFx, SPFI } from "@pnp/sp";
+import "@pnp/sp/webs";
+import "@pnp/sp/lists";
+import { getSP } from "./pnpjsConfig";
+export class Data {
+  private sp: SPFI;
+  public constructor(private context: any) {
+    this.sp = spfi().using(SPFx(context));
+  }
+  public async titles(): Promise<unknown> {
+    const graph = await this.context.msGraphClientFactory.getClient("3");
+    await graph.api("/me").select("id").get();
+    await this.sp.web.lists.select("Title").get();
+    return getSP().web.lists.getByTitle("Docs").items.get();
+  }
+}
+`;
 const FLUENT_CODE = `import { PrimaryButton, ThemeProvider } from '@fluentui/react';
 export { PrimaryButton, ThemeProvider };
 `;
@@ -99,6 +168,8 @@ const FILES: FileTree = {
   ...project('fabric-ok', { 'office-ui-fabric-react': '7.199.1' }, FABRIC_CODE),
   ...project('fluent-mixed', { '@fluentui/react': '8.106.4' }, FABRIC_CODE),
   ...project('fluent-ok', { '@fluentui/react': '8.106.4' }, FLUENT_CODE),
+  ...project('pnp4-not-pnp', { '@pnp/sp': '4.17.0', 'sp-pnp-js': '3.0.10' }, NOT_PNP_CODE),
+  ...project('pnp-real-get', { '@pnp/sp': '3.20.1' }, PNP_REAL_CODE),
   'packman.config.json': {
     profiles: {
       'pnp-latest': { projects: ['pnp2-v1code'], dependencies: { '@pnp/sp': '4.12.0' } },
@@ -232,6 +303,53 @@ describe('api/migration-required', () => {
     const [item] = migrations('fluent-mixed');
     expect(item?.severity).toBe('error');
     expect(item?.message.params).toMatchObject({ package: '@fluentui/react', count: 2 });
+  });
+});
+
+/** 1-based line of the first occurrence of `needle` in `code`. */
+const lineIn = (code: string, needle: string): number =>
+  code.slice(0, code.indexOf(needle)).split('\n').length;
+
+describe('api/migration-required traces the receiver before blaming PnPjs (PMT01)', () => {
+  it('ignores Graph clients, sp-pnp-js and jQuery .get() in a file that also imports @pnp/sp 4', () => {
+    expect(migrations('pnp4-not-pnp')).toEqual([]);
+  });
+
+  it('still reports real PnPjs .get(), traced or untraceable, and leaves the Graph call out', () => {
+    const [item] = migrations('pnp-real-get');
+    expect(item?.message.params).toMatchObject({ package: '@pnp/sp', since: '3.0.0' });
+    expect(item?.evidence.filter((line) => line.startsWith('  src/'))).toEqual([
+      `  src/index.ts:${lineIn(PNP_REAL_CODE, 'this.sp.web.lists')}`,
+      `  src/index.ts:${lineIn(PNP_REAL_CODE, 'getSP().web')}`,
+    ]);
+  });
+
+  it('keeps line numbers exact after a multi-line block comment', () => {
+    const scanned: Map<string, string[]> = new Map();
+    matchApiPatterns(
+      stripComments(`import "@pnp/sp/webs";
+/*
+ a
+ b
+*/
+sp.web.lists.get();
+`),
+      'x.ts',
+      scanned,
+    );
+    expect(scanned.get('pnpjs2.get-method')).toEqual(['x.ts:6']);
+  });
+});
+
+describe('api/migration-required names where the version comes from (PMT13)', () => {
+  it('says locked, not installed, when there is no node_modules', () => {
+    const [item] = migrations('pnp-real-get');
+    expect(item?.message.key).toBe('api.oldUsage');
+    expect(item?.message.params).toMatchObject({ version: '3.20.1', versionSource: 'lockfile' });
+    expect(item?.evidence[0]).toBe(
+      '@pnp/sp: declared 3.20.1, locked 3.20.1, installed unknown (no node_modules); checked 3.20.1 (locked)',
+    );
+    expect(tm(item?.message ?? { key: '' }, 'en')).not.toContain('installed');
   });
 });
 

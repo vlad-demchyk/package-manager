@@ -26,7 +26,14 @@ packman upgrade --apply --shared --verify -y  # install once, link, build every 
    converges on 1.21.1. Separate families have separate baselines.
 4. `--to <version|range>` needs exactly one family (`--to requires one framework family; select it
 with --stack`). For SPFx it picks the highest **non-withdrawn version of the bundled matrix**
-   (`data/spfx.json`) matching the range; for other families the highest version **already used by a
+   (`data/spfx.json`) matching the range. A newer patch of a known minor that npm publishes (for
+   example 1.24.1 when the matrix stops at 1.24.0) is a target only when the range matches no
+   verified version or names that patch exactly: it gets the constraints of the newest verified patch
+   of its minor and a `spfx-unverified` review issue. Offline the registry is not asked: an exact
+   unverified patch is planned only when `packman data update` recorded it, otherwise it stops with
+   the nearest verified version; a version npm does not publish stops
+   with `No published SPFx release known to packman matches <range>` and the nearest verified one.
+   For other families the highest version **already used by a
    project of that family** that matches. No match stops with `no supported <stack> target matches
 <range>`.
 5. SPFx toolchain: gulp when the target version is a gulp release, or when the baseline uses gulp and
@@ -45,6 +52,13 @@ with --stack`). For SPFx it picks the highest **non-withdrawn version of the bun
   migrated. `node-missing` (review) when the chosen Node is not installed; `--apply` with any npm run
   (relock, `--install`, `--verify`, `--shared`) then stops with
   `Node <version> is not installed; install it before running npm or verifying builds.`
+- Missing Node preflight (`src/ops/node-setup.ts`): the plan prints the exact command that installs
+  the chosen Node with the manager this machine uses (the one that installed most of the found
+  versions, else `NVM_HOME`, `NVM_DIR`, `FNM_DIR`, `VOLTA_HOME`): `nvm install <v>` (nvm-windows, and
+  nvm in a child shell), `fnm install <v>`, `volta fetch node@<v>`. `--json` has it as `nodeSetup`.
+  `--install-node --apply` runs it and plans again with the new Node. None of these commands changes
+  the active Node of your shell; `nvm use`, `fnm default` and `volta install` are never run. Without
+  a manager, packman says so and installs nothing.
 
 ## Edits for every family
 
@@ -172,22 +186,25 @@ deprecated package or another script is a `profile-conflict` blocker.
 
 Every issue has a code, a level (`blocker` or `review`) and a message. Besides the SPFx codes above:
 
-| Code                                                           | Level   | Meaning                                                                                                      |
-| -------------------------------------------------------------- | ------- | ------------------------------------------------------------------------------------------------------------ |
-| `unknown-version`                                              | blocker | The family's version cannot be determined.                                                                   |
-| `unknown-spfx`                                                 | blocker | The SPFx target has no migration data.                                                                       |
-| `node-incompatible`, `node-policy-scope`                       | blocker | See [Node selection](#node-selection).                                                                       |
-| `node-missing`                                                 | review  | The chosen Node is not installed.                                                                            |
-| `downgrade`                                                    | blocker | A project is newer than the target.                                                                          |
-| `linked`                                                       | blocker | The project is linked to the shared store (without `--shared`); unlink it first.                             |
-| `package-version`, `lint-metadata`                             | blocker | No version of a package matching the needed range in project locks or the registry (cache when `--offline`). |
-| `custom-gulp`, `custom-script`, `custom-sass`, `custom-eslint` | blocker | Custom build or lint configuration to port by hand.                                                          |
-| `profile-conflict`                                             | blocker | A hand-written profile contradicts the migration.                                                            |
-| `cycle`                                                        | blocker | A dependency cycle between local projects; build order is ambiguous.                                         |
-| `framework-review`                                             | review  | Non-SPFx framework version change.                                                                           |
-| `api-migration`                                                | review  | A version edit crosses a documented API break and the source uses the old API; see the code changes block.   |
-| `no-build`                                                     | blocker | With `--verify`: a non-SPFx project has no `build`/`test` script.                                            |
-| `shared-family`, `shared-excluded`, `shared-lock`              | blocker | With `--shared`: see below.                                                                                  |
+| Code                                                           | Level   | Meaning                                                                                                                                                   |
+| -------------------------------------------------------------- | ------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `unknown-version`                                              | blocker | The family's version cannot be determined.                                                                                                                |
+| `unknown-spfx`                                                 | blocker | The SPFx target has no migration data.                                                                                                                    |
+| `node-incompatible`, `node-policy-scope`                       | blocker | See [Node selection](#node-selection).                                                                                                                    |
+| `node-missing`                                                 | review  | The chosen Node is not installed.                                                                                                                         |
+| `downgrade`                                                    | blocker | A project is newer than the target.                                                                                                                       |
+| `linked-partial`                                               | blocker | The store of the selected linked projects is also used by projects outside the selection.                                                                 |
+| `major-downgrade-kept`                                         | review  | A group pin (baseline version, `@pnp` packages following `@pnp/sp`) would lower a major the target stack does not require; the project keeps its version. |
+| `major-downgrade`                                              | review  | The target stack requires a lower major (scaffold, library line); the edit stays and is a breaking change to review.                                      |
+| `linked-mixed`                                                 | blocker | Some selected projects are linked, others have their own `node_modules` (pass `--shared` to link them too).                                               |
+| `package-version`, `lint-metadata`                             | blocker | No version of a package matching the needed range in project locks or the registry (cache when `--offline`).                                              |
+| `custom-gulp`, `custom-script`, `custom-sass`, `custom-eslint` | blocker | Custom build or lint configuration to port by hand.                                                                                                       |
+| `profile-conflict`                                             | blocker | A hand-written profile contradicts the migration.                                                                                                         |
+| `cycle`                                                        | blocker | A dependency cycle between local projects; build order is ambiguous.                                                                                      |
+| `framework-review`                                             | review  | Non-SPFx framework version change.                                                                                                                        |
+| `api-migration`                                                | review  | A version edit crosses a documented API break and the source uses the old API; see the code changes block.                                                |
+| `no-build`                                                     | blocker | With `--verify`: a non-SPFx project has no `build`/`test` script.                                                                                         |
+| `shared-family`, `shared-excluded`, `shared-lock`              | blocker | With `--shared`: see below.                                                                                                                               |
 
 With blockers, `upgrade` prints the plan and the diff as a dry run, then
 `N blockers require changes before this migration can be applied.` and exits 1, even with `--apply`.
@@ -199,7 +216,8 @@ package name) comes first.
 
 With `--apply` and no blockers (`src/cli/upgrade.ts`):
 
-1. Backs up `package.json` and the lockfile of every migrated project (journal `upgrade:backup`).
+1. Snapshots `package.json`, the lockfile and `.nvmrc` of every migrated project and every file the
+   migration edits (journal `upgrade:backup`); a failed linked switch restores them.
 2. Shows the diff and asks for confirmation (`-y` skips it), writes the edits with backups.
 3. Without `--shared`: relocks the changed npm projects (default; `--no-relock` keeps lockfiles).
 4. `--install` or `--verify` without `--shared`: runs `npm install --no-audit --no-fund` in each
@@ -209,6 +227,11 @@ With `--apply` and no blockers (`src/cli/upgrade.ts`):
    journal `upgrade:verify` per project); a failure sets the exit code and the next project still
    runs. Passing projects get verified sets (and stores whose members all passed, see
    [Shared store](shared-store.md#verified-sets)).
+
+`--verify <script>` runs that script instead (SPFx production check: `--verify buildp`). `--sync`
+then runs [`packman sync`](commands.md#sync) passes with `--apply` and `--risk` (default `safe`): the
+clean-ups the new stack makes possible are applied, the store switched and built again, and the
+check repeated until stable.
 
 `--install` and `--verify` do nothing without `--apply`. `--json --apply` is refused
 (`--json prints a read-only migration plan`).
@@ -229,6 +252,22 @@ With `--apply` and no blockers (`src/cli/upgrade.ts`):
   linked project.
 - With `--verify`, builds run in the linked projects; when they all pass, the store lockfile becomes
   the group's verified set.
+
+## Linked groups
+
+Projects already linked to one shared store upgrade in place, as a group (`planFor` and
+`switchStale` in `src/cli/upgrade.ts` and `src/cli/sync.ts`). There is no `linked` blocker and no
+unlink: `upgrade --to 1.21.1 --node 22.23.4 --verify buildp --apply` on a linked group
+
+1. writes the migration (no per-project relock);
+2. prepares the group's new store with the new Node (one `npm install` in `.packman/store/<key>`)
+   while the projects still use the old one;
+3. relinks every member and writes its lockfile from the store tree;
+4. with `--verify`, builds every member.
+
+If any step fails, every member is linked to the old store again and the snapshot is restored: the
+group runs as before the upgrade, and npm never runs in the projects (the old store stays on disk
+until `store prune`). See [Switching a linked group](shared-store.md#switching-a-linked-group).
 
 ## What upgrade does not do
 

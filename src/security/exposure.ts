@@ -1,9 +1,10 @@
 import { loadData } from '../core/data.js';
 import { finding, msg } from '../core/findings.js';
-import type { ExposureContext, Finding, Project, Severity, StackInfo } from '../core/types.js';
+import type { ExposureContext, Finding, Fix, Project, Severity, StackInfo } from '../core/types.js';
 import type { NodeVuln } from '../node/releases.js';
 import type { SourceScan } from '../scan/sources.js';
 import type { Advisory, PackageVulnerability } from './advisories.js';
+import { describeRemediation, remediationFix, type Remediation } from './remediation.js';
 
 interface NetworkData {
   packages: string[];
@@ -85,7 +86,10 @@ export function packageVulnerabilityFindings(
   vulns: PackageVulnerability[],
   exposure: ExposureContext,
   network: NetworkUsage,
+  remediations: Remediation[] = [],
 ): Finding[] {
+  const planOf = (vuln: PackageVulnerability): Remediation | undefined =>
+    remediations.find((item) => item.package === vuln.name && item.version === vuln.version);
   const networkPackages = new Set(loadData<NetworkData>('network.json').networkAdvisoryPackages);
   const rated = vulns.map((vuln) => {
     const worst = vuln.advisories.reduce<Severity>((acc, advisory) => {
@@ -135,7 +139,11 @@ export function packageVulnerabilityFindings(
           network: networkCount,
         }),
         {
-          evidence: items.map((item) => {
+          fixes: fixesOf(
+            project,
+            items.flatMap((item) => planOf(item.vuln) ?? []),
+          ),
+          evidence: items.flatMap((item) => {
             const top = item.vuln.advisories[0];
             const more =
               item.vuln.advisories.length > 1 ? ` (+${item.vuln.advisories.length - 1})` : '';
@@ -145,7 +153,11 @@ export function packageVulnerabilityFindings(
               ...(item.networkRelevant ? ['network'] : []),
               ...(item.reason ? [item.reason] : []),
             ].join(', ');
-            return `${item.vuln.name}@${item.vuln.version} [${top?.severity ?? '?'}] ${top?.title ?? ''}${more} - ${flags}${top ? ` ${top.url}` : ''}`;
+            const plan = planOf(item.vuln);
+            return [
+              `${item.vuln.name}@${item.vuln.version} [${top?.severity ?? '?'}] ${top?.title ?? ''}${more} - ${flags}${top ? ` ${top.url}` : ''}`,
+              ...(plan ? describeRemediation(plan) : []),
+            ];
           }),
           tags: ['security', ...contexts, ...(networkCount > 0 ? ['network'] : [])],
         },
@@ -154,6 +166,26 @@ export function packageVulnerabilityFindings(
   }
   return findings;
 }
+
+/** One fix per package (same id for every version of it), merged edits on shared overrides keys. */
+function fixesOf(project: Project, plans: Remediation[]): Fix[] {
+  const byId = new Map<string, Fix>();
+  for (const plan of plans) {
+    const item = remediationFix(project, plan);
+    if (!item) continue;
+    const known = byId.get(item.id);
+    if (!known) byId.set(item.id, item);
+    else {
+      for (const edit of item.edits)
+        if (!known.edits.some((other) => JSON.stringify(other) === JSON.stringify(edit)))
+          known.edits.push(edit);
+      if (RISKS.indexOf(item.risk) > RISKS.indexOf(known.risk)) known.risk = item.risk;
+    }
+  }
+  return [...byId.values()];
+}
+
+const RISKS: Fix['risk'][] = ['safe', 'review', 'breaking'];
 
 export function nodeVulnerabilityFindings(
   project: Project,

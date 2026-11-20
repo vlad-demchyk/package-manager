@@ -91,6 +91,15 @@ export function toJson(report: Report): unknown {
       apiUsage: entry.apiUsage,
       summary: summarize(entry.findings),
       findings: entry.findings.map(serializeFinding),
+      ...(entry.remediation
+        ? {
+            remediation: entry.remediation.map((item) => ({
+              ...item,
+              reason: tm(item.reason),
+              reasonKey: item.reason.key,
+            })),
+          }
+        : {}),
     })),
   };
 }

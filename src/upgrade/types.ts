@@ -48,4 +48,6 @@ export interface UpgradePlan {
   issues: MigrationIssue[];
   nodeVersion?: string;
   node?: InstalledNode;
+  /** When the target Node is not installed: the command that installs it without switching to it. */
+  nodeSetup?: { command: string; manager?: string; note: string };
 }
