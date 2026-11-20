@@ -1076,6 +1076,30 @@ release of the major is refused, the row shows `✗ <version>` and the detail bo
 reason (for example SPFx 1.21.1 allows `@pnp/spfx-controls-react` `>=3.22.0 <3.24.0`, so 3.25.0 is
 refused). A refused version is never added to the Fixes tab.
 
+Managed operations run on the same core as the CLI commands (`src/tui/jobs.ts`):
+
+| Key | Where                    | Operation                                                                          |
+| --- | ------------------------ | ---------------------------------------------------------------------------------- |
+| `+` | Projects (row or detail) | [`add`](#add): type `name` or `name@range`; the version comes from the same choice |
+| `-` | Projects (row or detail) | [`remove`](#remove): type the names; places that still use them are listed         |
+| `b` | Projects (row or detail) | `npm run build` in the project, or in every member of its linked store group       |
+| `c` | any tab                  | [`sync`](#sync) with `--apply --risk safe`                                         |
+
+1. **Preview** (nothing is written): the scope (files that change, `npm install` per project with
+   its Node, the linked store group that is rebuilt and relinked, builds), the checks of `add`
+   (`!` errors block the run, `~` warnings), places a removed package is still used, and the diff.
+   For `c`, the first pass of `sync` (fixes, linked groups to rebuild); later passes follow from
+   what it changes.
+2. **Confirm**: `y` runs, `Esc` goes back. A blocked preview cannot run.
+3. **Run**: the TUI closes and the operation runs in the terminal with the CLI output (phases of
+   `sync`, npm, store switch). `Esc` or `Ctrl+C` aborts the running step through its signal: the
+   npm process tree is killed (exit 130) and `sync` rolls back the store switch and files as it
+   does from the CLI; a second `Ctrl+C` exits. `add`/`remove` keep the written manifests when the
+   install is cancelled, like the CLI.
+4. **Result**: after a key the TUI opens again, reloaded, with each step and its status, the exit
+   code the CLI command would end with, and what is still left (findings by severity, safe fixes,
+   stale linked projects).
+
 ## init
 
 ```text

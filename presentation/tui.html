@@ -245,7 +245,8 @@ A red latest means a new major version.</span></pre>
           <div class="tui-keys">
             <b>↑↓</b> move · <b>tab</b> tabs · <b>enter</b> open · <b>esc</b> back ·
             <b>space</b> select fix · <b>u</b> profiles · <b>s</b> severity · <b>a</b> apply ·
-            <b>r</b> reload · <b>q</b> quit
+            <b>r</b> reload · <b>+/-</b> add/remove package · <b>b</b> build · <b>c</b> sync ·
+            <b>q</b> quit
           </div>
         </div>
 
@@ -394,6 +395,20 @@ A red latest means a new major version.</span></pre>
                 </td>
               </tr>
               <tr>
+                <td><kbd>+</kbd> / <kbd>-</kbd></td>
+                <td>
+                  Projects tab: add or remove a package in the selected project (managed, below)
+                </td>
+              </tr>
+              <tr>
+                <td><kbd>b</kbd></td>
+                <td>Projects tab: build the project, or every member of its linked store group</td>
+              </tr>
+              <tr>
+                <td><kbd>c</kbd></td>
+                <td>sync: safe fixes, store switches, builds and a final check (managed, below)</td>
+              </tr>
+              <tr>
                 <td><kbd>q</kbd> / <kbd>Ctrl</kbd>+<kbd>C</kbd></td>
                 <td>quit</td>
               </tr>
@@ -419,10 +434,30 @@ A red latest means a new major version.</span></pre>
         </ul>
         <div class="callout">
           <p>
-            The TUI does not install packages, link the store or run npm: use the CLI for that
-            (<code>install</code>, <code>store link</code>, <code>relock</code>).
+            Applying selected fixes (key <kbd>a</kbd>) does not install packages, link the store or
+            run npm. The managed operations below do, on the same core as the CLI commands.
           </p>
         </div>
+
+        <h2 id="managed">Managed operations</h2>
+        <ol>
+          <li>
+            <strong>Preview</strong>, nothing written: the files that change,
+            <code>npm install</code> per project with its Node, the linked store group that is
+            rebuilt, builds; the checks of <code>packman add</code> (<code>!</code> blocks the run);
+            the diff. For <kbd>c</kbd> the first pass of <code>packman sync</code>.
+          </li>
+          <li><strong>Confirm</strong>: <kbd>y</kbd> runs, <kbd>Esc</kbd> goes back.</li>
+          <li>
+            <strong>Run</strong>: the TUI steps aside and the job prints like the CLI (sync phases,
+            npm, store switch). <kbd>Esc</kbd> or <kbd>Ctrl</kbd>+<kbd>C</kbd> kills the running npm
+            step (exit 130); <code>sync</code> rolls the store switch and the files back.
+          </li>
+          <li>
+            <strong>Result</strong>: the TUI comes back, reloaded, with each step, the exit code and
+            what is still left (findings by severity, safe fixes, stale linked projects).
+          </li>
+        </ol>
       </main>
     </div>
     <footer class="site-footer">

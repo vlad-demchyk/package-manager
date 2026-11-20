@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+- TUI managed operations on the CLI core: `+`/`-` add or remove a package in the selected project
+  (version choice and checks of `packman add`; an error check blocks), `b` builds the project or its
+  linked store group, `c` runs `packman sync --apply`. Each shows its scope, checks and diff before
+  anything is written and runs only after `y`; while it runs, `Esc`/`Ctrl+C` cancels the npm step
+  (exit 130) and `sync` rolls back; the TUI then shows each step, the exit code and what is left.
+  The sync orchestration moved to `src/ops/sync.ts` (`packman sync` unchanged).
+- `docs/rules.md` lists `spfx/unverified-patch`.
 - `packman sync`: the full cycle as one command, dry run unless `--apply`: Node preflight, then
   passes of fix (`--risk`, `--rule`, `--fix`) -> store switch of every linked group with a changed
   member -> build (`--script`, default `build`) -> check, until no allowed fix is left

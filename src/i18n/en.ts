@@ -233,9 +233,12 @@ export const en = {
   'tui.job.unavailable': 'Managed operations are not available here: use the CLI commands.',
   'tui.job.planning': 'Planning… nothing is written yet.',
   'tui.job.back': 'Esc: back',
-  'tui.job.blocked': 'Cannot run: fix what is marked ! first. Esc: back',
+  'tui.job.blocked': 'Cannot run: see the lines above. Esc: back',
+  'tui.job.nothing': 'Nothing to change.',
   'tui.job.confirm':
-    'Run it? y runs (Esc or Ctrl+C cancels while it runs, sync rolls back), Esc goes back',
+    'Run it? y runs (Esc or Ctrl+C stops the running step; nothing is rolled back), Esc goes back',
+  'tui.job.confirmSync':
+    'Run it? y runs (Esc or Ctrl+C stops it and rolls back the store switch in progress), Esc goes back',
   'tui.job.anyKey': 'Press any key to return to the TUI.',
   'tui.job.running': 'Running outside the TUI; Esc or Ctrl+C cancels the running step.',
   'tui.job.exit': 'exit {code}: {state}',

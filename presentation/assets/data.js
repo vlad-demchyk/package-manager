@@ -4720,6 +4720,17 @@ window.PM_DATA = {
       inCode: true,
     },
     {
+      id: 'spfx/unverified-patch',
+      section: 'SharePoint Framework',
+      severity: 'info',
+      trigger:
+        'The version is a published patch newer than the verified matrix (`verifiedAt` in `data/spfx.json`): the constraints of the newest verified patch of the same minor are assumed, not yet verified. The other SPFx rules run with them.',
+      fixesText: 'none',
+      fixes: [],
+      title: null,
+      inCode: true,
+    },
+    {
       id: 'spfx/withdrawn',
       section: 'SharePoint Framework',
       severity: 'error',
@@ -5650,6 +5661,8 @@ window.PM_DATA = {
         {
           title: '',
           items: [
+            'TUI managed operations on the CLI core: `+`/`-` add or remove a package in the selected project (version choice and checks of `packman add`; an error check blocks), `b` builds the project or its linked store group, `c` runs `packman sync --apply`. Each shows its scope, checks and diff before anything is written and runs only after `y`; while it runs, `Esc`/`Ctrl+C` cancels the npm step (exit 130) and `sync` rolls back; the TUI then shows each step, the exit code and what is left. The sync orchestration moved to `src/ops/sync.ts` (`packman sync` unchanged).',
+            '`docs/rules.md` lists `spfx/unverified-patch`.',
             '`packman sync`: the full cycle as one command, dry run unless `--apply`: Node preflight, then passes of fix (`--risk`, `--rule`, `--fix`) -> store switch of every linked group with a changed member -> build (`--script`, default `build`) -> check, until no allowed fix is left (`--max-passes`, default 3). A fix that would undo an earlier pass (a package removed and added back, a version set back) is held back and reported as a cycle. One summary lists every step; a failed, cancelled or unfinished step makes the run incomplete (exit 1).',
             'Linked groups switch stores as one operation (`src/store/switch.ts`): the new store is prepared and tree-checked while the members keep the old one, then every member is relinked and built; when a step fails, the previous links and a snapshot of every manifest, lockfile and edited file are restored, without npm in the projects (the old store stays until `store prune`).',
             '`upgrade` on projects linked to a shared store no longer stops with `linked`: the group is migrated and switched as above. New blockers `linked-partial` (the store is shared with projects outside the selection) and `linked-mixed` (linked and unlinked projects without `--shared`). `--verify',
@@ -6013,6 +6026,12 @@ window.PM_DATA = {
       p: 'TUI',
       u: 'tui.html#apply',
       k: 'Writes the selected changes with a backup in .packman/backups/<time>/ and rereads the report. Does not relock and does not write to the journal. After version edits run packman relock -p <project>. Fixes of any risk can ',
+    },
+    {
+      t: 'Managed operations',
+      p: 'TUI',
+      u: 'tui.html#managed',
+      k: 'Preview, nothing written: the files that change, npm install per project with its Node, the linked store group that is rebuilt, builds; the checks of packman add (! blocks the run); the diff. For c the first pass of pack',
     },
     {
       t: 'Configuration',

@@ -165,6 +165,18 @@ describe('TUI managed jobs: preview writes nothing, run uses the CLI core', () =
     ).toBe(true);
   });
 
+  it('add: a package already declared that way has nothing to run, and says so', async () => {
+    const s = await session(APP);
+    const preview = await previewJob(s, OPTIONS, {
+      kind: 'add',
+      projectId: 'app',
+      packages: 'is-number@^7.0.0',
+    });
+    expect(preview.blocked).toBe(true);
+    expect(preview.previews).toEqual([]);
+    expect(preview.notes.at(-1)).toEqual({ tone: 'info', text: 'Nothing to change.' });
+  });
+
   it('remove: previews the edit and keeps the files until run', async () => {
     const s = await session(APP);
     const before = await snapshot(s.root);
@@ -328,6 +340,7 @@ describe('TUI managed jobs: keys', () => {
     expect(lastFrame()).toContain('app: npm install with Node 22.19.0');
     expect(lastFrame()).toMatch(/\+\s*"is-odd": "3\.0\.1"/);
     expect(lastFrame()).toContain('Run it? y runs');
+    expect(lastFrame()).toContain('nothing is rolled back');
     expect(onRun).not.toHaveBeenCalled();
     stdin.write('y');
     await tick();
@@ -355,6 +368,14 @@ describe('TUI managed jobs: keys', () => {
     stdin.write('\x1b');
     await tick(60);
     expect(lastFrame()).not.toContain('Cannot run');
+    planJob.mockImplementationOnce((request: { kind: string }) =>
+      Promise.resolve({ ...PREVIEW, kind: request.kind } as JobPreview),
+    );
+    stdin.write('c');
+    await tick(60);
+    expect(lastFrame()).toContain('rolls back the store switch in progress');
+    stdin.write('');
+    await tick(60);
     stdin.write('2');
     await tick();
     stdin.write('b');

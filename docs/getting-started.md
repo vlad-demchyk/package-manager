@@ -135,6 +135,9 @@ Tabs (keys `1`-`7`, or `tab` / arrows): Overview, Projects, Versions, Outdated, 
 | `s`                                  | cycle the minimum severity shown                                                                                                                                                                        |
 | `a`                                  | in Fixes: apply the selected fixes after a `y` confirmation                                                                                                                                             |
 | `r`                                  | reload                                                                                                                                                                                                  |
+| `+` / `-`                            | Projects: add or remove a package (like `add` / `remove`): preview, then `y` runs                                                                                                                       |
+| `b`                                  | Projects: build the project (or its linked store group)                                                                                                                                                 |
+| `c`                                  | sync (like `sync --apply`): preview of the first pass, then `y` runs; `esc` / `ctrl+c` cancel a running step ([details](commands.md#tui))                                                               |
 | `q`, `ctrl+c`                        | quit                                                                                                                                                                                                    |
 
 Applying in the TUI writes the previewed files with backups in `.packman/backups/`, then reloads. It

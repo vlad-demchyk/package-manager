@@ -171,6 +171,7 @@ export async function previewJob(
     }
     const previews = await previewEdits(collectEdits(fixes));
     const errors = notes.some((note) => note.tone === 'error');
+    if (!errors && previews.length === 0) notes.push({ tone: 'info', text: t('tui.job.nothing') });
     return {
       kind: request.kind,
       title: t(`tui.job.title.${request.kind}`, {
@@ -244,7 +245,10 @@ export async function previewJob(
       ...groups.map((ids) => t('sync.wouldSwitch', { projects: ids })),
       t('tui.job.scopeSyncPasses'),
     ],
-    notes,
+    notes:
+      fixes.length === 0 && stale.size === 0
+        ? [{ tone: 'info', text: t('tui.job.nothing') }]
+        : notes,
     previews,
     blocked: fixes.length === 0 && stale.size === 0,
     data: { kind: 'sync', report, targets: [], fixes, ids: changed },

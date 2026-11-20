@@ -76,6 +76,10 @@ Outdated (tab 4, exact, `^` and `~` specs only) to the highest version of its ma
 peer and group checks allow, showing the refused newer version and why; `u` selects every profile fix (like `profile apply`).
 Store (tab 6) shows the union plan and which projects are linked; linking stays a CLI command because
 it installs and replaces `node_modules`.
+Managed operations run on the CLI core with a preview first: `+`/`-` add or remove a package in the
+selected project (version choice and checks of `packman add`), `b` builds it, `c` runs `packman sync`.
+After `y` the TUI steps aside while the job runs (`Esc`/`Ctrl+C` cancels, `sync` rolls back), then
+comes back with each step, the exit code and what is still left.
 
 ## What it checks
 

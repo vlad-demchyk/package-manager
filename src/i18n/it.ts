@@ -234,9 +234,12 @@ export const it: Catalogue = {
   'tui.job.unavailable': 'Operazioni gestite non disponibili qui: usa i comandi CLI.',
   'tui.job.planning': 'Pianificazione… non viene ancora scritto nulla.',
   'tui.job.back': 'Esc: indietro',
-  'tui.job.blocked': 'Impossibile eseguire: correggi prima quanto segnato con !. Esc: indietro',
+  'tui.job.blocked': 'Impossibile eseguire: vedi le righe sopra. Esc: indietro',
+  'tui.job.nothing': 'Niente da cambiare.',
   'tui.job.confirm':
-    'Eseguire? y esegue (Esc o Ctrl+C annulla durante l’esecuzione, sync ripristina), Esc torna indietro',
+    'Eseguire? y esegue (Esc o Ctrl+C ferma il passo in corso; nulla viene ripristinato), Esc torna indietro',
+  'tui.job.confirmSync':
+    'Eseguire? y esegue (Esc o Ctrl+C lo ferma e ripristina lo switch dello store in corso), Esc torna indietro',
   'tui.job.anyKey': 'Premi un tasto per tornare alla TUI.',
   'tui.job.running': 'Esecuzione fuori dalla TUI; Esc o Ctrl+C annulla il passo in corso.',
   'tui.job.exit': 'uscita {code}: {state}',

@@ -1038,7 +1038,9 @@ function JobView(props: {
         </Box>
       )}
       <Text color={preview.blocked ? 'red' : 'yellow'} bold>
-        {preview.blocked ? t('tui.job.blocked') : t('tui.job.confirm')}
+        {preview.blocked
+          ? t('tui.job.blocked')
+          : t(preview.kind === 'sync' ? 'tui.job.confirmSync' : 'tui.job.confirm')}
       </Text>
     </Box>
   );
